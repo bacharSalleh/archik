@@ -7,6 +7,7 @@ import { FrontendNode } from "./nodes/FrontendNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
+import { KIND_META } from "./kindPalette.ts";
 
 type ShapeProps = { node: PositionedNode; selected: boolean };
 
@@ -70,6 +71,26 @@ function DescriptionIndicator({
   );
 }
 
+function KindTag({
+  kind,
+}: {
+  kind: PositionedNode["kind"];
+}): React.ReactElement {
+  const color = KIND_META[kind].color;
+  return (
+    <g transform="translate(8, 8)" pointerEvents="none" aria-hidden="true">
+      <circle r={3.5} fill={color} />
+      <circle
+        r={3.5}
+        fill="none"
+        stroke={color}
+        strokeOpacity={0.4}
+        strokeWidth={2}
+      />
+    </g>
+  );
+}
+
 type Props = {
   node: PositionedNode;
   selectedNodeId?: string | undefined;
@@ -102,6 +123,9 @@ export function NodeRenderer({
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} selected={isSelected} />
+      {node.kind !== "frontend" && node.kind !== "custom" && (
+        <KindTag kind={node.kind} />
+      )}
       {hasDescription && node.kind !== "external" && (
         <DescriptionIndicator
           width={node.width}

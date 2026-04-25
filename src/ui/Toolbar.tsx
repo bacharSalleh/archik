@@ -1,8 +1,8 @@
 import type { Document, NodeKind } from "../domain/types.ts";
-import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
-import { exporters } from "../io/exporters.ts";
-import { CopyButton } from "./CopyButton.tsx";
 import { AddNodeForm } from "./AddNodeForm.tsx";
+import { ExportMenu } from "./ExportMenu.tsx";
+import { Legend } from "./Legend.tsx";
+import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -59,15 +59,22 @@ export function Toolbar({
         borderBottom: "1px solid var(--archik-border)",
       }}
     >
+      <div className="flex items-center gap-2">
+        <Logo />
+        <span
+          className="text-sm font-semibold tracking-tight"
+          style={{ color: "var(--archik-fg)", letterSpacing: "0.02em" }}
+        >
+          Archik
+        </span>
+      </div>
       <span
-        className="text-sm font-semibold tracking-tight"
-        style={{ color: "var(--archik-fg)", letterSpacing: "0.01em" }}
-      >
-        Archik
-      </span>
-      <span
-        className="text-xs"
-        style={{ color: "var(--archik-fg-dim)" }}
+        className="archik-mono"
+        style={{
+          color: "var(--archik-fg-dim)",
+          fontSize: 11,
+          opacity: 0.85,
+        }}
       >
         {document.name}
       </span>
@@ -97,20 +104,8 @@ export function Toolbar({
       )}
       <div className="ml-auto flex items-center gap-2">
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
-        {exporters.map((exporter) => (
-          <CopyButton
-            key={exporter.name}
-            exporter={exporter}
-            document={document}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => saveDocumentAsDownload(filename, document)}
-          className="archik-btn"
-        >
-          Download YAML
-        </button>
+        <Legend />
+        <ExportMenu document={document} filename={filename} />
         <button
           type="button"
           onClick={onSave}

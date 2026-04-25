@@ -293,6 +293,36 @@ body,
   pointer-events: none;
 }
 
+/* Popover (Export menu, Legend, etc.) ---------------------------------- */
+.archik-popover {
+  background: var(--archik-panel);
+  border: 1px solid var(--archik-border-strong);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: archikModalIn 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.archik-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--archik-fg);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.archik-menu-item:hover {
+  background: var(--archik-surface-hover);
+}
+.archik-menu-item--danger {
+  color: var(--archik-danger);
+}
+
 @keyframes archikFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
