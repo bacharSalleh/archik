@@ -4,6 +4,7 @@ import { useUIStore } from "./store.ts";
 describe("useUIStore (selection)", () => {
   beforeEach(() => {
     useUIStore.getState().clearSelection();
+    useUIStore.getState().cancelConnect();
   });
 
   it("starts with no selection", () => {
@@ -39,5 +40,18 @@ describe("useUIStore (selection)", () => {
       type: "node",
       id: "api",
     });
+  });
+
+  it("startConnect records the from node and clears selection", () => {
+    useUIStore.getState().selectNode("api");
+    useUIStore.getState().startConnect("api");
+    expect(useUIStore.getState().connectFrom).toBe("api");
+    expect(useUIStore.getState().selection).toBeNull();
+  });
+
+  it("cancelConnect clears connectFrom", () => {
+    useUIStore.getState().startConnect("api");
+    useUIStore.getState().cancelConnect();
+    expect(useUIStore.getState().connectFrom).toBeNull();
   });
 });

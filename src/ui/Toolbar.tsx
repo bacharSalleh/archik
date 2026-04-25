@@ -15,6 +15,8 @@ type Props = {
   isDirty?: boolean;
   onSave?: () => void;
   onAddNode?: (kind: NodeKind, name: string) => void;
+  connectingFromName?: string;
+  onCancelConnect?: () => void;
 };
 
 const SAVE_LABELS: Record<SaveStatus, string | null> = {
@@ -40,6 +42,8 @@ export function Toolbar({
   isDirty = false,
   onSave,
   onAddNode,
+  connectingFromName,
+  onCancelConnect,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -50,6 +54,19 @@ export function Toolbar({
     <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
       <span className="text-base font-semibold tracking-tight">Archik</span>
       <span className="text-xs text-slate-500">{document.name}</span>
+      {connectingFromName !== undefined && (
+        <span className="flex items-center gap-2 rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+          Connecting from <strong>{connectingFromName}</strong> — click a node
+          to finish, or
+          <button
+            type="button"
+            onClick={onCancelConnect}
+            className="underline hover:no-underline"
+          >
+            cancel (Esc)
+          </button>
+        </span>
+      )}
       {commandError !== undefined && (
         <span className="rounded bg-rose-50 px-2 py-0.5 text-xs text-rose-700">
           {commandError}

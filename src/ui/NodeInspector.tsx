@@ -5,9 +5,14 @@ import type { Node, NodeKind } from "../domain/types.ts";
 type Props = {
   node: Node | undefined;
   dispatch: (cmd: Command) => void;
+  onStartConnect?: ((fromId: string) => void) | undefined;
 };
 
-export function NodeInspector({ node, dispatch }: Props): React.ReactElement {
+export function NodeInspector({
+  node,
+  dispatch,
+  onStartConnect,
+}: Props): React.ReactElement {
   if (!node) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-500">
@@ -74,7 +79,16 @@ export function NodeInspector({ node, dispatch }: Props): React.ReactElement {
         />
       </Field>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        {onStartConnect !== undefined && (
+          <button
+            type="button"
+            onClick={() => onStartConnect(node.id)}
+            className="w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 hover:bg-blue-100"
+          >
+            Connect to…
+          </button>
+        )}
         <button
           type="button"
           onClick={() => dispatch({ type: "remove_node", id: node.id })}

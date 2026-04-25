@@ -10,6 +10,7 @@ import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
+import type { Edge } from "../domain/types.ts";
 import { useUIStore } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
@@ -41,9 +42,12 @@ export function App(): React.ReactElement {
     null,
   );
   const selection = useUIStore((s) => s.selection);
+  const connectFrom = useUIStore((s) => s.connectFrom);
   const selectNode = useUIStore((s) => s.selectNode);
   const selectEdge = useUIStore((s) => s.selectEdge);
   const clearSelection = useUIStore((s) => s.clearSelection);
+  const startConnect = useUIStore((s) => s.startConnect);
+  const cancelConnect = useUIStore((s) => s.cancelConnect);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,11 +123,65 @@ export function App(): React.ReactElement {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (isDirty) void save();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (connectFrom) cancelConnect();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isDirty, save]);
+  }, [isDirty, save, connectFrom, cancelConnect]);
+
+  const handleSelectNode = useCallback(
+    (id: string) => {
+      if (connectFrom === null) {
+        selectNode(id);
+        return;
+      }
+      if (id === connectFrom) {
+        cancelConnect();
+        return;
+      }
+      let createdEdgeId: string | null = null;
+      setState((current) => {
+        if (current.status !== "ready") return current;
+        const fromNode = current.document.nodes.find(
+          (n) => n.id === connectFrom,
+        );
+        if (!fromNode) return current;
+        const taken = new Set(current.document.edges.map((e) => e.id));
+        const edgeId = uniqueId(
+          slugify(`${connectFrom}-${id}`),
+          taken,
+          "edge",
+        );
+        const edge: Edge = {
+          id: edgeId,
+          from: connectFrom,
+          to: id,
+          relationship: "http_call",
+        };
+        try {
+          const next = applyCommand(current.document, {
+            type: "connect",
+            edge,
+          });
+          setCommandError(undefined);
+          setIsDirty(true);
+          createdEdgeId = edgeId;
+          return { status: "ready", document: next };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          setCommandError(message);
+          return current;
+        }
+      });
+      cancelConnect();
+      if (createdEdgeId) selectEdge(createdEdgeId);
+    },
+    [connectFrom, cancelConnect, selectNode, selectEdge],
+  );
 
   const addNode = useCallback(
     (kind: NodeKind, name: string) => {
@@ -196,6 +254,10 @@ export function App(): React.ReactElement {
     selection?.type === "edge"
       ? doc.edges.find((e) => e.id === selection.id)
       : undefined;
+  const connectFromNode =
+    connectFrom !== null
+      ? doc.nodes.find((n) => n.id === connectFrom)
+      : undefined;
 
   return (
     <div className="flex h-full flex-col bg-slate-50 text-slate-900">
@@ -207,6 +269,12 @@ export function App(): React.ReactElement {
         onSave={() => void save()}
         onAddNode={addNode}
         {...(reloadError !== undefined ? { reloadError } : {})}
+        {...(connectFromNode !== undefined
+          ? {
+              connectingFromName: connectFromNode.name,
+              onCancelConnect: cancelConnect,
+            }
+          : {})}
       />
       <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -219,16 +287,22 @@ export function App(): React.ReactElement {
             {...(selection?.type === "edge"
               ? { selectedEdgeId: selection.id }
               : {})}
-            onSelectNode={selectNode}
+            onSelectNode={handleSelectNode}
             onSelectEdge={selectEdge}
-            onSelectNothing={clearSelection}
+            onSelectNothing={
+              connectFrom === null ? clearSelection : cancelConnect
+            }
           />
         </div>
         <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
           {selection?.type === "edge" ? (
             <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
           ) : (
-            <NodeInspector node={selectedNode} dispatch={dispatch} />
+            <NodeInspector
+              node={selectedNode}
+              dispatch={dispatch}
+              onStartConnect={startConnect}
+            />
           )}
         </aside>
       </main>
