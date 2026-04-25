@@ -3,6 +3,7 @@ import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
 import { exporters } from "../io/exporters.ts";
 import { CopyButton } from "./CopyButton.tsx";
 import { AddNodeForm } from "./AddNodeForm.tsx";
+import { ThemeToggle } from "./ThemeToggle.tsx";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -19,18 +20,18 @@ type Props = {
   onCancelConnect?: () => void;
 };
 
+const SAVE_VARIANT: Record<SaveStatus, string> = {
+  idle: "",
+  saving: "archik-pill archik-pill--info",
+  saved: "archik-pill archik-pill--success",
+  error: "archik-pill archik-pill--danger",
+};
+
 const SAVE_LABELS: Record<SaveStatus, string | null> = {
   idle: null,
   saving: "Saving…",
   saved: "Saved",
   error: "Save failed",
-};
-
-const SAVE_CLASSES: Record<SaveStatus, string> = {
-  idle: "",
-  saving: "bg-slate-100 text-slate-600",
-  saved: "bg-emerald-50 text-emerald-700",
-  error: "bg-rose-50 text-rose-700",
 };
 
 export function Toolbar({
@@ -51,41 +52,48 @@ export function Toolbar({
       ? "⌘S"
       : "Ctrl+S";
   return (
-    <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-      <span className="text-base font-semibold tracking-tight">Archik</span>
-      <span className="text-xs text-slate-500">{document.name}</span>
+    <header
+      className="flex items-center gap-3 px-4 py-2.5"
+      style={{
+        background: "var(--archik-panel)",
+        borderBottom: "1px solid var(--archik-border)",
+      }}
+    >
+      <span
+        className="text-sm font-semibold tracking-tight"
+        style={{ color: "var(--archik-fg)", letterSpacing: "0.01em" }}
+      >
+        Archik
+      </span>
+      <span
+        className="text-xs"
+        style={{ color: "var(--archik-fg-dim)" }}
+      >
+        {document.name}
+      </span>
       {connectingFromName !== undefined && (
-        <span className="flex items-center gap-2 rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
-          Connecting from <strong>{connectingFromName}</strong> — click a node
-          to finish, or
+        <span className="archik-pill archik-pill--info">
+          Connecting from <strong>{connectingFromName}</strong>
           <button
             type="button"
             onClick={onCancelConnect}
             className="underline hover:no-underline"
+            style={{ color: "var(--archik-accent)" }}
           >
             cancel (Esc)
           </button>
         </span>
       )}
       {commandError !== undefined && (
-        <span className="rounded bg-rose-50 px-2 py-0.5 text-xs text-rose-700">
-          {commandError}
-        </span>
+        <span className="archik-pill archik-pill--danger">{commandError}</span>
       )}
       {reloadError !== undefined && (
-        <span
-          className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-800"
-          title={reloadError}
-        >
+        <span className="archik-pill archik-pill--warning" title={reloadError}>
           File reload error
         </span>
       )}
       {saveLabel !== null && (
-        <span
-          className={`rounded px-2 py-0.5 text-xs ${SAVE_CLASSES[saveStatus]}`}
-        >
-          {saveLabel}
-        </span>
+        <span className={SAVE_VARIANT[saveStatus]}>{saveLabel}</span>
       )}
       <div className="ml-auto flex items-center gap-2">
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
@@ -99,7 +107,7 @@ export function Toolbar({
         <button
           type="button"
           onClick={() => saveDocumentAsDownload(filename, document)}
-          className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
+          className="archik-btn"
         >
           Download YAML
         </button>
@@ -108,10 +116,11 @@ export function Toolbar({
           onClick={onSave}
           disabled={!isDirty || saveStatus === "saving"}
           title={`Save to ${filename} (${shortcutHint})`}
-          className="rounded border border-blue-600 bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-400"
+          className="archik-btn archik-btn-primary"
         >
           {isDirty ? "Save •" : "Save"}
         </button>
+        <ThemeToggle />
       </div>
     </header>
   );

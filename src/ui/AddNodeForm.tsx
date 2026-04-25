@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { NodeKind } from "../domain/types.ts";
 import { NODE_KINDS } from "../domain/taxonomy.ts";
 
@@ -24,62 +24,109 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
     close();
   };
 
-  if (!open) {
-    return (
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
+        className="archik-btn"
       >
         + Node
       </button>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-      className="flex items-center gap-1.5 rounded border border-slate-300 bg-white px-1.5 py-1"
-    >
-      <select
-        value={kind}
-        onChange={(e) => setKind(e.target.value as NodeKind)}
-        className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs"
-      >
-        {NODE_KINDS.map((k) => (
-          <option key={k} value={k}>
-            {k}
-          </option>
-        ))}
-      </select>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Name"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Escape") close();
-        }}
-        className="w-40 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs outline-none focus:border-blue-500"
-      />
-      <button
-        type="submit"
-        disabled={name.trim().length === 0}
-        className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-      >
-        Add
-      </button>
-      <button
-        type="button"
-        onClick={close}
-        className="rounded px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100"
-      >
-        Cancel
-      </button>
-    </form>
+      {open && (
+        <div className="archik-modal-overlay" onClick={close}>
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            className="archik-modal"
+            role="dialog"
+            aria-label="Add node"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 8,
+                marginBottom: 16,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: "0.01em",
+                  color: "var(--archik-fg)",
+                }}
+              >
+                Add node
+              </h2>
+              <span
+                style={{ fontSize: 11, color: "var(--archik-fg-dim)" }}
+              >
+                routed through applyCommand
+              </span>
+            </div>
+            <label className="archik-label" htmlFor="add-node-kind">
+              Kind
+            </label>
+            <select
+              id="add-node-kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as NodeKind)}
+              className="archik-input"
+              style={{ width: "100%", marginBottom: 12 }}
+            >
+              {NODE_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            <label className="archik-label" htmlFor="add-node-name">
+              Name
+            </label>
+            <input
+              id="add-node-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Inventory Service"
+              autoFocus
+              className="archik-input"
+              style={{ width: "100%", marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={close}
+                className="archik-btn"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={name.trim().length === 0}
+                className="archik-btn archik-btn-primary"
+              >
+                Add
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
   );
 }

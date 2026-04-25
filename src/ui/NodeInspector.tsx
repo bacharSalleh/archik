@@ -17,7 +17,10 @@ export function NodeInspector({
 }: Props): React.ReactElement {
   if (!node) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-500">
+      <div
+        className="flex h-full flex-col items-center justify-center p-6 text-center text-sm"
+        style={{ color: "var(--archik-fg-muted)" }}
+      >
         Select a node to edit its properties.
       </div>
     );
@@ -29,10 +32,8 @@ export function NodeInspector({
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-500">
-          Id
-        </div>
-        <div className="font-mono text-xs text-slate-900">{node.id}</div>
+        <div className="archik-label">Id</div>
+        <div className="archik-mono">{node.id}</div>
       </div>
 
       <Field label="Name" htmlFor="ni-name">
@@ -41,7 +42,7 @@ export function NodeInspector({
           type="text"
           value={node.name}
           onChange={(e) => update({ name: e.target.value })}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
@@ -50,7 +51,7 @@ export function NodeInspector({
           id="ni-kind"
           value={node.kind}
           onChange={(e) => update({ kind: e.target.value as NodeKind })}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         >
           {NODE_KINDS.map((k) => (
             <option key={k} value={k}>
@@ -67,7 +68,7 @@ export function NodeInspector({
           value={node.stack ?? ""}
           onChange={(e) => update({ stack: e.target.value })}
           placeholder="e.g. Go, Postgres 16"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
@@ -77,7 +78,7 @@ export function NodeInspector({
           value={node.description ?? ""}
           onChange={(e) => update({ description: e.target.value })}
           rows={3}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
@@ -89,7 +90,7 @@ export function NodeInspector({
             const v = e.target.value;
             update(v === "" ? { parentId: undefined } : { parentId: v });
           }}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         >
           <option value="">(none)</option>
           {allNodes
@@ -102,12 +103,13 @@ export function NodeInspector({
         </select>
       </Field>
 
-      <div className="mt-auto flex flex-col gap-2 pt-4">
+      <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
         {onStartConnect !== undefined && (
           <button
             type="button"
             onClick={() => onStartConnect(node.id)}
-            className="w-full rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 hover:bg-blue-100"
+            className="archik-btn archik-btn-primary"
+            style={{ justifyContent: "center", padding: "8px 12px" }}
           >
             Connect to…
           </button>
@@ -115,7 +117,8 @@ export function NodeInspector({
         <button
           type="button"
           onClick={() => dispatch({ type: "remove_node", id: node.id })}
-          className="w-full rounded border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+          className="archik-btn archik-btn-danger"
+          style={{ justifyContent: "center", padding: "8px 12px" }}
         >
           Delete node
         </button>
@@ -135,10 +138,7 @@ function Field({
 }): React.ReactElement {
   return (
     <div>
-      <label
-        htmlFor={htmlFor}
-        className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500"
-      >
+      <label htmlFor={htmlFor} className="archik-label">
         {label}
       </label>
       {children}

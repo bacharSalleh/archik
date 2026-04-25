@@ -10,7 +10,10 @@ type Props = {
 export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
   if (!edge) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-500">
+      <div
+        className="flex h-full flex-col items-center justify-center p-6 text-center text-sm"
+        style={{ color: "var(--archik-fg-muted)" }}
+      >
         Select an edge to edit its properties.
       </div>
     );
@@ -22,24 +25,18 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-500">
-          Id
-        </div>
-        <div className="font-mono text-xs text-slate-900">{edge.id}</div>
+        <div className="archik-label">Id</div>
+        <div className="archik-mono">{edge.id}</div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">
-            From
-          </div>
-          <div className="font-mono text-xs text-slate-900">{edge.from}</div>
+          <div className="archik-label">From</div>
+          <div className="archik-mono">{edge.from}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">
-            To
-          </div>
-          <div className="font-mono text-xs text-slate-900">{edge.to}</div>
+          <div className="archik-label">To</div>
+          <div className="archik-mono">{edge.to}</div>
         </div>
       </div>
 
@@ -50,7 +47,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           onChange={(e) =>
             update({ relationship: e.target.value as Relationship })
           }
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         >
           {RELATIONSHIPS.map((r) => (
             <option key={r} value={r}>
@@ -67,7 +64,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           value={edge.label ?? ""}
           onChange={(e) => update({ label: e.target.value })}
           placeholder="optional"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
@@ -77,7 +74,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           value={edge.description ?? ""}
           onChange={(e) => update({ description: e.target.value })}
           rows={2}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
@@ -88,15 +85,16 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           value={edge.protocol ?? ""}
           onChange={(e) => update({ protocol: e.target.value })}
           placeholder="e.g. http, kafka"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+          className="archik-input w-full"
         />
       </Field>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-4 archik-divider">
         <button
           type="button"
           onClick={() => dispatch({ type: "disconnect", id: edge.id })}
-          className="w-full rounded border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+          className="archik-btn archik-btn-danger"
+          style={{ width: "100%", justifyContent: "center", padding: "8px 12px" }}
         >
           Delete connection
         </button>
@@ -116,10 +114,7 @@ function Field({
 }): React.ReactElement {
   return (
     <div>
-      <label
-        htmlFor={htmlFor}
-        className="mb-1 block text-[10px] uppercase tracking-wider text-slate-500"
-      >
+      <label htmlFor={htmlFor} className="archik-label">
         {label}
       </label>
       {children}

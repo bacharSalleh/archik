@@ -137,10 +137,10 @@ function ZoomControls({
         display: "flex",
         gap: 4,
         padding: 4,
-        background: "white",
-        border: "1px solid #e2e8f0",
+        background: "var(--archik-panel)",
+        border: "1px solid var(--archik-border)",
         borderRadius: 6,
-        boxShadow: "0 1px 3px rgba(15, 23, 42, 0.05)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)",
       }}
     >
       <button
@@ -148,7 +148,8 @@ function ZoomControls({
         onClick={onZoomOut}
         title="Zoom out"
         aria-label="Zoom out"
-        style={zoomButtonStyle}
+        className="archik-btn"
+        style={{ minWidth: 28, padding: "0 8px", height: 24 }}
       >
         −
       </button>
@@ -157,7 +158,8 @@ function ZoomControls({
         onClick={onZoomReset}
         title="Reset zoom (100%)"
         aria-label="Reset zoom"
-        style={{ ...zoomButtonStyle, minWidth: 48 }}
+        className="archik-btn"
+        style={{ minWidth: 48, padding: "0 8px", height: 24 }}
       >
         {Math.round(zoom * 100)}%
       </button>
@@ -166,22 +168,11 @@ function ZoomControls({
         onClick={onZoomIn}
         title="Zoom in"
         aria-label="Zoom in"
-        style={zoomButtonStyle}
+        className="archik-btn"
+        style={{ minWidth: 28, padding: "0 8px", height: 24 }}
       >
         +
       </button>
     </div>
   );
 }
-
-const zoomButtonStyle: React.CSSProperties = {
-  minWidth: 28,
-  height: 24,
-  padding: "0 8px",
-  fontSize: 12,
-  color: "#334155",
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: 4,
-  cursor: "pointer",
-};

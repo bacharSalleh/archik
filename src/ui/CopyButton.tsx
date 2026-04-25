@@ -33,7 +33,7 @@ export function CopyButton({ exporter, document }: Props): React.ReactElement {
     <button
       type="button"
       onClick={() => void onClick()}
-      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+      className="archik-btn"
     >
       {copied ? `Copied ${exporter.label}` : `Copy ${exporter.label}`}
     </button>

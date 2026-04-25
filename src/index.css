@@ -1,8 +1,295 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Theme tokens. Light is the existing slate-on-white look (kept as a fallback
+   for users who flip the toggle). Dark is the new sci-fi default — deep navy
+   surfaces with cyan / magenta accents and a faint phosphor glow.
+   --------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+  --archik-canvas:        #f8fafc;
+  --archik-panel:         #ffffff;
+  --archik-surface:       #f1f5f9;
+  --archik-surface-hover: #e2e8f0;
+
+  --archik-fg:            #0f172a;
+  --archik-fg-dim:        #475569;
+  --archik-fg-muted:      #94a3b8;
+
+  --archik-border:        #e2e8f0;
+  --archik-border-strong: #cbd5e1;
+
+  --archik-accent:        #2563eb;
+  --archik-accent-bright: #3b82f6;
+  --archik-magenta:       #db2777;
+  --archik-success:       #10b981;
+  --archik-warning:       #d97706;
+  --archik-danger:        #e11d48;
+
+  --archik-node-fill:         #ffffff;
+  --archik-node-fill-tinted:  #f1f5f9;
+  --archik-node-fill-frame:   #ffffff;
+  --archik-node-stroke:       #0f172a;
+  --archik-node-stroke-soft:  #475569;
+  --archik-node-text:         #0f172a;
+  --archik-node-text-dim:     #475569;
+  --archik-node-caption:      #64748b;
+  --archik-node-chrome-dot:   #cbd5f5;
+
+  --archik-edge-filled: #0f172a;
+  --archik-edge-open:   #334155;
+  --archik-edge-dim:    #64748b;
+  --archik-edge-async:  #2563eb;
+
+  --archik-grid-minor: #e2e8f0;
+  --archik-grid-major: #cbd5e1;
+
+  --archik-selected:         #2563eb;
+  --archik-selected-glow:    rgba(37, 99, 235, 0.18);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --archik-canvas:        #050912;
+  --archik-panel:         #0c1426;
+  --archik-surface:       #14203a;
+  --archik-surface-hover: #1c2c4d;
+
+  --archik-fg:            #e6edf7;
+  --archik-fg-dim:        #8b9bb8;
+  --archik-fg-muted:      #5b6a87;
+
+  --archik-border:        #1d2b48;
+  --archik-border-strong: #2c3e63;
+
+  --archik-accent:        #22d3ee;
+  --archik-accent-bright: #67e8f9;
+  --archik-magenta:       #f472b6;
+  --archik-success:       #34d399;
+  --archik-warning:       #fbbf24;
+  --archik-danger:        #fb7185;
+
+  --archik-node-fill:         #0c1426;
+  --archik-node-fill-tinted:  #142037;
+  --archik-node-fill-frame:   #14203a;
+  --archik-node-stroke:       #2c3e63;
+  --archik-node-stroke-soft:  #1d2b48;
+  --archik-node-text:         #e6edf7;
+  --archik-node-text-dim:     #b6c2d8;
+  --archik-node-caption:      #67e8f9;
+  --archik-node-chrome-dot:   #475878;
+
+  --archik-edge-filled: #cbd5e1;
+  --archik-edge-open:   #94a3b8;
+  --archik-edge-dim:    #64748b;
+  --archik-edge-async:  #67e8f9;
+
+  --archik-grid-minor: #0d1830;
+  --archik-grid-major: #182748;
+
+  --archik-selected:         #22d3ee;
+  --archik-selected-glow:    rgba(34, 211, 238, 0.28);
+
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+  background: var(--archik-canvas);
+  color: var(--archik-fg);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------------
+   Component primitives — used inside React components alongside Tailwind
+   utility classes so colors live in CSS vars and layout in the markup.
+   --------------------------------------------------------------------------- */
+
+.archik-panel {
+  background: var(--archik-panel);
+  border: 1px solid var(--archik-border);
+  border-radius: 8px;
+}
+
+.archik-input {
+  background: var(--archik-surface);
+  color: var(--archik-fg);
+  border: 1px solid var(--archik-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.archik-input:focus {
+  border-color: var(--archik-accent);
+  box-shadow: 0 0 0 3px var(--archik-selected-glow);
+}
+
+.archik-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--archik-surface);
+  color: var(--archik-fg);
+  border: 1px solid var(--archik-border);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.archik-btn:hover {
+  background: var(--archik-surface-hover);
+  border-color: var(--archik-border-strong);
+}
+.archik-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.archik-btn-primary {
+  background: var(--archik-accent);
+  border-color: var(--archik-accent);
+  color: #050912;
+}
+.archik-btn-primary:hover {
+  background: var(--archik-accent-bright);
+  border-color: var(--archik-accent-bright);
+}
+[data-theme="light"] .archik-btn-primary {
+  color: #ffffff;
+}
+
+.archik-btn-danger {
+  background: transparent;
+  color: var(--archik-danger);
+  border-color: var(--archik-danger);
+  border-style: dashed;
+}
+.archik-btn-danger:hover {
+  background: var(--archik-danger);
+  color: #050912;
+  border-style: solid;
+}
+
+.archik-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+.archik-pill--info {
+  color: var(--archik-accent);
+  border-color: var(--archik-border-strong);
+  background: color-mix(in oklab, var(--archik-accent) 8%, transparent);
+}
+.archik-pill--success {
+  color: var(--archik-success);
+  background: color-mix(in oklab, var(--archik-success) 12%, transparent);
+}
+.archik-pill--warning {
+  color: var(--archik-warning);
+  background: color-mix(in oklab, var(--archik-warning) 14%, transparent);
+}
+.archik-pill--danger {
+  color: var(--archik-danger);
+  background: color-mix(in oklab, var(--archik-danger) 14%, transparent);
+}
+
+.archik-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--archik-fg-muted);
+  margin-bottom: 4px;
+}
+
+.archik-mono {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  color: var(--archik-fg);
+}
+
+.archik-divider {
+  border-top: 1px solid var(--archik-border);
+}
+
+/* ---------------------------------------------------------------------------
+   Canvas grid background — subtle dot grid that scales with zoom.
+   --------------------------------------------------------------------------- */
+.archik-grid {
+  background-color: var(--archik-canvas);
+  background-image:
+    radial-gradient(var(--archik-grid-minor) 1px, transparent 1px),
+    radial-gradient(var(--archik-grid-major) 1px, transparent 1px);
+  background-size: 20px 20px, 100px 100px;
+  background-position: 0 0, 0 0;
+}
+
+/* Subtle outer glow on selection (used by selected-overlay rect). */
+.archik-selected-glow {
+  filter: drop-shadow(0 0 6px var(--archik-selected-glow))
+    drop-shadow(0 0 2px var(--archik-selected-glow));
+}
+
+/* ---------------------------------------------------------------------------
+   Modal popup primitive — used by AddNode (and future dialogs).
+   --------------------------------------------------------------------------- */
+.archik-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--archik-canvas) 70%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: archikFadeIn 140ms ease-out;
+}
+.archik-modal {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--archik-panel);
+  border: 1px solid var(--archik-border);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--archik-border-strong);
+  animation: archikModalIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes archikFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes archikModalIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Inspector drawer slide-in.
+   --------------------------------------------------------------------------- */
+.archik-drawer {
+  animation: archikSlideIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes archikSlideIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: none; }
 }

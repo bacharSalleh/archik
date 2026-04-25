@@ -10,34 +10,35 @@ describe("AddNodeForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the form when the trigger is clicked", () => {
+  it("opens the modal when the trigger is clicked", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
-    expect(screen.getByPlaceholderText(/name/i)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
 
   it("calls onAdd with the chosen kind + trimmed name", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
-    fireEvent.change(screen.getByRole("combobox"), {
+    fireEvent.change(screen.getByLabelText(/kind/i), {
       target: { value: "database" },
     });
-    fireEvent.change(screen.getByPlaceholderText(/name/i), {
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "  Orders DB  " },
     });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
     expect(onAdd).toHaveBeenCalledWith("database", "Orders DB");
   });
 
-  it("closes the form after a successful add and resets fields", () => {
+  it("closes the modal after a successful add and resets fields", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
-    fireEvent.change(screen.getByPlaceholderText(/name/i), {
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "X" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    expect(screen.queryByPlaceholderText(/name/i)).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(
       screen.getByRole("button", { name: /\+ node/i }),
     ).toBeInTheDocument();
@@ -53,10 +54,10 @@ describe("AddNodeForm", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("closes the form when Cancel is clicked", () => {
+  it("closes the modal when Cancel is clicked", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-    expect(screen.queryByPlaceholderText(/name/i)).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

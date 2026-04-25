@@ -277,7 +277,13 @@ export function App(): React.ReactElement {
       : undefined;
 
   return (
-    <div className="flex h-full flex-col bg-slate-50 text-slate-900">
+    <div
+      className="flex h-full flex-col"
+      style={{
+        background: "var(--archik-canvas)",
+        color: "var(--archik-fg)",
+      }}
+    >
       <Toolbar
         document={doc}
         commandError={commandError}
@@ -298,10 +304,10 @@ export function App(): React.ReactElement {
           selection ? "grid-cols-[1fr_320px]" : "grid-cols-1"
         }`}
       >
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="archik-panel" style={{ overflow: "hidden" }}>
           <Canvas
             document={doc}
-            className="h-full w-full"
+            className="h-full w-full archik-grid"
             {...(selection?.type === "node"
               ? { selectedNodeId: selection.id }
               : {})}
@@ -316,7 +322,11 @@ export function App(): React.ReactElement {
           />
         </div>
         {selection && (
-          <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <aside
+            key={`${selection.type}:${selection.id}`}
+            className="archik-panel archik-drawer"
+            style={{ overflow: "hidden" }}
+          >
             {selection.type === "edge" ? (
               <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
             ) : (
@@ -336,7 +346,13 @@ export function App(): React.ReactElement {
 
 function Splash({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <div className="flex h-full items-center justify-center bg-slate-50 p-6 text-sm text-slate-500">
+    <div
+      className="flex h-full items-center justify-center p-6 text-sm"
+      style={{
+        background: "var(--archik-canvas)",
+        color: "var(--archik-fg-dim)",
+      }}
+    >
       {children}
     </div>
   );
