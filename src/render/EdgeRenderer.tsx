@@ -24,33 +24,33 @@ type EdgeStyle = {
 
 const STYLES: Record<Relationship, EdgeStyle> = {
   http_call: {
-    stroke: "#0f172a",
+    stroke: "var(--archik-edge-filled)",
     strokeWidth: 1.4,
     markerId: ARROW_MARKER_FILLED,
   },
   reads: {
-    stroke: "#334155",
+    stroke: "var(--archik-edge-open)",
     strokeWidth: 1.2,
     markerId: ARROW_MARKER_OPEN,
   },
   writes: {
-    stroke: "#0f172a",
+    stroke: "var(--archik-edge-filled)",
     strokeWidth: 1.6,
     markerId: ARROW_MARKER_FILLED,
   },
   publishes: {
-    stroke: "#1d4ed8",
+    stroke: "var(--archik-edge-async)",
     strokeWidth: 1.4,
     markerId: ARROW_MARKER_CIRCLE,
   },
   subscribes: {
-    stroke: "#1d4ed8",
+    stroke: "var(--archik-edge-async)",
     strokeWidth: 1.4,
     strokeDasharray: "6 4",
     markerId: ARROW_MARKER_ASYNC,
   },
   depends_on: {
-    stroke: "#64748b",
+    stroke: "var(--archik-edge-dim)",
     strokeWidth: 1.2,
     strokeDasharray: "6 4",
     markerId: ARROW_MARKER_DEP,
@@ -123,11 +123,13 @@ export function EdgeRenderer({
       <polyline
         points={pointsString(all)}
         fill="none"
-        stroke={isSelected ? "#2563eb" : style.stroke}
+        stroke={isSelected ? "var(--archik-selected)" : style.stroke}
         strokeWidth={isSelected ? style.strokeWidth + 1 : style.strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
-        markerEnd={`url(#${style.markerId})`}
+        markerEnd={`url(#${
+          isSelected ? "archik-arrow-selected" : style.markerId
+        })`}
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}
@@ -136,10 +138,9 @@ export function EdgeRenderer({
         <g transform={`translate(${labelAt.x}, ${labelAt.y - 6})`}>
           <text
             textAnchor="middle"
-            fontFamily="Inter, system-ui, sans-serif"
             fontSize={11}
-            fill="#475569"
-            stroke="#ffffff"
+            fill="var(--archik-fg-dim)"
+            stroke="var(--archik-panel)"
             strokeWidth={3}
             paintOrder="stroke"
           >

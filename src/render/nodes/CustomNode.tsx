@@ -11,20 +11,21 @@ export function CustomNode({ node }: Props): React.ReactElement {
       <rect
         width={w}
         height={h}
-        rx={4}
-        ry={4}
-        fill={hasChildren ? "transparent" : "#f8fafc"}
-        stroke="#0f172a"
-        strokeOpacity={hasChildren ? 0.45 : 0.7}
+        rx={6}
+        ry={6}
+        fill={hasChildren ? "transparent" : "var(--archik-node-fill-tinted)"}
+        stroke="var(--archik-node-stroke-soft)"
+        strokeOpacity={hasChildren ? 0.55 : 0.85}
         strokeWidth={1.2}
+        strokeDasharray={hasChildren ? "4 4" : undefined}
       />
       <text
         x={12}
         y={18}
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={11}
+        letterSpacing="0.04em"
         fontWeight={600}
-        fill="#475569"
+        fill="var(--archik-node-caption)"
       >
         {node.name}
       </text>

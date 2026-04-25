@@ -16,8 +16,8 @@ export function FunctionNode({ node }: Props): React.ReactElement {
         height={h}
         rx={14}
         ry={14}
-        fill="#ffffff"
-        stroke="#0f172a"
+        fill="var(--archik-node-fill)"
+        stroke="var(--archik-node-stroke)"
         strokeWidth={1.4}
       />
       <text
@@ -26,7 +26,7 @@ export function FunctionNode({ node }: Props): React.ReactElement {
         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
         fontSize={14}
         fontWeight={700}
-        fill="#0f172a"
+        fill="var(--archik-node-caption)"
       >
         λ
       </text>
@@ -34,10 +34,9 @@ export function FunctionNode({ node }: Props): React.ReactElement {
         x={w / 2}
         y={nameY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={13}
         fontWeight={600}
-        fill="#0f172a"
+        fill="var(--archik-node-text)"
       >
         {node.name}
       </text>
@@ -46,9 +45,8 @@ export function FunctionNode({ node }: Props): React.ReactElement {
           x={w / 2}
           y={stackY}
           textAnchor="middle"
-          fontFamily="Inter, system-ui, sans-serif"
           fontSize={11}
-          fill="#475569"
+          fill="var(--archik-node-text-dim)"
         >
           {node.stack}
         </text>

@@ -5,6 +5,11 @@ type Props = { node: PositionedNode };
 export function ExternalNode({ node }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
+  const hasDescription = node.description !== undefined;
+  const captionY = 14;
+  const nameY = hasDescription ? h * 0.5 + 2 : h / 2 + 6;
+  const descriptionY = h - 10;
+
   return (
     <g className="archik-node archik-node--external">
       <rect
@@ -12,41 +17,38 @@ export function ExternalNode({ node }: Props): React.ReactElement {
         height={h}
         rx={8}
         ry={8}
-        fill="#f8fafc"
-        stroke="#475569"
+        fill="var(--archik-node-fill-tinted)"
+        stroke="var(--archik-node-stroke-soft)"
         strokeWidth={1.2}
         strokeDasharray="6 4"
       />
       <text
         x={w / 2}
-        y={20}
+        y={captionY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={9}
         letterSpacing="0.08em"
-        fill="#64748b"
+        fill="var(--archik-node-caption)"
       >
         EXTERNAL
       </text>
       <text
         x={w / 2}
-        y={h / 2 + 12}
+        y={nameY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={13}
         fontWeight={600}
-        fill="#0f172a"
+        fill="var(--archik-node-text)"
       >
         {node.name}
       </text>
-      {node.description !== undefined && (
+      {hasDescription && (
         <text
           x={w / 2}
-          y={h - 12}
+          y={descriptionY}
           textAnchor="middle"
-          fontFamily="Inter, system-ui, sans-serif"
           fontSize={10}
-          fill="#64748b"
+          fill="var(--archik-node-text-dim)"
         >
           {node.description}
         </text>

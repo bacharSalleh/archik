@@ -7,7 +7,7 @@ export function CacheNode({ node }: Props): React.ReactElement {
   const h = node.height;
   const stripeY = h * 0.32;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h * 0.62 - 2 : h / 2 + 4;
+  const nameY = hasStack ? h * 0.62 - 2 : h / 2 + 6;
   const stackY = h * 0.62 + 14;
 
   return (
@@ -17,8 +17,8 @@ export function CacheNode({ node }: Props): React.ReactElement {
         height={h}
         rx={8}
         ry={8}
-        fill="#f1f5f9"
-        stroke="#0f172a"
+        fill="var(--archik-node-fill-tinted)"
+        stroke="var(--archik-node-stroke)"
         strokeWidth={1.4}
       />
       <line
@@ -26,18 +26,17 @@ export function CacheNode({ node }: Props): React.ReactElement {
         y1={stripeY}
         x2={w - 10}
         y2={stripeY}
-        stroke="#0f172a"
-        strokeOpacity={0.25}
+        stroke="var(--archik-node-stroke)"
+        strokeOpacity={0.3}
         strokeWidth={1}
       />
       <text
         x={w / 2}
         y={stripeY - 6}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={9}
         letterSpacing="0.08em"
-        fill="#64748b"
+        fill="var(--archik-node-caption)"
       >
         CACHE
       </text>
@@ -45,10 +44,9 @@ export function CacheNode({ node }: Props): React.ReactElement {
         x={w / 2}
         y={nameY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={13}
         fontWeight={600}
-        fill="#0f172a"
+        fill="var(--archik-node-text)"
       >
         {node.name}
       </text>
@@ -57,9 +55,8 @@ export function CacheNode({ node }: Props): React.ReactElement {
           x={w / 2}
           y={stackY}
           textAnchor="middle"
-          fontFamily="Inter, system-ui, sans-serif"
           fontSize={11}
-          fill="#475569"
+          fill="var(--archik-node-text-dim)"
         >
           {node.stack}
         </text>

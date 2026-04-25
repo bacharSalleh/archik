@@ -67,14 +67,15 @@ export function NodeRenderer({
       <Shape node={node} />
       {isSelected && (
         <rect
+          className="archik-selected-glow"
           width={node.width}
           height={node.height}
           rx={10}
           ry={10}
           fill="none"
-          stroke="#2563eb"
-          strokeWidth={2.5}
-          strokeOpacity={0.8}
+          stroke="var(--archik-selected)"
+          strokeWidth={2}
+          strokeOpacity={0.95}
           pointerEvents="none"
         />
       )}

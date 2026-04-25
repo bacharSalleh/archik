@@ -24,10 +24,10 @@ const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   service: { width: 140, height: 60 },
   database: { width: 110, height: 70 },
   queue: { width: 150, height: 48 },
-  cache: { width: 120, height: 60 },
-  frontend: { width: 140, height: 60 },
-  external: { width: 130, height: 56 },
-  function: { width: 130, height: 48 },
+  cache: { width: 120, height: 64 },
+  frontend: { width: 140, height: 64 },
+  external: { width: 150, height: 78 },
+  function: { width: 130, height: 52 },
   custom: { width: 180, height: 100 },
 };
 

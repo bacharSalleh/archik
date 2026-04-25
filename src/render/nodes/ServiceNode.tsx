@@ -3,37 +3,39 @@ import type { PositionedNode } from "../../layout/types.ts";
 type Props = { node: PositionedNode };
 
 export function ServiceNode({ node }: Props): React.ReactElement {
-  const stackY = 22 + 22;
+  const w = node.width;
+  const h = node.height;
+  const hasStack = node.stack !== undefined;
+  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
+  const stackY = h / 2 + 14;
   return (
     <g className="archik-node archik-node--service">
       <rect
-        width={node.width}
-        height={node.height}
+        width={w}
+        height={h}
         rx={10}
         ry={10}
-        fill="#ffffff"
-        stroke="#0f172a"
-        strokeWidth={1.5}
+        fill="var(--archik-node-fill)"
+        stroke="var(--archik-node-stroke)"
+        strokeWidth={1.4}
       />
       <text
-        x={node.width / 2}
-        y={26}
+        x={w / 2}
+        y={nameY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
-        fontSize={14}
+        fontSize={13}
         fontWeight={600}
-        fill="#0f172a"
+        fill="var(--archik-node-text)"
       >
         {node.name}
       </text>
-      {node.stack !== undefined && (
+      {hasStack && (
         <text
-          x={node.width / 2}
+          x={w / 2}
           y={stackY}
           textAnchor="middle"
-          fontFamily="Inter, system-ui, sans-serif"
           fontSize={11}
-          fill="#475569"
+          fill="var(--archik-node-text-dim)"
         >
           {node.stack}
         </text>

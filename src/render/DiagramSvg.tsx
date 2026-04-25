@@ -1,7 +1,6 @@
 import type { PositionedDocument } from "../layout/types.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
-  ARROW_COLORS,
   ARROW_MARKER_ASYNC,
   ARROW_MARKER_CIRCLE,
   ARROW_MARKER_DEP,
@@ -23,10 +22,10 @@ function FilledTriangleMarker({
     <marker
       id={id}
       viewBox="0 0 10 10"
-      refX="9"
+      refX="10"
       refY="5"
-      markerWidth="8"
-      markerHeight="8"
+      markerWidth="6"
+      markerHeight="6"
       orient="auto-start-reverse"
     >
       <path d="M 0 0 L 10 5 L 0 10 z" fill={fill} />
@@ -47,8 +46,8 @@ function OpenTriangleMarker({
       viewBox="0 0 12 12"
       refX="11"
       refY="6"
-      markerWidth="9"
-      markerHeight="9"
+      markerWidth="7"
+      markerHeight="7"
       orient="auto-start-reverse"
     >
       <path
@@ -76,8 +75,8 @@ function FilledCircleMarker({
       viewBox="0 0 10 10"
       refX="9"
       refY="5"
-      markerWidth="7"
-      markerHeight="7"
+      markerWidth="6"
+      markerHeight="6"
       orient="auto"
     >
       <circle cx="5" cy="5" r="4" fill={fill} />
@@ -127,23 +126,27 @@ export function DiagramSvg({
       <defs>
         <FilledTriangleMarker
           id={ARROW_MARKER_FILLED}
-          fill={ARROW_COLORS.filled}
+          fill="var(--archik-edge-filled)"
         />
         <OpenTriangleMarker
           id={ARROW_MARKER_OPEN}
-          stroke={ARROW_COLORS.open}
+          stroke="var(--archik-edge-open)"
         />
         <OpenTriangleMarker
           id={ARROW_MARKER_DEP}
-          stroke={ARROW_COLORS.dep}
+          stroke="var(--archik-edge-dim)"
         />
         <FilledTriangleMarker
           id={ARROW_MARKER_ASYNC}
-          fill={ARROW_COLORS.async}
+          fill="var(--archik-edge-async)"
         />
         <FilledCircleMarker
           id={ARROW_MARKER_CIRCLE}
-          fill={ARROW_COLORS.circle}
+          fill="var(--archik-edge-async)"
+        />
+        <FilledTriangleMarker
+          id="archik-arrow-selected"
+          fill="var(--archik-selected)"
         />
       </defs>
       <g className="archik-edges">

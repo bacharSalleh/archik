@@ -19,30 +19,32 @@ export function FrontendNode({ node }: Props): React.ReactElement {
         height={h}
         rx={8}
         ry={8}
-        fill="#ffffff"
-        stroke="#0f172a"
+        fill="var(--archik-node-fill)"
+        stroke="var(--archik-node-stroke)"
         strokeWidth={1.4}
       />
-      <path
+      <line
         data-archik-frontend-chrome=""
-        d={`M 0 ${chromeH} H ${w}`}
-        stroke="#0f172a"
-        strokeWidth={1}
+        x1={0}
+        y1={chromeH}
+        x2={w}
+        y2={chromeH}
+        stroke="var(--archik-node-stroke)"
         strokeOpacity={0.5}
+        strokeWidth={1}
       />
       <g data-archik-frontend-chrome="" transform="translate(8, 7)">
-        <circle r={2.2} cx={0} cy={0} fill="#cbd5f5" />
-        <circle r={2.2} cx={7} cy={0} fill="#cbd5f5" />
-        <circle r={2.2} cx={14} cy={0} fill="#cbd5f5" />
+        <circle r={2.2} cx={0} cy={0} fill="var(--archik-node-chrome-dot)" />
+        <circle r={2.2} cx={7} cy={0} fill="var(--archik-node-chrome-dot)" />
+        <circle r={2.2} cx={14} cy={0} fill="var(--archik-node-chrome-dot)" />
       </g>
       <text
         x={w / 2}
         y={nameY}
         textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
         fontSize={13}
         fontWeight={600}
-        fill="#0f172a"
+        fill="var(--archik-node-text)"
       >
         {node.name}
       </text>
@@ -51,9 +53,8 @@ export function FrontendNode({ node }: Props): React.ReactElement {
           x={w / 2}
           y={stackY}
           textAnchor="middle"
-          fontFamily="Inter, system-ui, sans-serif"
           fontSize={11}
-          fill="#475569"
+          fill="var(--archik-node-text-dim)"
         >
           {node.stack}
         </text>
