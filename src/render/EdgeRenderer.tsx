@@ -23,11 +23,23 @@ type EdgeStyle = {
 };
 
 const STYLES: Record<Relationship, EdgeStyle> = {
+  // Synchronous calls
   http_call: {
     stroke: "var(--archik-edge-filled)",
     strokeWidth: 1.4,
     markerId: ARROW_MARKER_FILLED,
   },
+  invokes: {
+    stroke: "var(--archik-edge-async)",
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_ASYNC,
+  },
+  routes_to: {
+    stroke: "var(--archik-edge-filled)",
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_FILLED,
+  },
+  // Data access
   reads: {
     stroke: "var(--archik-edge-open)",
     strokeWidth: 1.2,
@@ -38,6 +50,7 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     strokeWidth: 1.6,
     markerId: ARROW_MARKER_FILLED,
   },
+  // Messaging
   publishes: {
     stroke: "var(--archik-edge-async)",
     strokeWidth: 1.4,
@@ -48,6 +61,19 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     strokeWidth: 1.4,
     strokeDasharray: "6 4",
     markerId: ARROW_MARKER_ASYNC,
+  },
+  streams_to: {
+    stroke: "var(--archik-edge-async)",
+    strokeWidth: 1.6,
+    strokeDasharray: "10 3 2 3",
+    markerId: ARROW_MARKER_ASYNC,
+  },
+  // Architectural
+  implements: {
+    stroke: "var(--archik-edge-dim)",
+    strokeWidth: 1.2,
+    strokeDasharray: "8 3",
+    markerId: ARROW_MARKER_OPEN,
   },
   depends_on: {
     stroke: "var(--archik-edge-dim)",

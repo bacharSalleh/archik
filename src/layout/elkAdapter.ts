@@ -27,14 +27,50 @@ function buildElkOptions(options: LayoutOptions): Record<string, string> {
   };
 }
 
+const CARD: { width: number; height: number } = { width: 172, height: 82 };
+const CARD_SUBTITLE: { width: number; height: number } = {
+  width: 172,
+  height: 90,
+};
+
 const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
-  service: { width: 172, height: 82 },
-  database: { width: 172, height: 82 },
+  // Compute
+  service: CARD,
+  function: CARD,
+  worker: CARD,
+  agent: CARD,
+  // Data
+  database: CARD,
+  cache: CARD_SUBTITLE,
+  vectordb: CARD,
+  storage: CARD,
+  // Messaging
   queue: { width: 188, height: 80 },
-  cache: { width: 172, height: 90 },
-  frontend: { width: 172, height: 90 },
+  topic: CARD,
+  stream: CARD,
+  // Networking
+  gateway: CARD,
+  cdn: CARD,
+  // Hexagonal
+  interface: CARD,
+  adapter: CARD,
+  port: CARD,
+  // AI
+  llm: CARD,
+  prompt: CARD,
+  tool: CARD,
+  // Identity
+  auth: CARD,
+  // Observability
+  observability: CARD,
+  // Cloud
+  cloud: CARD,
+  // UI
+  frontend: CARD_SUBTITLE,
+  // External
   external: { width: 184, height: 100 },
-  function: { width: 172, height: 82 },
+  // Structural
+  module: { width: 240, height: 130 },
   custom: { width: 240, height: 130 },
 };
 

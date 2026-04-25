@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { NodeKindSchema, NODE_KINDS } from "./taxonomy.ts";
 
 describe("NodeKind taxonomy", () => {
-  it("exposes the eight architectural node kinds", () => {
-    expect(NODE_KINDS).toEqual([
+  it("includes the original eight architectural node kinds", () => {
+    for (const k of [
       "service",
       "database",
       "queue",
@@ -12,7 +12,34 @@ describe("NodeKind taxonomy", () => {
       "external",
       "function",
       "custom",
-    ]);
+    ] as const) {
+      expect(NODE_KINDS).toContain(k);
+    }
+  });
+
+  it("includes the expanded taxonomy (compute, data, messaging, AI, infra, hex)", () => {
+    for (const k of [
+      "worker",
+      "agent",
+      "vectordb",
+      "storage",
+      "topic",
+      "stream",
+      "gateway",
+      "cdn",
+      "interface",
+      "adapter",
+      "port",
+      "llm",
+      "prompt",
+      "tool",
+      "auth",
+      "observability",
+      "cloud",
+      "module",
+    ] as const) {
+      expect(NODE_KINDS).toContain(k);
+    }
   });
 
   it.each(NODE_KINDS)("accepts kind %s", (kind) => {

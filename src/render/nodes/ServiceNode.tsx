@@ -11,7 +11,7 @@ export function ServiceNode({ node, selected }: Props): React.ReactElement {
   const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
   return (
-    <g className="archik-node archik-node--service">
+    <g className={`archik-node archik-node--${node.kind}`}>
       <rect
         className={selected ? "archik-selected-glow" : undefined}
         width={w}
@@ -32,7 +32,7 @@ export function ServiceNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={1}
       />
       <NodeHeader
-        kind="service"
+        kind={node.kind}
         iconAt={{ cx: 18, cy: HEADER_HEIGHT / 2 }}
         labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
       />

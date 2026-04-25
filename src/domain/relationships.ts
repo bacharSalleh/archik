@@ -1,11 +1,19 @@
 import { z } from "zod";
 
 export const RELATIONSHIPS = [
+  // synchronous calls
   "http_call",
+  "invokes",
+  "routes_to",
+  // data access
   "reads",
   "writes",
+  // messaging
   "publishes",
   "subscribes",
+  "streams_to",
+  // architectural
+  "implements",
   "depends_on",
 ] as const;
 

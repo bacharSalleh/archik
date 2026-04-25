@@ -1,11 +1,7 @@
 import type { PositionedNode } from "../layout/types.ts";
 import { ServiceNode } from "./nodes/ServiceNode.tsx";
-import { DatabaseNode } from "./nodes/DatabaseNode.tsx";
 import { QueueNode } from "./nodes/QueueNode.tsx";
-import { CacheNode } from "./nodes/CacheNode.tsx";
-import { FrontendNode } from "./nodes/FrontendNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
-import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { InfoIcon, NotesIcon, iconAnchorsFor, trayCenters } from "./icons.tsx";
 
@@ -13,22 +9,38 @@ type ShapeProps = { node: PositionedNode; selected: boolean };
 
 function Shape({ node, selected }: ShapeProps): React.ReactElement {
   switch (node.kind) {
-    case "service":
-      return <ServiceNode node={node} selected={selected} />;
-    case "database":
-      return <DatabaseNode node={node} selected={selected} />;
     case "queue":
       return <QueueNode node={node} selected={selected} />;
-    case "cache":
-      return <CacheNode node={node} selected={selected} />;
-    case "frontend":
-      return <FrontendNode node={node} selected={selected} />;
     case "external":
       return <ExternalNode node={node} selected={selected} />;
-    case "function":
-      return <FunctionNode node={node} selected={selected} />;
+    case "module":
     case "custom":
       return <CustomNode node={node} selected={selected} />;
+    // Every other kind renders as the standard card; the kind icon
+    // and KIND label inside the header carry the visual identity.
+    case "service":
+    case "function":
+    case "worker":
+    case "agent":
+    case "database":
+    case "cache":
+    case "vectordb":
+    case "storage":
+    case "topic":
+    case "stream":
+    case "gateway":
+    case "cdn":
+    case "interface":
+    case "adapter":
+    case "port":
+    case "llm":
+    case "prompt":
+    case "tool":
+    case "auth":
+    case "observability":
+    case "cloud":
+    case "frontend":
+      return <ServiceNode node={node} selected={selected} />;
     default: {
       const _exhaustive: never = node.kind;
       void _exhaustive;
@@ -70,7 +82,7 @@ export function NodeRenderer({
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} selected={isSelected} />
-      {node.kind !== "custom" && (() => {
+      {node.kind !== "custom" && node.kind !== "module" && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
         const trayItems: Array<"info" | "notes"> = [];
