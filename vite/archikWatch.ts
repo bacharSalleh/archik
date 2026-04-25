@@ -13,7 +13,14 @@ export function archikWatch(): Plugin {
   return {
     name: "archik-watch",
     configureServer(server: ViteDevServer) {
-      absPath = path.resolve(server.config.root, FILE_NAME);
+      // ARCHIK_DOC_PATH lets the `archik dev` CLI point the dev server at
+      // any project's YAML (the canvas runs from Archik's install dir,
+      // but the document lives wherever the user is working). Falls back
+      // to the file inside the project root for plain `npm run dev`.
+      const explicit = process.env["ARCHIK_DOC_PATH"];
+      absPath = explicit
+        ? path.resolve(explicit)
+        : path.resolve(server.config.root, FILE_NAME);
 
       server.middlewares.use(URL_PATH, async (req, res, next) => {
         if (req.method === "GET" || req.method === "HEAD") {

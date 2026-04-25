@@ -13,7 +13,7 @@
     "archik": "tsx --tsconfig tsconfig.app.json src/cli/index.ts"
   },
   "bin": {
-    "archik": "./src/cli/index.ts"
+    "archik": "./bin/archik.js"
   },
   "dependencies": {
     "chokidar": "^4.0.3",

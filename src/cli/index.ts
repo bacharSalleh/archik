@@ -4,6 +4,7 @@ import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { checkCommand } from "./commands/check.ts";
+import { devCommand } from "./commands/dev.ts";
 import { parseOptions } from "./options.ts";
 
 function printHelp(): void {
@@ -14,11 +15,15 @@ USAGE
 
 COMMANDS
   init              Scaffold a starter architecture.archik.yaml
+  dev [path]        Open the canvas in your browser (live editor)
+                    --port <n>       dev server port
+                    --host <addr>    bind to host
+                    --no-open        don't auto-open the browser
   validate [path]   Validate a document against the schema
   render [path]     Render the diagram to an SVG file
                     --out <file>     output path (default: diagram.svg)
                     --theme <name>   "dark" (default) or "light"
-  watch [path]      Re-render on file changes (Ctrl+C to stop)
+  watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
   check [path]      Drift detection — flag nodes without source dirs
 
 The default path is architecture.archik.yaml in the current directory.
@@ -32,6 +37,8 @@ async function main(): Promise<number> {
   switch (command) {
     case "init":
       return initCommand(opts);
+    case "dev":
+      return devCommand(opts);
     case "validate":
       return validateCommand(opts);
     case "render":
