@@ -264,6 +264,44 @@ export function App(): React.ReactElement {
     [selectEdge, toggleEdge],
   );
 
+  const handleConnectDrag = useCallback(
+    (fromId: string, toId: string) => {
+      let createdEdgeId: string | null = null;
+      setState((current) => {
+        if (current.status !== "ready") return current;
+        const fromNode = current.document.nodes.find((n) => n.id === fromId);
+        const toNode = current.document.nodes.find((n) => n.id === toId);
+        if (!fromNode || !toNode) return current;
+        const taken = new Set(current.document.edges.map((e) => e.id));
+        const edgeId = uniqueId(slugify(`${fromId}-${toId}`), taken, "edge");
+        const edge: Edge = {
+          id: edgeId,
+          from: fromId,
+          to: toId,
+          relationship: "http_call",
+        };
+        try {
+          const next = applyCommand(current.document, {
+            type: "connect",
+            edge,
+          });
+          setCommandError(undefined);
+          setIsDirty(true);
+          setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
+          setFuture([]);
+          createdEdgeId = edgeId;
+          return { status: "ready", document: next };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          setCommandError(message);
+          return current;
+        }
+      });
+      if (createdEdgeId) selectEdge(createdEdgeId);
+    },
+    [selectEdge],
+  );
+
   const addNode = useCallback(
     (kind: NodeKind, name: string) => {
       setState((current) => {
@@ -499,6 +537,7 @@ export function App(): React.ReactElement {
             onSelectNothing={
               connectFrom === null ? clearSelection : cancelConnect
             }
+            onConnectDrag={handleConnectDrag}
           />
         </div>
         <aside
