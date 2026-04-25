@@ -14,21 +14,21 @@ const DEFAULT_LAYOUT_OPTIONS: Record<string, string> = {
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
   "elk.edgeRouting": "ORTHOGONAL",
-  "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-  "elk.spacing.nodeNode": "40",
-  "elk.padding": "[top=24, left=24, bottom=24, right=24]",
+  "elk.layered.spacing.nodeNodeBetweenLayers": "40",
+  "elk.spacing.nodeNode": "24",
+  "elk.padding": "[top=16, left=16, bottom=16, right=16]",
   "elk.hierarchyHandling": "INCLUDE_CHILDREN",
 };
 
 const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
-  service: { width: 180, height: 80 },
-  database: { width: 140, height: 90 },
-  queue: { width: 200, height: 60 },
-  cache: { width: 140, height: 80 },
-  frontend: { width: 180, height: 80 },
-  external: { width: 160, height: 70 },
-  function: { width: 160, height: 60 },
-  custom: { width: 200, height: 100 },
+  service: { width: 140, height: 60 },
+  database: { width: 110, height: 70 },
+  queue: { width: 150, height: 48 },
+  cache: { width: 120, height: 60 },
+  frontend: { width: 140, height: 60 },
+  external: { width: 130, height: 56 },
+  function: { width: 130, height: 48 },
+  custom: { width: 180, height: 100 },
 };
 
 function toElkNode(node: Node, children: ElkNode[]): ElkNode {
