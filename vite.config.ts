@@ -2,9 +2,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { archikWatch } from "./vite/archikWatch.ts";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), archikWatch()],
   test: {
     environment: "jsdom",
     globals: true,

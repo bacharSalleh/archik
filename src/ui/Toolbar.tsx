@@ -7,12 +7,14 @@ type Props = {
   document: Document;
   filename?: string;
   commandError?: string | undefined;
+  reloadError?: string | undefined;
 };
 
 export function Toolbar({
   document,
   filename = "architecture.archik.yaml",
   commandError,
+  reloadError,
 }: Props): React.ReactElement {
   return (
     <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
@@ -21,6 +23,14 @@ export function Toolbar({
       {commandError !== undefined && (
         <span className="rounded bg-rose-50 px-2 py-0.5 text-xs text-rose-700">
           {commandError}
+        </span>
+      )}
+      {reloadError !== undefined && (
+        <span
+          className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-800"
+          title={reloadError}
+        >
+          File reload error
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "../render/Canvas.tsx";
 import { loadDocumentFromUrl } from "../io/fileAdapter.ts";
+import { subscribeToDocumentChanges } from "../io/liveReload.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
 import type { Document } from "../domain/types.ts";
@@ -20,25 +21,40 @@ export function App(): React.ReactElement {
   const [commandError, setCommandError] = useState<string | undefined>(
     undefined,
   );
+  const [reloadError, setReloadError] = useState<string | undefined>(
+    undefined,
+  );
+  const loadedOnceRef = useRef(false);
   const selection = useUIStore((s) => s.selection);
   const selectNode = useUIStore((s) => s.selectNode);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: "loading" });
-    loadDocumentFromUrl(DOCUMENT_URL).then(
-      (document) => {
-        if (!cancelled) setState({ status: "ready", document });
-      },
-      (err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setState({ status: "error", error: message });
-      },
-    );
+    const load = (): void => {
+      loadDocumentFromUrl(DOCUMENT_URL).then(
+        (document) => {
+          if (cancelled) return;
+          loadedOnceRef.current = true;
+          setState({ status: "ready", document });
+          setReloadError(undefined);
+        },
+        (err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : String(err);
+          if (loadedOnceRef.current) {
+            setReloadError(message);
+          } else {
+            setState({ status: "error", error: message });
+          }
+        },
+      );
+    };
+    load();
+    const unsubscribe = subscribeToDocumentChanges(load);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
@@ -84,7 +100,11 @@ export function App(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col bg-slate-50 text-slate-900">
-      <Toolbar document={doc} commandError={commandError} />
+      <Toolbar
+        document={doc}
+        commandError={commandError}
+        {...(reloadError !== undefined ? { reloadError } : {})}
+      />
       <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <Canvas

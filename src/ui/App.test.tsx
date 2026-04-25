@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { App } from "./App.tsx";
 import { stringifyYaml } from "../io/yaml.ts";
 import { ordersDocument } from "../domain/__fixtures__/orders.ts";
+import { emitDocumentChanged } from "../io/liveReload.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -33,5 +34,31 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText(/404/)).toBeInTheDocument();
     });
+  });
+
+  it("refetches the document when emitDocumentChanged fires", async () => {
+    const renamed = { ...ordersDocument, name: "Live-reloaded" };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => stringifyYaml(ordersDocument),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => stringifyYaml(renamed),
+      } as Response);
+
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText(ordersDocument.name)).toBeInTheDocument();
+    });
+
+    emitDocumentChanged();
+
+    await waitFor(() => {
+      expect(screen.getByText(renamed.name)).toBeInTheDocument();
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

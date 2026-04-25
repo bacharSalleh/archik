@@ -1,0 +1,45 @@
+import path from "node:path";
+import { promises as fs } from "node:fs";
+import type { Plugin, ViteDevServer } from "vite";
+
+const FILE_NAME = "architecture.archik.yaml";
+const URL_PATH = `/${FILE_NAME}`;
+const WS_EVENT = "archik:doc-changed";
+const MIME = "application/yaml; charset=utf-8";
+
+export function archikWatch(): Plugin {
+  let absPath = "";
+
+  return {
+    name: "archik-watch",
+    configureServer(server: ViteDevServer) {
+      absPath = path.resolve(server.config.root, FILE_NAME);
+
+      server.middlewares.use(URL_PATH, async (req, res, next) => {
+        if (req.method !== "GET" && req.method !== "HEAD") return next();
+        try {
+          const text = await fs.readFile(absPath, "utf-8");
+          res.setHeader("content-type", MIME);
+          res.setHeader("cache-control", "no-store");
+          if (req.method === "HEAD") {
+            res.end();
+          } else {
+            res.end(text);
+          }
+        } catch (err) {
+          res.statusCode = 404;
+          const msg = err instanceof Error ? err.message : String(err);
+          res.end(`Not found: ${absPath}\n${msg}`);
+        }
+      });
+
+      server.watcher.add(absPath);
+      const onChange = (changedPath: string): void => {
+        if (path.resolve(changedPath) !== absPath) return;
+        server.ws.send({ type: "custom", event: WS_EVENT });
+      };
+      server.watcher.on("change", onChange);
+      server.watcher.on("add", onChange);
+    },
+  };
+}
