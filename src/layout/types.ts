@@ -12,9 +12,9 @@ export type LayoutOptions = {
 };
 
 export const DEFAULT_LAYOUT_OPTIONS: Required<LayoutOptions> = {
-  nodeSpacing: 24,
-  layerSpacing: 40,
-  padding: 16,
+  nodeSpacing: 60,
+  layerSpacing: 100,
+  padding: 40,
 };
 
 export type PositionedNode = Node & {

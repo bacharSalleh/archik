@@ -26,7 +26,7 @@ export function saveDensity(value: number): void {
 }
 
 export function clampDensity(value: number): number {
-  return Math.max(0.5, Math.min(2.5, value));
+  return Math.max(0.3, Math.min(4, value));
 }
 
 export function densityToLayoutOptions(value: number): {
@@ -36,9 +36,9 @@ export function densityToLayoutOptions(value: number): {
 } {
   const d = clampDensity(value);
   return {
-    nodeSpacing: Math.round(24 * d),
-    layerSpacing: Math.round(40 * d),
-    padding: Math.round(16 * d),
+    nodeSpacing: Math.round(60 * d),
+    layerSpacing: Math.round(100 * d),
+    padding: Math.round(40 * d),
   };
 }
 
@@ -93,8 +93,8 @@ export function LayoutControls({
           </div>
           <input
             type="range"
-            min={0.5}
-            max={2.5}
+            min={0.3}
+            max={4}
             step={0.1}
             value={density}
             onChange={(e) => onChange(Number.parseFloat(e.target.value))}
