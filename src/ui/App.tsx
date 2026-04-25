@@ -8,7 +8,8 @@ import { stringifyYaml } from "../io/yaml.ts";
 import { subscribeToDocumentChanges } from "../io/liveReload.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
-import type { Document } from "../domain/types.ts";
+import type { Document, NodeKind } from "../domain/types.ts";
+import { slugify, uniqueId } from "../domain/idGen.ts";
 import { useUIStore } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -122,6 +123,30 @@ export function App(): React.ReactElement {
     return () => window.removeEventListener("keydown", handler);
   }, [isDirty, save]);
 
+  const addNode = useCallback(
+    (kind: NodeKind, name: string) => {
+      setState((current) => {
+        if (current.status !== "ready") return current;
+        const taken = new Set(current.document.nodes.map((n) => n.id));
+        const id = uniqueId(slugify(name), taken, kind);
+        try {
+          const next = applyCommand(current.document, {
+            type: "add_node",
+            node: { id, kind, name },
+          });
+          setCommandError(undefined);
+          setIsDirty(true);
+          return { status: "ready", document: next };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          setCommandError(message);
+          return current;
+        }
+      });
+    },
+    [],
+  );
+
   const dispatch = useCallback(
     (cmd: Command) => {
       setState((current) => {
@@ -171,6 +196,7 @@ export function App(): React.ReactElement {
         saveStatus={saveStatus}
         isDirty={isDirty}
         onSave={() => void save()}
+        onAddNode={addNode}
         {...(reloadError !== undefined ? { reloadError } : {})}
       />
       <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">

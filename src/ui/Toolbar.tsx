@@ -1,7 +1,8 @@
-import type { Document } from "../domain/types.ts";
+import type { Document, NodeKind } from "../domain/types.ts";
 import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
 import { exporters } from "../io/exporters.ts";
 import { CopyButton } from "./CopyButton.tsx";
+import { AddNodeForm } from "./AddNodeForm.tsx";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -13,6 +14,7 @@ type Props = {
   saveStatus?: SaveStatus;
   isDirty?: boolean;
   onSave?: () => void;
+  onAddNode?: (kind: NodeKind, name: string) => void;
 };
 
 const SAVE_LABELS: Record<SaveStatus, string | null> = {
@@ -37,6 +39,7 @@ export function Toolbar({
   saveStatus = "idle",
   isDirty = false,
   onSave,
+  onAddNode,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -68,6 +71,7 @@ export function Toolbar({
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">
+        {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
         {exporters.map((exporter) => (
           <CopyButton
             key={exporter.name}
