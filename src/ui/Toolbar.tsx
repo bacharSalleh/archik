@@ -11,6 +11,8 @@ type Props = {
   commandError?: string | undefined;
   reloadError?: string | undefined;
   saveStatus?: SaveStatus;
+  isDirty?: boolean;
+  onSave?: () => void;
 };
 
 const SAVE_LABELS: Record<SaveStatus, string | null> = {
@@ -33,8 +35,14 @@ export function Toolbar({
   commandError,
   reloadError,
   saveStatus = "idle",
+  isDirty = false,
+  onSave,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
+  const shortcutHint =
+    typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)
+      ? "⌘S"
+      : "Ctrl+S";
   return (
     <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
       <span className="text-base font-semibold tracking-tight">Archik</span>
@@ -73,6 +81,15 @@ export function Toolbar({
           className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
         >
           Download YAML
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!isDirty || saveStatus === "saving"}
+          title={`Save to ${filename} (${shortcutHint})`}
+          className="rounded border border-blue-600 bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-400"
+        >
+          {isDirty ? "Save •" : "Save"}
         </button>
       </div>
     </header>

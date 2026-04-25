@@ -4,6 +4,7 @@ import {
   loadDocumentFromUrlWithText,
   saveDocumentToUrl,
 } from "../io/fileAdapter.ts";
+import { stringifyYaml } from "../io/yaml.ts";
 import { subscribeToDocumentChanges } from "../io/liveReload.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
@@ -13,7 +14,6 @@ import { NodeInspector } from "./NodeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
-const SAVE_DEBOUNCE_MS = 300;
 const SAVED_INDICATOR_MS = 1500;
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -32,13 +32,12 @@ export function App(): React.ReactElement {
     undefined,
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [isDirty, setIsDirty] = useState(false);
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const pendingDocRef = useRef<Document | null>(null);
   const selection = useUIStore((s) => s.selection);
   const selectNode = useUIStore((s) => s.selectNode);
   const clearSelection = useUIStore((s) => s.clearSelection);
@@ -53,6 +52,7 @@ export function App(): React.ReactElement {
           lastTextRef.current = text;
           loadedOnceRef.current = true;
           setState({ status: "ready", document });
+          setIsDirty(false);
           setReloadError(undefined);
         },
         (err: unknown) => {
@@ -76,22 +76,29 @@ export function App(): React.ReactElement {
 
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (savedIndicatorTimerRef.current) {
         clearTimeout(savedIndicatorTimerRef.current);
       }
     };
   }, []);
 
-  const flushSave = useCallback(async () => {
-    const doc = pendingDocRef.current;
-    if (!doc) return;
-    pendingDocRef.current = null;
+  const save = useCallback(async () => {
+    let docToSave: Document | null = null;
+    setState((current) => {
+      if (current.status === "ready") docToSave = current.document;
+      return current;
+    });
+    if (!docToSave) return;
+    // Stash the text BEFORE the PUT so a watcher event triggered by
+    // our own write (which can race the response) is recognised as
+    // self-write echo and not re-applied to in-memory state.
+    const text = stringifyYaml(docToSave);
+    lastTextRef.current = text;
     setSaveStatus("saving");
     try {
-      const { text } = await saveDocumentToUrl(DOCUMENT_URL, doc);
-      lastTextRef.current = text;
+      await saveDocumentToUrl(DOCUMENT_URL, docToSave);
       setSaveStatus("saved");
+      setIsDirty(false);
       if (savedIndicatorTimerRef.current) {
         clearTimeout(savedIndicatorTimerRef.current);
       }
@@ -104,16 +111,16 @@ export function App(): React.ReactElement {
     }
   }, []);
 
-  const scheduleSave = useCallback(
-    (doc: Document) => {
-      pendingDocRef.current = doc;
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        void flushSave();
-      }, SAVE_DEBOUNCE_MS);
-    },
-    [flushSave],
-  );
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (isDirty) void save();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isDirty, save]);
 
   const dispatch = useCallback(
     (cmd: Command) => {
@@ -125,7 +132,7 @@ export function App(): React.ReactElement {
           if (cmd.type === "remove_node" && selection?.id === cmd.id) {
             clearSelection();
           }
-          scheduleSave(next);
+          setIsDirty(true);
           return { status: "ready", document: next };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -134,7 +141,7 @@ export function App(): React.ReactElement {
         }
       });
     },
-    [selection, clearSelection, scheduleSave],
+    [selection, clearSelection],
   );
 
   if (state.status === "loading") {
@@ -162,6 +169,8 @@ export function App(): React.ReactElement {
         document={doc}
         commandError={commandError}
         saveStatus={saveStatus}
+        isDirty={isDirty}
+        onSave={() => void save()}
         {...(reloadError !== undefined ? { reloadError } : {})}
       />
       <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">
