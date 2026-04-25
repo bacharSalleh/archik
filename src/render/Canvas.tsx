@@ -24,7 +24,6 @@ export function Canvas({
 
   useEffect(() => {
     let cancelled = false;
-    setPositioned(null);
     layoutPromise.then((p) => {
       if (!cancelled) setPositioned(p);
     });

@@ -20,4 +20,17 @@ describe("Canvas", () => {
     render(<Canvas document={ordersDocument} />);
     expect(screen.getByText(/laying out/i)).toBeInTheDocument();
   });
+
+  it("keeps the previous layout visible while a new layout is being computed", async () => {
+    const { container, rerender, queryByText } = render(
+      <Canvas document={ordersDocument} />,
+    );
+    await waitFor(() => {
+      expect(container.querySelector("svg")).not.toBeNull();
+    });
+    const renamed = { ...ordersDocument, name: "Renamed" };
+    rerender(<Canvas document={renamed} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+    expect(queryByText(/laying out/i)).toBeNull();
+  });
 });
