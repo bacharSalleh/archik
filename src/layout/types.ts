@@ -2,6 +2,21 @@ import type { Document, Edge, Node } from "../domain/types.ts";
 
 export type Point = { x: number; y: number };
 
+export type LayoutOptions = {
+  /** Spacing between nodes within the same layer. Default 24. */
+  nodeSpacing?: number;
+  /** Spacing between successive layers. Default 40. */
+  layerSpacing?: number;
+  /** Container padding on every side. Default 16. */
+  padding?: number;
+};
+
+export const DEFAULT_LAYOUT_OPTIONS: Required<LayoutOptions> = {
+  nodeSpacing: 24,
+  layerSpacing: 40,
+  padding: 16,
+};
+
 export type PositionedNode = Node & {
   x: number;
   y: number;

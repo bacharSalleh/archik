@@ -2,23 +2,30 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 import type { Document, Node, NodeKind } from "../domain/types.ts";
 import type { LayoutEngine } from "./layoutEngine.ts";
-import type {
-  EdgeSection,
-  PositionedDocument,
-  PositionedEdge,
-  PositionedNode,
-  Point,
+import {
+  DEFAULT_LAYOUT_OPTIONS as DEFAULTS,
+  type EdgeSection,
+  type LayoutOptions,
+  type PositionedDocument,
+  type PositionedEdge,
+  type PositionedNode,
+  type Point,
 } from "./types.ts";
 
-const DEFAULT_LAYOUT_OPTIONS: Record<string, string> = {
-  "elk.algorithm": "layered",
-  "elk.direction": "RIGHT",
-  "elk.edgeRouting": "ORTHOGONAL",
-  "elk.layered.spacing.nodeNodeBetweenLayers": "40",
-  "elk.spacing.nodeNode": "24",
-  "elk.padding": "[top=16, left=16, bottom=16, right=16]",
-  "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-};
+function buildElkOptions(options: LayoutOptions): Record<string, string> {
+  const nodeSpacing = options.nodeSpacing ?? DEFAULTS.nodeSpacing;
+  const layerSpacing = options.layerSpacing ?? DEFAULTS.layerSpacing;
+  const padding = options.padding ?? DEFAULTS.padding;
+  return {
+    "elk.algorithm": "layered",
+    "elk.direction": "RIGHT",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.layered.spacing.nodeNodeBetweenLayers": String(layerSpacing),
+    "elk.spacing.nodeNode": String(nodeSpacing),
+    "elk.padding": `[top=${padding}, left=${padding}, bottom=${padding}, right=${padding}]`,
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+  };
+}
 
 const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   service: { width: 140, height: 60 },
@@ -128,14 +135,17 @@ function elkToPositionedEdges(
 
 const elk = new ELK();
 
-async function runLayout(doc: Document): Promise<PositionedDocument> {
+async function runLayout(
+  doc: Document,
+  options: LayoutOptions = {},
+): Promise<PositionedDocument> {
   if (doc.nodes.length === 0) {
     return { document: doc, width: 0, height: 0, roots: [], edges: [] };
   }
   const { roots, byId } = buildHierarchy(doc);
   const graph: ElkNode = {
     id: "__root__",
-    layoutOptions: DEFAULT_LAYOUT_OPTIONS,
+    layoutOptions: buildElkOptions(options),
     children: roots,
     edges: toElkEdges(doc),
   };

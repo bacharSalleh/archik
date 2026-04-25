@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "../render/Canvas.tsx";
 import {
   loadDocumentFromUrlWithText,
@@ -15,6 +15,11 @@ import { useUIStore } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
+import {
+  densityToLayoutOptions,
+  loadDensity,
+  saveDensity,
+} from "./LayoutControls.tsx";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
 const SAVED_INDICATOR_MS = 1500;
@@ -36,6 +41,14 @@ export function App(): React.ReactElement {
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isDirty, setIsDirty] = useState(false);
+  const [density, setDensityState] = useState<number>(() => loadDensity());
+  const setDensity = (v: number): void => {
+    setDensityState(v);
+    saveDensity(v);
+  };
+  const layoutOptions = useMemo(() => densityToLayoutOptions(density), [
+    density,
+  ]);
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
   const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -291,6 +304,8 @@ export function App(): React.ReactElement {
         isDirty={isDirty}
         onSave={() => void save()}
         onAddNode={addNode}
+        density={density}
+        onDensityChange={setDensity}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {
@@ -310,6 +325,7 @@ export function App(): React.ReactElement {
           <Canvas
             document={doc}
             className="h-full w-full archik-grid"
+            layoutOptions={layoutOptions}
             {...(selection?.type === "node"
               ? { selectedNodeId: selection.id }
               : {})}

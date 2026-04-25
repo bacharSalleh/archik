@@ -1,6 +1,7 @@
 import type { Document, NodeKind } from "../domain/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
+import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
 import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
@@ -18,6 +19,8 @@ type Props = {
   onAddNode?: (kind: NodeKind, name: string) => void;
   connectingFromName?: string;
   onCancelConnect?: () => void;
+  density?: number;
+  onDensityChange?: (value: number) => void;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -45,6 +48,8 @@ export function Toolbar({
   onAddNode,
   connectingFromName,
   onCancelConnect,
+  density,
+  onDensityChange,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -104,6 +109,9 @@ export function Toolbar({
       )}
       <div className="ml-auto flex items-center gap-2">
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
+        {density !== undefined && onDensityChange !== undefined && (
+          <LayoutControls density={density} onChange={onDensityChange} />
+        )}
         <Legend />
         <ExportMenu document={document} filename={filename} />
         <button

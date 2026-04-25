@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Document } from "../domain/types.ts";
-import type { PositionedDocument } from "../layout/types.ts";
+import type { LayoutOptions, PositionedDocument } from "../layout/types.ts";
 import { layout } from "../layout/index.ts";
 import { DiagramSvg } from "./DiagramSvg.tsx";
 
@@ -13,6 +13,7 @@ const clampZoom = (z: number): number =>
 type Props = {
   document: Document;
   className?: string | undefined;
+  layoutOptions?: LayoutOptions;
   selectedNodeId?: string | undefined;
   selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
@@ -23,13 +24,17 @@ type Props = {
 export function Canvas({
   document,
   className,
+  layoutOptions,
   selectedNodeId,
   selectedEdgeId,
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
 }: Props): React.ReactElement {
-  const layoutPromise = useMemo(() => layout(document), [document]);
+  const layoutPromise = useMemo(
+    () => layout(document, layoutOptions),
+    [document, layoutOptions],
+  );
   const [positioned, setPositioned] = useState<PositionedDocument | null>(null);
   const [zoom, setZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -86,6 +91,13 @@ export function Canvas({
     >
       <div
         ref={scrollRef}
+        onClick={(e) => {
+          // Only fire deselect when the click landed on the scroll container
+          // itself, not on a node/edge inside the SVG (those stopPropagation).
+          if (e.target === e.currentTarget && onSelectNothing) {
+            onSelectNothing();
+          }
+        }}
         style={{
           width: "100%",
           height: "100%",
