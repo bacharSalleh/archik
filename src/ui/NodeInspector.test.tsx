@@ -46,9 +46,9 @@ describe("NodeInspector", () => {
   it("dispatches update_node when the kind changes", () => {
     const dispatch = vi.fn();
     render(<NodeInspector node={apiNode} dispatch={dispatch} />);
-    fireEvent.change(screen.getByLabelText(/kind/i), {
-      target: { value: "function" },
-    });
+    // KindPicker is a button that opens a popover with kind options.
+    fireEvent.click(screen.getByLabelText(/kind/i));
+    fireEvent.click(screen.getByRole("button", { name: /^function/i }));
     expect(dispatch).toHaveBeenCalledWith({
       type: "update_node",
       id: "api",

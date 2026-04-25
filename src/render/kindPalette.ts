@@ -3,6 +3,7 @@ import {
   Box,
   Brain,
   Cable,
+  CircleDot,
   Cloud,
   Cog,
   Database,
@@ -124,8 +125,8 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
   },
   port: {
     color: "#a21caf",
-    icon: Plug,
-    description: "Hexagonal-architecture port (entry / exit point).",
+    icon: CircleDot,
+    description: "Hexagonal-architecture port — the socket an adapter plugs into.",
   },
 
   // AI / ML -------------------------------------------------------------

@@ -21,9 +21,8 @@ describe("AddNodeForm", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
-    fireEvent.change(screen.getByLabelText(/kind/i), {
-      target: { value: "database" },
-    });
+    fireEvent.click(screen.getByLabelText(/kind/i));
+    fireEvent.click(screen.getByRole("button", { name: /^database/i }));
     fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "  Orders DB  " },
     });

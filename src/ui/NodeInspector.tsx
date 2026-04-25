@@ -1,6 +1,6 @@
 import type { Command } from "../domain/commands.ts";
-import { NODE_KINDS } from "../domain/taxonomy.ts";
 import type { Node, NodeKind } from "../domain/types.ts";
+import { KindPicker } from "./KindPicker.tsx";
 
 type Props = {
   node: Node | undefined;
@@ -47,18 +47,11 @@ export function NodeInspector({
       </Field>
 
       <Field label="Kind" htmlFor="ni-kind">
-        <select
+        <KindPicker
           id="ni-kind"
           value={node.kind}
-          onChange={(e) => update({ kind: e.target.value as NodeKind })}
-          className="archik-input w-full"
-        >
-          {NODE_KINDS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
+          onChange={(kind: NodeKind) => update({ kind })}
+        />
       </Field>
 
       <Field label="Stack" htmlFor="ni-stack">

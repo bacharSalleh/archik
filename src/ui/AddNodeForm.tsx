@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NodeKind } from "../domain/types.ts";
-import { NODE_KINDS } from "../domain/taxonomy.ts";
+import { KindPicker } from "./KindPicker.tsx";
 
 export type AddNodeFormProps = {
   onAdd: (kind: NodeKind, name: string) => void;
@@ -82,19 +82,13 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
             <label className="archik-label" htmlFor="add-node-kind">
               Kind
             </label>
-            <select
-              id="add-node-kind"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as NodeKind)}
-              className="archik-input"
-              style={{ width: "100%", marginBottom: 12 }}
-            >
-              {NODE_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
+            <div style={{ marginBottom: 12 }}>
+              <KindPicker
+                id="add-node-kind"
+                value={kind}
+                onChange={(k: NodeKind) => setKind(k)}
+              />
+            </div>
             <label className="archik-label" htmlFor="add-node-name">
               Name
             </label>
