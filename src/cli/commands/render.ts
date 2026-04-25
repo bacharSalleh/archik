@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -45,6 +45,9 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   // Wrap in xml header for safety when opened standalone.
   const finalSvg = `<?xml version="1.0" encoding="UTF-8"?>\n${themed}\n`;
   const outAbs = path.resolve(out);
+  // Ensure the parent directory exists so `archik render --out a/b/c.svg`
+  // works for arbitrary nested paths.
+  await mkdir(path.dirname(outAbs), { recursive: true });
   await writeFile(outAbs, finalSvg, "utf-8");
   console.log(
     `✓ Rendered ${doc.nodes.length} nodes / ${doc.edges.length} edges → ${out}`,

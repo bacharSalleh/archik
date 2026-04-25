@@ -24,8 +24,11 @@ export async function watchCommand(opts: ParsedOptions): Promise<number> {
     })();
   });
 
-  // Keep the process alive forever.
-  return new Promise<number>(() => {
-    /* never resolves */
+  return new Promise<number>((resolve) => {
+    const shutdown = (): void => {
+      void watcher.close().finally(() => resolve(0));
+    };
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
   });
 }

@@ -50,6 +50,22 @@ function removeNode(doc: Document, id: string): Document {
   };
 }
 
+function wouldCreateParentCycle(
+  doc: Document,
+  nodeId: string,
+  proposedParent: string,
+): boolean {
+  let cursor: string | undefined = proposedParent;
+  const visited = new Set<string>();
+  while (cursor) {
+    if (cursor === nodeId) return true;
+    if (visited.has(cursor)) return true;
+    visited.add(cursor);
+    cursor = doc.nodes.find((n) => n.id === cursor)?.parentId;
+  }
+  return false;
+}
+
 function updateNode(
   doc: Document,
   id: string,
@@ -69,6 +85,11 @@ function updateNode(
     if (!findNode(doc, patch.parentId)) {
       throw new CommandError(
         `node "${id}" references missing parent "${patch.parentId}"`,
+      );
+    }
+    if (wouldCreateParentCycle(doc, id, patch.parentId)) {
+      throw new CommandError(
+        `setting parent of "${id}" to "${patch.parentId}" would create a parent cycle`,
       );
     }
   }

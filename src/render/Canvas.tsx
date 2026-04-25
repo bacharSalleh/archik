@@ -99,7 +99,13 @@ export function Canvas({
     };
   }, [layoutPromise]);
 
+  // Attach the wheel listener once the scroll container exists. Depending
+  // on `positioned !== null` (a boolean) instead of the layout object
+  // itself avoids re-adding the listener on every layout pass — which
+  // happens on every keystroke in the inspector.
+  const scrollMounted = positioned !== null;
   useEffect(() => {
+    if (!scrollMounted) return;
     const el = scrollRef.current;
     if (!el) return;
     const handler = (e: WheelEvent): void => {
@@ -110,7 +116,7 @@ export function Canvas({
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, [positioned]);
+  }, [scrollMounted]);
 
   // Capture-phase click swallower for the node that ends a drag-to-connect.
   useEffect(() => {

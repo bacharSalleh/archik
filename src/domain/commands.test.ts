@@ -218,6 +218,28 @@ describe("applyCommand: update_node", () => {
       }),
     ).toThrow(CommandError);
   });
+
+  it("rejects a parentId that would create an indirect cycle", () => {
+    // platform parent of api parent of db; trying to set platform.parentId
+    // = db would close the loop (db → api → platform → db).
+    const chain: Document = {
+      version: "1.0",
+      name: "Chain",
+      nodes: [
+        { id: "platform", kind: "custom", name: "Platform" },
+        { id: "api", kind: "service", name: "API", parentId: "platform" },
+        { id: "db", kind: "database", name: "DB", parentId: "api" },
+      ],
+      edges: [],
+    };
+    expect(() =>
+      applyCommand(chain, {
+        type: "update_node",
+        id: "platform",
+        patch: { parentId: "db" },
+      }),
+    ).toThrow(CommandError);
+  });
 });
 
 describe("applyCommand: connect", () => {
