@@ -46,50 +46,47 @@ export function iconAnchorsFor(
   width: number,
   height: number,
 ): IconAnchors {
+  // Most shapes share the same header band — a 24px strip with the
+  // KIND label centered, kind tag on the left, status icons on the
+  // right. Anchor centers live at the strip's vertical midpoint
+  // (y=12) at +/- 12px from the edges.
+  const HEADER_MID = 12;
+
   switch (kind) {
     case "database": {
-      // Cylinder: top ellipse curves until y = ry*2. Park icons just
-      // below that curve so they sit visibly inside the body.
+      // Cylinder: header is INSIDE the body just below the top ellipse.
       const ry = Math.min(10, height / 8);
-      const cy = ry * 2 + 10;
+      const cy = ry * 2 + 12;
       return {
         left: { x: 12, y: cy },
         right: { x: width - 12, y: cy },
       };
     }
     case "queue": {
-      // Capsule: rounded ends from x=0 to x=radius. Icons live inside
-      // the straight middle section.
-      const r = Math.min(height / 2, 24);
+      // Capsule: header is in the straight band between the rounded ends.
+      const r = Math.min(height / 2, 28);
       return {
-        left: { x: r + 6, y: 12 },
-        right: { x: width - r - 6, y: 12 },
+        left: { x: r + 4, y: HEADER_MID },
+        right: { x: width - r - 4, y: HEADER_MID },
       };
     }
     case "frontend": {
-      // Three traffic-light dots fill the left of the chrome bar.
-      // Park the kind tag just to their right and the info on the
-      // far right of the chrome bar.
+      // Chrome dots take x=8..22 of the header bar. Tag sits at x=36,
+      // info on the far right, both vertically centered in the header.
       return {
-        left: { x: 38, y: 7 },
-        right: { x: width - 12, y: 7 },
+        left: { x: 36, y: HEADER_MID },
+        right: { x: width - 12, y: HEADER_MID },
       };
     }
-    case "function": {
-      // λ glyph occupies the top-left. Tag goes immediately after it.
-      return {
-        left: { x: 32, y: 12 },
-        right: { x: width - 12, y: 12 },
-      };
-    }
+    case "service":
     case "cache":
     case "external":
-    case "service":
+    case "function":
     case "custom":
     default:
       return {
-        left: { x: 12, y: 12 },
-        right: { x: width - 12, y: 12 },
+        left: { x: 12, y: HEADER_MID },
+        right: { x: width - 12, y: HEADER_MID },
       };
   }
 }

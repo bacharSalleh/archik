@@ -24,12 +24,12 @@ describe("FunctionNode", () => {
     expect(getByText("Resize Image")).toBeInTheDocument();
   });
 
-  it("includes a function glyph (λ)", () => {
+  it("shows the FUNCTION kind label", () => {
     const { container } = render(
       <svg>
         <FunctionNode node={node} />
       </svg>,
     );
-    expect(container.textContent).toContain("λ");
+    expect(container.textContent?.toUpperCase()).toContain("FUNCTION");
   });
 });

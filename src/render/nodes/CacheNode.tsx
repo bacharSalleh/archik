@@ -1,16 +1,15 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
 export function CacheNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
-  // Slightly lower stripe so the kind tag at top-left has clear room
-  // to the left of the CACHE caption text.
-  const stripeY = h * 0.34;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h * 0.66 - 2 : h * 0.6;
-  const stackY = h * 0.66 + 14;
+  const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
+  const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
+  const stackY = bodyMid + 14;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";
@@ -28,24 +27,15 @@ export function CacheNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={selected ? 1.8 : 1.4}
       />
       <line
-        x1={10}
-        y1={stripeY}
-        x2={w - 10}
-        y2={stripeY}
+        x1={0}
+        y1={HEADER_HEIGHT}
+        x2={w}
+        y2={HEADER_HEIGHT}
         stroke={stroke}
-        strokeOpacity={0.3}
+        strokeOpacity={0.25}
         strokeWidth={1}
       />
-      <text
-        x={w / 2}
-        y={stripeY - 6}
-        textAnchor="middle"
-        fontSize={9}
-        letterSpacing="0.08em"
-        fill="var(--archik-node-caption)"
-      >
-        CACHE
-      </text>
+      <HeaderLabel cx={w / 2} cy={15} label="CACHE" />
       <text
         x={w / 2}
         y={nameY}

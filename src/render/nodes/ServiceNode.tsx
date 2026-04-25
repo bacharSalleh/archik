@@ -1,4 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -6,8 +7,7 @@ export function ServiceNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const hasStack = node.stack !== undefined;
-  // Top 18px reserved for icons (kind tag, info). Center the text below.
-  const bodyMid = 18 + (h - 18) / 2;
+  const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
   const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
   return (
@@ -22,6 +22,16 @@ export function ServiceNode({ node, selected }: Props): React.ReactElement {
         stroke={selected ? "var(--archik-selected)" : "var(--archik-node-stroke)"}
         strokeWidth={selected ? 1.8 : 1.4}
       />
+      <line
+        x1={0}
+        y1={HEADER_HEIGHT}
+        x2={w}
+        y2={HEADER_HEIGHT}
+        stroke="var(--archik-node-stroke)"
+        strokeOpacity={0.25}
+        strokeWidth={1}
+      />
+      <HeaderLabel cx={w / 2} cy={15} label="SERVICE" />
       <text
         x={w / 2}
         y={nameY}

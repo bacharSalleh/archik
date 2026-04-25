@@ -1,4 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -6,8 +7,7 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const hasStack = node.stack !== undefined;
-  // λ + kind + info live in the top 22px; center text below.
-  const bodyMid = 22 + (h - 22) / 2;
+  const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
   const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
   const stroke = selected
@@ -26,16 +26,16 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
         stroke={stroke}
         strokeWidth={selected ? 1.8 : 1.4}
       />
-      <text
-        x={12}
-        y={20}
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontSize={14}
-        fontWeight={700}
-        fill="var(--archik-node-caption)"
-      >
-        λ
-      </text>
+      <line
+        x1={4}
+        y1={HEADER_HEIGHT}
+        x2={w - 4}
+        y2={HEADER_HEIGHT}
+        stroke={stroke}
+        strokeOpacity={0.25}
+        strokeWidth={1}
+      />
+      <HeaderLabel cx={w / 2} cy={15} label="FUNCTION" />
       <text
         x={w / 2}
         y={nameY}

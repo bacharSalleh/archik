@@ -1,17 +1,16 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
 export function QueueNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
-  const radius = Math.min(h / 2, 24);
-  const dividerX = w - radius * 1.4;
+  const radius = Math.min(h / 2, 28);
   const hasStack = node.stack !== undefined;
-  // Icons sit at y=8 inside the body; push the name/stack baseline down.
-  const baseY = 28;
-  const nameY = hasStack ? baseY : baseY + 6;
-  const stackY = baseY + 18;
+  const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
+  const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
+  const stackY = bodyMid + 14;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";
@@ -29,16 +28,17 @@ export function QueueNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={selected ? 1.8 : 1.4}
       />
       <line
-        x1={dividerX}
-        y1={6}
-        x2={dividerX}
-        y2={h - 6}
+        x1={radius}
+        y1={HEADER_HEIGHT}
+        x2={w - radius}
+        y2={HEADER_HEIGHT}
         stroke={stroke}
-        strokeOpacity={0.4}
+        strokeOpacity={0.25}
         strokeWidth={1}
       />
+      <HeaderLabel cx={w / 2} cy={15} label="QUEUE" />
       <text
-        x={dividerX / 2}
+        x={w / 2}
         y={nameY}
         textAnchor="middle"
         fontSize={13}
@@ -49,7 +49,7 @@ export function QueueNode({ node, selected }: Props): React.ReactElement {
       </text>
       {hasStack && (
         <text
-          x={dividerX / 2}
+          x={w / 2}
           y={stackY}
           textAnchor="middle"
           fontSize={11}

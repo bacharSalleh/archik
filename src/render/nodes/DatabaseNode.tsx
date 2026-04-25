@@ -1,4 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { HeaderLabel } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -7,11 +8,14 @@ export function DatabaseNode({ node, selected }: Props): React.ReactElement {
   const h = node.height;
   const ry = Math.min(10, h / 8);
   const hasStack = node.stack !== undefined;
-  // Icons live at y ~= ry*2..ry*2+12; push the text down so it never
-  // overlaps with the icon row inside the cylinder body.
-  const textBaseY = ry * 2 + 22;
-  const nameY = hasStack ? textBaseY : textBaseY + 6;
-  const stackY = textBaseY + 18;
+  // Header lives in the body just below the top ellipse.
+  const headerY = ry * 2 + 12;
+  // Body content centered between header and bottom ellipse.
+  const bodyTop = headerY + 14;
+  const bodyBottom = h - ry * 2;
+  const bodyMid = (bodyTop + bodyBottom) / 2;
+  const nameY = hasStack ? bodyMid - 2 : bodyMid + 4;
+  const stackY = bodyMid + 14;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";
@@ -48,6 +52,7 @@ export function DatabaseNode({ node, selected }: Props): React.ReactElement {
         strokeDasharray="2 3"
         opacity={0.6}
       />
+      <HeaderLabel cx={w / 2} cy={headerY} label="DATABASE" />
       <text
         x={w / 2}
         y={nameY}
