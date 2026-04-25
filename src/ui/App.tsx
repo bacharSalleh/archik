@@ -41,6 +41,12 @@ export function App(): React.ReactElement {
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isDirty, setIsDirty] = useState(false);
+  // Undo / redo stacks. Each successful command snapshots the previous
+  // document to `past` and clears `future`. Externally-driven loads
+  // (file watcher, fresh fetch) reset both — undo can't span across.
+  const [past, setPast] = useState<Document[]>([]);
+  const [future, setFuture] = useState<Document[]>([]);
+  const HISTORY_LIMIT = 100;
   const [density, setDensityState] = useState<number>(() => loadDensity());
   const setDensity = (v: number): void => {
     setDensityState(v);
@@ -74,6 +80,8 @@ export function App(): React.ReactElement {
           setState({ status: "ready", document });
           setIsDirty(false);
           setReloadError(undefined);
+          setPast([]);
+          setFuture([]);
         },
         (err: unknown) => {
           if (cancelled) return;
@@ -167,6 +175,8 @@ export function App(): React.ReactElement {
           });
           setCommandError(undefined);
           setIsDirty(true);
+          setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
+          setFuture([]);
           createdEdgeId = edgeId;
           return { status: "ready", document: next };
         } catch (err) {
@@ -194,6 +204,8 @@ export function App(): React.ReactElement {
           });
           setCommandError(undefined);
           setIsDirty(true);
+          setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
+          setFuture([]);
           return { status: "ready", document: next };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -219,6 +231,8 @@ export function App(): React.ReactElement {
             clearSelection();
           }
           setIsDirty(true);
+          setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
+          setFuture([]);
           return { status: "ready", document: next };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -230,11 +244,44 @@ export function App(): React.ReactElement {
     [selection, clearSelection],
   );
 
+  const undo = useCallback(() => {
+    if (state.status !== "ready" || past.length === 0) return;
+    const prev = past[past.length - 1]!;
+    setPast((p) => p.slice(0, -1));
+    setFuture((f) => [...f, state.document]);
+    setState({ status: "ready", document: prev });
+    setIsDirty(true);
+    setCommandError(undefined);
+    clearSelection();
+  }, [state, past, clearSelection]);
+
+  const redo = useCallback(() => {
+    if (state.status !== "ready" || future.length === 0) return;
+    const next = future[future.length - 1]!;
+    setFuture((f) => f.slice(0, -1));
+    setPast((p) => [...p, state.document]);
+    setState({ status: "ready", document: next });
+    setIsDirty(true);
+    setCommandError(undefined);
+    clearSelection();
+  }, [state, future, clearSelection]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (isDirty) void save();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
         return;
       }
       if (e.key === "Escape") {
@@ -260,7 +307,7 @@ export function App(): React.ReactElement {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isDirty, save, connectFrom, cancelConnect, selection, dispatch]);
+  }, [isDirty, save, connectFrom, cancelConnect, selection, dispatch, undo, redo]);
 
   if (state.status === "loading") {
     return <Splash>Loading {DOCUMENT_URL}…</Splash>;
@@ -306,6 +353,10 @@ export function App(): React.ReactElement {
         onAddNode={addNode}
         density={density}
         onDensityChange={setDensity}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
+        onUndo={undo}
+        onRedo={redo}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {

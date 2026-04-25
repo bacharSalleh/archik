@@ -1,3 +1,4 @@
+import { Redo2, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
@@ -21,6 +22,10 @@ type Props = {
   onCancelConnect?: () => void;
   density?: number;
   onDensityChange?: (value: number) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -50,6 +55,10 @@ export function Toolbar({
   onCancelConnect,
   density,
   onDensityChange,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -108,6 +117,32 @@ export function Toolbar({
         <span className={SAVE_VARIANT[saveStatus]}>{saveLabel}</span>
       )}
       <div className="ml-auto flex items-center gap-2">
+        {onUndo !== undefined && (
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title={`Undo (${shortcutHint.replace("S", "Z")})`}
+            aria-label="Undo"
+            className="archik-btn"
+            style={{ padding: "5px 8px" }}
+          >
+            <Undo2 size={14} strokeWidth={1.8} />
+          </button>
+        )}
+        {onRedo !== undefined && (
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title={`Redo (${shortcutHint.replace("S", "⇧Z").replace("Ctrl+", "Ctrl+Shift+")})`}
+            aria-label="Redo"
+            className="archik-btn"
+            style={{ padding: "5px 8px" }}
+          >
+            <Redo2 size={14} strokeWidth={1.8} />
+          </button>
+        )}
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />
