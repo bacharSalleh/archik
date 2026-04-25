@@ -26,6 +26,12 @@ export function serializeDocument(
 }
 
 export async function loadDocumentFromUrl(url: string): Promise<Document> {
+  return (await loadDocumentFromUrlWithText(url)).document;
+}
+
+export async function loadDocumentFromUrlWithText(
+  url: string,
+): Promise<{ document: Document; text: string }> {
   const format = detectFormat(url);
   const res = await fetch(url);
   if (!res.ok) {
@@ -35,11 +41,31 @@ export async function loadDocumentFromUrl(url: string): Promise<Document> {
   }
   const text = await res.text();
   try {
-    return parseDocument(text, format);
+    return { document: parseDocument(text, format), text };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Could not load ${url}:\n${msg}`);
   }
+}
+
+export async function saveDocumentToUrl(
+  url: string,
+  doc: Document,
+): Promise<{ text: string }> {
+  const format = detectFormat(url);
+  const text = serializeDocument(doc, format);
+  const mime = format === "yaml" ? MIME.yaml : MIME.json;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "content-type": mime },
+    body: text,
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Failed to save ${url}: ${res.status} ${res.statusText}`,
+    );
+  }
+  return { text };
 }
 
 const MIME: Record<DocumentFormat, string> = {

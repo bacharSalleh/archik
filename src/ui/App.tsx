@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "../render/Canvas.tsx";
-import { loadDocumentFromUrl } from "../io/fileAdapter.ts";
+import {
+  loadDocumentFromUrlWithText,
+  saveDocumentToUrl,
+} from "../io/fileAdapter.ts";
 import { subscribeToDocumentChanges } from "../io/liveReload.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
@@ -10,6 +13,10 @@ import { NodeInspector } from "./NodeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
+const SAVE_DEBOUNCE_MS = 300;
+const SAVED_INDICATOR_MS = 1500;
+
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type State =
   | { status: "loading" }
@@ -24,7 +31,14 @@ export function App(): React.ReactElement {
   const [reloadError, setReloadError] = useState<string | undefined>(
     undefined,
   );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const loadedOnceRef = useRef(false);
+  const lastTextRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const pendingDocRef = useRef<Document | null>(null);
   const selection = useUIStore((s) => s.selection);
   const selectNode = useUIStore((s) => s.selectNode);
   const clearSelection = useUIStore((s) => s.clearSelection);
@@ -32,9 +46,11 @@ export function App(): React.ReactElement {
   useEffect(() => {
     let cancelled = false;
     const load = (): void => {
-      loadDocumentFromUrl(DOCUMENT_URL).then(
-        (document) => {
+      loadDocumentFromUrlWithText(DOCUMENT_URL).then(
+        ({ document, text }) => {
           if (cancelled) return;
+          if (text === lastTextRef.current) return; // self-write echo
+          lastTextRef.current = text;
           loadedOnceRef.current = true;
           setState({ status: "ready", document });
           setReloadError(undefined);
@@ -58,6 +74,47 @@ export function App(): React.ReactElement {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (savedIndicatorTimerRef.current) {
+        clearTimeout(savedIndicatorTimerRef.current);
+      }
+    };
+  }, []);
+
+  const flushSave = useCallback(async () => {
+    const doc = pendingDocRef.current;
+    if (!doc) return;
+    pendingDocRef.current = null;
+    setSaveStatus("saving");
+    try {
+      const { text } = await saveDocumentToUrl(DOCUMENT_URL, doc);
+      lastTextRef.current = text;
+      setSaveStatus("saved");
+      if (savedIndicatorTimerRef.current) {
+        clearTimeout(savedIndicatorTimerRef.current);
+      }
+      savedIndicatorTimerRef.current = setTimeout(
+        () => setSaveStatus("idle"),
+        SAVED_INDICATOR_MS,
+      );
+    } catch {
+      setSaveStatus("error");
+    }
+  }, []);
+
+  const scheduleSave = useCallback(
+    (doc: Document) => {
+      pendingDocRef.current = doc;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        void flushSave();
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [flushSave],
+  );
+
   const dispatch = useCallback(
     (cmd: Command) => {
       setState((current) => {
@@ -68,6 +125,7 @@ export function App(): React.ReactElement {
           if (cmd.type === "remove_node" && selection?.id === cmd.id) {
             clearSelection();
           }
+          scheduleSave(next);
           return { status: "ready", document: next };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -76,7 +134,7 @@ export function App(): React.ReactElement {
         }
       });
     },
-    [selection, clearSelection],
+    [selection, clearSelection, scheduleSave],
   );
 
   if (state.status === "loading") {
@@ -103,6 +161,7 @@ export function App(): React.ReactElement {
       <Toolbar
         document={doc}
         commandError={commandError}
+        saveStatus={saveStatus}
         {...(reloadError !== undefined ? { reloadError } : {})}
       />
       <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">

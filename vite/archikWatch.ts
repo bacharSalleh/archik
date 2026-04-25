@@ -16,21 +16,39 @@ export function archikWatch(): Plugin {
       absPath = path.resolve(server.config.root, FILE_NAME);
 
       server.middlewares.use(URL_PATH, async (req, res, next) => {
-        if (req.method !== "GET" && req.method !== "HEAD") return next();
-        try {
-          const text = await fs.readFile(absPath, "utf-8");
-          res.setHeader("content-type", MIME);
-          res.setHeader("cache-control", "no-store");
-          if (req.method === "HEAD") {
-            res.end();
-          } else {
-            res.end(text);
+        if (req.method === "GET" || req.method === "HEAD") {
+          try {
+            const text = await fs.readFile(absPath, "utf-8");
+            res.setHeader("content-type", MIME);
+            res.setHeader("cache-control", "no-store");
+            if (req.method === "HEAD") {
+              res.end();
+            } else {
+              res.end(text);
+            }
+          } catch (err) {
+            res.statusCode = 404;
+            const msg = err instanceof Error ? err.message : String(err);
+            res.end(`Not found: ${absPath}\n${msg}`);
           }
-        } catch (err) {
-          res.statusCode = 404;
-          const msg = err instanceof Error ? err.message : String(err);
-          res.end(`Not found: ${absPath}\n${msg}`);
+          return;
         }
+        if (req.method === "PUT") {
+          try {
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) chunks.push(chunk as Buffer);
+            const body = Buffer.concat(chunks).toString("utf-8");
+            await fs.writeFile(absPath, body, "utf-8");
+            res.statusCode = 204;
+            res.end();
+          } catch (err) {
+            res.statusCode = 500;
+            const msg = err instanceof Error ? err.message : String(err);
+            res.end(`Save failed: ${msg}`);
+          }
+          return;
+        }
+        return next();
       });
 
       server.watcher.add(absPath);

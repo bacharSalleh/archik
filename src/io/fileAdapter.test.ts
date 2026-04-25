@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   detectFormat,
   loadDocumentFromUrl,
+  loadDocumentFromUrlWithText,
+  saveDocumentToUrl,
   serializeDocument,
 } from "./fileAdapter.ts";
 import { ordersDocument } from "../domain/__fixtures__/orders.ts";
@@ -85,5 +87,47 @@ describe("loadDocumentFromUrl", () => {
     await expect(loadDocumentFromUrl("/bad.yaml")).rejects.toThrow(
       /bad\.yaml/,
     );
+  });
+});
+
+describe("loadDocumentFromUrlWithText", () => {
+  it("returns both the parsed document and its raw text", async () => {
+    const yaml = stringifyYaml(ordersDocument);
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      text: async () => yaml,
+    } as Response);
+    const out = await loadDocumentFromUrlWithText(
+      "/architecture.archik.yaml",
+    );
+    expect(out.document).toEqual(ordersDocument);
+    expect(out.text).toBe(yaml);
+  });
+});
+
+describe("saveDocumentToUrl", () => {
+  it("PUTs the serialized document and returns the text", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({ ok: true } as Response);
+    const out = await saveDocumentToUrl(
+      "/architecture.archik.yaml",
+      ordersDocument,
+    );
+    expect(out.text).toBe(stringifyYaml(ordersDocument));
+    const [, init] = fetchSpy.mock.calls[0]!;
+    expect(init?.method).toBe("PUT");
+    expect(init?.body).toBe(stringifyYaml(ordersDocument));
+  });
+
+  it("throws on a non-OK response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: "Internal",
+    } as Response);
+    await expect(
+      saveDocumentToUrl("/architecture.archik.yaml", ordersDocument),
+    ).rejects.toThrow(/500/);
   });
 });
