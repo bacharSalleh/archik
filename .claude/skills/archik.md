@@ -15,6 +15,21 @@ queue", they mean the entity with that `id` in the YAML.
 Treat this file as a shared vocabulary. It exists so the user and you
 can talk about the system without re-explaining it every time.
 
+## Protocol
+
+1. **Before** answering structural questions — *"what does X do?",
+   "what depends on Y?", "where does data flow when …?"* — read
+   `architecture.archik.yaml`. Don't guess from filenames or memory.
+2. **When** work introduces, removes, or rewires components, propose
+   an update to the YAML alongside the implementation. The user owns
+   the file — suggest, don't silently apply.
+3. **After** every edit to the YAML, run `archik validate`. Fix any
+   reported errors before declaring the change done.
+
+The sections below are the detailed reference behind these three
+rules — *when* to consult, *when* to propose, schema, taxonomy,
+relationship vocabulary, and CLI.
+
 ## When to consult the YAML
 
 Read it **before answering** any of these:
