@@ -89,6 +89,48 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
         />
       </Field>
 
+      <Field label="Color" htmlFor="ei-color">
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input
+            id="ei-color"
+            type="color"
+            value={normalizeHex(edge.color) ?? "#cbd5e1"}
+            onChange={(e) => update({ color: e.target.value })}
+            aria-label="Pick edge color"
+            style={{
+              width: 28,
+              height: 28,
+              padding: 0,
+              border: "1px solid var(--archik-border)",
+              borderRadius: 4,
+              background: "transparent",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          />
+          <input
+            type="text"
+            value={edge.color ?? ""}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              update({ color: v.length > 0 ? v : undefined });
+            }}
+            placeholder="default (whitish)"
+            className="archik-input"
+            style={{ flex: 1, fontFamily: "ui-monospace, monospace" }}
+          />
+          <button
+            type="button"
+            onClick={() => update({ color: undefined })}
+            disabled={edge.color === undefined}
+            className="archik-btn"
+            title="Reset to default color"
+          >
+            Reset
+          </button>
+        </div>
+      </Field>
+
       <div className="mt-auto pt-4 archik-divider">
         <button
           type="button"
@@ -101,6 +143,26 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
       </div>
     </div>
   );
+}
+
+/**
+ * <input type="color"> requires a 6-digit hex. If the user typed
+ * "rgb(...)", a CSS variable, or named color into the text input we
+ * still want the picker to render with a sensible value rather than
+ * snapping back to default. Returns null when the string isn't already
+ * a hex; the caller falls back to its own default.
+ */
+function normalizeHex(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const r = trimmed[1]!;
+    const g = trimmed[2]!;
+    const b = trimmed[3]!;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return null;
 }
 
 function Field({
