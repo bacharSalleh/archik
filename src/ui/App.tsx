@@ -12,6 +12,7 @@ import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import { useUIStore } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
+import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
@@ -41,6 +42,7 @@ export function App(): React.ReactElement {
   );
   const selection = useUIStore((s) => s.selection);
   const selectNode = useUIStore((s) => s.selectNode);
+  const selectEdge = useUIStore((s) => s.selectEdge);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   useEffect(() => {
@@ -154,7 +156,10 @@ export function App(): React.ReactElement {
         try {
           const next = applyCommand(current.document, cmd);
           setCommandError(undefined);
-          if (cmd.type === "remove_node" && selection?.id === cmd.id) {
+          if (
+            (cmd.type === "remove_node" || cmd.type === "disconnect") &&
+            selection?.id === cmd.id
+          ) {
             clearSelection();
           }
           setIsDirty(true);
@@ -187,6 +192,10 @@ export function App(): React.ReactElement {
     selection?.type === "node"
       ? doc.nodes.find((n) => n.id === selection.id)
       : undefined;
+  const selectedEdge =
+    selection?.type === "edge"
+      ? doc.edges.find((e) => e.id === selection.id)
+      : undefined;
 
   return (
     <div className="flex h-full flex-col bg-slate-50 text-slate-900">
@@ -207,12 +216,20 @@ export function App(): React.ReactElement {
             {...(selection?.type === "node"
               ? { selectedNodeId: selection.id }
               : {})}
+            {...(selection?.type === "edge"
+              ? { selectedEdgeId: selection.id }
+              : {})}
             onSelectNode={selectNode}
+            onSelectEdge={selectEdge}
             onSelectNothing={clearSelection}
           />
         </div>
         <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <NodeInspector node={selectedNode} dispatch={dispatch} />
+          {selection?.type === "edge" ? (
+            <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
+          ) : (
+            <NodeInspector node={selectedNode} dispatch={dispatch} />
+          )}
         </aside>
       </main>
     </div>

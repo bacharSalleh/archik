@@ -8,7 +8,9 @@ type Props = {
   document: Document;
   className?: string | undefined;
   selectedNodeId?: string | undefined;
+  selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
+  onSelectEdge?: ((id: string) => void) | undefined;
   onSelectNothing?: (() => void) | undefined;
 };
 
@@ -16,7 +18,9 @@ export function Canvas({
   document,
   className,
   selectedNodeId,
+  selectedEdgeId,
   onSelectNode,
+  onSelectEdge,
   onSelectNothing,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(() => layout(document), [document]);
@@ -59,7 +63,9 @@ export function Canvas({
       positioned={positioned}
       className={className}
       {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+      {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
       {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+      {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
       {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
     />
   );

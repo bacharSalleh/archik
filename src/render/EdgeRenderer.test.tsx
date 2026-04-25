@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { EdgeRenderer } from "./EdgeRenderer.tsx";
 import type { PositionedEdge } from "../layout/types.ts";
@@ -131,5 +131,45 @@ describe("EdgeRenderer", () => {
       </svg>,
     );
     expect(getByText("writes")).toBeInTheDocument();
+  });
+
+  it("calls onSelectEdge with the edge id when clicked", () => {
+    const onSelectEdge = vi.fn();
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge()} onSelectEdge={onSelectEdge} />
+      </svg>,
+    );
+    const wrapper = container.querySelector(
+      "[data-archik-edge-id='e1']",
+    ) as SVGGElement;
+    wrapper.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onSelectEdge).toHaveBeenCalledWith("e1");
+  });
+
+  it("marks the wrapper as selected when selectedEdgeId matches", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge()} selectedEdgeId="e1" />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-edge-id='e1']")
+        ?.getAttribute("data-archik-selected"),
+    ).toBe("true");
+  });
+
+  it("includes a wide invisible hit area to make clicks easier", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge()} onSelectEdge={vi.fn()} />
+      </svg>,
+    );
+    const polylines = container.querySelectorAll("polyline");
+    // visible + hit area
+    expect(polylines.length).toBe(2);
+    const hit = container.querySelector("[data-archik-edge-hitarea]");
+    expect(hit).not.toBeNull();
   });
 });

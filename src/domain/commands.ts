@@ -7,6 +7,7 @@ export type Command =
   | { type: "update_node"; id: string; patch: Partial<Node> }
   | { type: "connect"; edge: Edge }
   | { type: "disconnect"; id: string }
+  | { type: "update_edge"; id: string; patch: Partial<Edge> }
   | { type: "rename_document"; name: string };
 
 export class CommandError extends Error {
@@ -98,6 +99,35 @@ function disconnect(doc: Document, id: string): Document {
   return { ...doc, edges: doc.edges.filter((e) => e.id !== id) };
 }
 
+function updateEdge(
+  doc: Document,
+  id: string,
+  patch: Partial<Edge>,
+): Document {
+  const existing = doc.edges.find((e) => e.id === id);
+  if (!existing) {
+    throw new CommandError(`edge "${id}" does not exist`);
+  }
+  if ("id" in patch && patch.id !== undefined && patch.id !== id) {
+    throw new CommandError(`update_edge cannot change id (${id} → ${patch.id})`);
+  }
+  if (patch.from !== undefined && !findNode(doc, patch.from)) {
+    throw new CommandError(
+      `edge "${id}" references missing from "${patch.from}"`,
+    );
+  }
+  if (patch.to !== undefined && !findNode(doc, patch.to)) {
+    throw new CommandError(
+      `edge "${id}" references missing to "${patch.to}"`,
+    );
+  }
+  const merged: Edge = { ...existing, ...patch, id };
+  return {
+    ...doc,
+    edges: doc.edges.map((e) => (e.id === id ? merged : e)),
+  };
+}
+
 function reduce(doc: Document, cmd: Command): Document {
   switch (cmd.type) {
     case "add_node":
@@ -110,6 +140,8 @@ function reduce(doc: Document, cmd: Command): Document {
       return connect(doc, cmd.edge);
     case "disconnect":
       return disconnect(doc, cmd.id);
+    case "update_edge":
+      return updateEdge(doc, cmd.id, cmd.patch);
     case "rename_document":
       return { ...doc, name: cmd.name };
     default: {

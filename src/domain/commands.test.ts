@@ -269,6 +269,49 @@ function deepFreeze<T>(o: T): T {
   return o;
 }
 
+describe("applyCommand: update_edge", () => {
+  it("applies a partial patch to label and relationship", () => {
+    const next = applyCommand(withTwoNodes, {
+      type: "update_edge",
+      id: "api-db",
+      patch: { label: "writes orders", relationship: "reads" },
+    });
+    const edge = next.edges.find((e) => e.id === "api-db");
+    expect(edge?.label).toBe("writes orders");
+    expect(edge?.relationship).toBe("reads");
+  });
+
+  it("rejects updates to a missing edge", () => {
+    expect(() =>
+      applyCommand(withTwoNodes, {
+        type: "update_edge",
+        id: "missing",
+        patch: { label: "x" },
+      }),
+    ).toThrow(CommandError);
+  });
+
+  it("rejects a patch that changes the id", () => {
+    expect(() =>
+      applyCommand(withTwoNodes, {
+        type: "update_edge",
+        id: "api-db",
+        patch: { id: "renamed" },
+      }),
+    ).toThrow(CommandError);
+  });
+
+  it("rejects rerouting to a missing endpoint", () => {
+    expect(() =>
+      applyCommand(withTwoNodes, {
+        type: "update_edge",
+        id: "api-db",
+        patch: { to: "ghost" },
+      }),
+    ).toThrow(CommandError);
+  });
+});
+
 describe("applyCommand: never mutates the input", () => {
   it.each([
     ["rename_document", { type: "rename_document", name: "Z" }],
@@ -286,6 +329,10 @@ describe("applyCommand: never mutates the input", () => {
       },
     ],
     ["disconnect", { type: "disconnect", id: "api-db" }],
+    [
+      "update_edge",
+      { type: "update_edge", id: "api-db", patch: { label: "z" } },
+    ],
   ] as const)("%s does not throw on a deep-frozen document", (_, cmd) => {
     const frozen = deepFreeze(structuredClone(withTwoNodes));
     expect(() => applyCommand(frozen, cmd)).not.toThrow();

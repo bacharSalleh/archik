@@ -36,7 +36,9 @@ type Props = {
   positioned: PositionedDocument;
   className?: string | undefined;
   selectedNodeId?: string | undefined;
+  selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
+  onSelectEdge?: ((id: string) => void) | undefined;
   onSelectNothing?: (() => void) | undefined;
 };
 
@@ -44,7 +46,9 @@ export function DiagramSvg({
   positioned,
   className,
   selectedNodeId,
+  selectedEdgeId,
   onSelectNode,
+  onSelectEdge,
   onSelectNothing,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
@@ -69,7 +73,12 @@ export function DiagramSvg({
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (
-          <EdgeRenderer key={edge.id} edge={edge} />
+          <EdgeRenderer
+            key={edge.id}
+            edge={edge}
+            {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
+            {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+          />
         ))}
       </g>
       <g className="archik-nodes">

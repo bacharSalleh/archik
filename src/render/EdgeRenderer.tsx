@@ -65,9 +65,17 @@ function midpoint(points: Point[]): Point | undefined {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-type Props = { edge: PositionedEdge };
+type Props = {
+  edge: PositionedEdge;
+  selectedEdgeId?: string | undefined;
+  onSelectEdge?: ((id: string) => void) | undefined;
+};
 
-export function EdgeRenderer({ edge }: Props): React.ReactElement | null {
+export function EdgeRenderer({
+  edge,
+  selectedEdgeId,
+  onSelectEdge,
+}: Props): React.ReactElement | null {
   const section = edge.sections[0];
   if (!section) return null;
 
@@ -78,18 +86,40 @@ export function EdgeRenderer({ edge }: Props): React.ReactElement | null {
   ];
   const style = STYLES[edge.relationship];
   const labelAt = midpoint(all);
+  const isSelected = selectedEdgeId === edge.id;
+
+  const handleClick = onSelectEdge
+    ? (e: React.MouseEvent<SVGGElement>) => {
+        e.stopPropagation();
+        onSelectEdge(edge.id);
+      }
+    : undefined;
 
   return (
     <g
       data-archik-edge-id={edge.id}
       data-archik-edge-relationship={edge.relationship}
+      {...(isSelected ? { "data-archik-selected": "true" } : {})}
       className={`archik-edge archik-edge--${edge.relationship}`}
+      {...(handleClick !== undefined ? { onClick: handleClick } : {})}
+      style={onSelectEdge ? { cursor: "pointer" } : undefined}
     >
+      {onSelectEdge && (
+        <polyline
+          data-archik-edge-hitarea=""
+          points={pointsString(all)}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={14}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
       <polyline
         points={pointsString(all)}
         fill="none"
-        stroke={style.stroke}
-        strokeWidth={style.strokeWidth}
+        stroke={isSelected ? "#2563eb" : style.stroke}
+        strokeWidth={isSelected ? style.strokeWidth + 1 : style.strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         markerEnd={`url(#${style.markerId})`}
