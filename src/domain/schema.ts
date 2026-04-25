@@ -35,6 +35,8 @@ export const EdgeSchema = z.strictObject({
   label: z.string().optional(),
   description: z.string().optional(),
   protocol: z.string().optional(),
+  /** Optional per-edge stroke color override (any CSS color). */
+  color: z.string().optional(),
 });
 
 export const DocumentMetadataSchema = z.strictObject({

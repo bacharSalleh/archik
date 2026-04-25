@@ -55,24 +55,29 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
   });
 
-  it("uses solid stroke for http_call", () => {
+  it("renders http_call as a dotted, animated edge (data on wire)", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "http_call" })} />
       </svg>,
     );
-    const poly = container.querySelector("polyline");
-    expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
+    const poly = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(poly?.getAttribute("class")).toContain("archik-edge-flowing");
   });
 
-  it("uses a distinct arrow marker per relationship", () => {
+  it("uses one of the four shape markers per relationship", () => {
     const cases = [
       ["http_call", "archik-arrow-filled"],
       ["writes", "archik-arrow-filled"],
       ["reads", "archik-arrow-open"],
       ["publishes", "archik-arrow-circle"],
-      ["subscribes", "archik-arrow-async"],
-      ["depends_on", "archik-arrow-dep"],
+      ["subscribes", "archik-arrow-filled"],
+      ["depends_on", "archik-arrow-open"],
+      ["has_a", "archik-arrow-filled"],
+      ["uses", "archik-arrow-open"],
     ] as const;
     for (const [rel, marker] of cases) {
       const { container, unmount } = render(
@@ -90,16 +95,33 @@ describe("EdgeRenderer", () => {
     }
   });
 
-  it("dashes the line for subscribes (paired with publishes' solid + circle)", () => {
+  it("does not animate structural relationships", () => {
+    for (const rel of ["depends_on", "implements", "has_a", "uses"] as const) {
+      const { container, unmount } = render(
+        <svg>
+          <EdgeRenderer edge={baseEdge({ relationship: rel })} />
+        </svg>,
+      );
+      const visiblePolyline = container.querySelector(
+        "polyline:not([data-archik-edge-hitarea])",
+      );
+      expect(visiblePolyline?.getAttribute("class") ?? "").not.toContain(
+        "archik-edge-flowing",
+      );
+      unmount();
+    }
+  });
+
+  it("applies a per-edge color override when set", () => {
     const { container } = render(
       <svg>
-        <EdgeRenderer edge={baseEdge({ relationship: "subscribes" })} />
+        <EdgeRenderer edge={baseEdge({ color: "#f97316" })} />
       </svg>,
     );
     const visiblePolyline = container.querySelector(
       "polyline:not([data-archik-edge-hitarea])",
     );
-    expect(visiblePolyline?.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(visiblePolyline?.getAttribute("stroke")).toBe("#f97316");
   });
 
   it("draws writes thicker than reads", () => {

@@ -68,14 +68,13 @@ describe("DiagramSvg", () => {
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
-  it("includes one arrow marker per category in defs", () => {
+  it("includes the four shape markers in defs", () => {
     const { container } = render(<DiagramSvg positioned={populated} />);
     for (const id of [
       "archik-arrow-filled",
       "archik-arrow-open",
-      "archik-arrow-dep",
-      "archik-arrow-async",
       "archik-arrow-circle",
+      "archik-arrow-selected",
     ]) {
       expect(container.querySelector(`defs marker#${id}`)).not.toBeNull();
     }

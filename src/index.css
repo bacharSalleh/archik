@@ -293,6 +293,22 @@ body,
   pointer-events: none;
 }
 
+/* Animated "data on wire" edges — marching dots flowing toward the
+   target. The dash period below matches the stroke-dasharray; offset
+   moves one full period per cycle so the dots glide smoothly. */
+@keyframes archikEdgeFlow {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -16; }
+}
+.archik-edge-flowing {
+  animation: archikEdgeFlow 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .archik-edge-flowing {
+    animation: none;
+  }
+}
+
 /* Popover (Export menu, Legend, etc.) ---------------------------------- */
 .archik-popover {
   background: var(--archik-panel);

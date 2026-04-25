@@ -12,9 +12,11 @@ export const RELATIONSHIPS = [
   "publishes",
   "subscribes",
   "streams_to",
-  // architectural
+  // architectural / structural
   "implements",
   "depends_on",
+  "has_a",
+  "uses",
 ] as const;
 
 export const RelationshipSchema = z.enum(RELATIONSHIPS);

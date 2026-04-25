@@ -3,83 +3,104 @@ import type { Relationship } from "../domain/types.ts";
 
 export const ARROW_MARKER_FILLED = "archik-arrow-filled";
 export const ARROW_MARKER_OPEN = "archik-arrow-open";
-export const ARROW_MARKER_DEP = "archik-arrow-dep";
-export const ARROW_MARKER_ASYNC = "archik-arrow-async";
 export const ARROW_MARKER_CIRCLE = "archik-arrow-circle";
-
-export const ARROW_COLORS = {
-  filled: "#0f172a",
-  open: "#334155",
-  dep: "#64748b",
-  async: "#1d4ed8",
-  circle: "#1d4ed8",
-} as const;
+export const ARROW_MARKER_SELECTED = "archik-arrow-selected";
 
 type EdgeStyle = {
+  /** Default stroke colour. Any edge with `color` set overrides this. */
   stroke: string;
   strokeWidth: number;
+  /** Dash pattern. Empty / undefined means solid. */
   strokeDasharray?: string;
+  /** When true the polyline gets the marching-dots flow animation. */
+  animated?: boolean;
+  /** Which arrow marker to use for the head. */
   markerId: string;
 };
 
+const DEFAULT_STROKE = "var(--archik-edge-filled)";
+const STRUCTURAL_STROKE = "var(--archik-edge-dim)";
+
 const STYLES: Record<Relationship, EdgeStyle> = {
-  // Synchronous calls
+  // -------- Data on wire — dotted + animated ----------------------------
   http_call: {
-    stroke: "var(--archik-edge-filled)",
+    stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_FILLED,
   },
   invokes: {
-    stroke: "var(--archik-edge-async)",
+    stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_ASYNC,
-  },
-  routes_to: {
-    stroke: "var(--archik-edge-filled)",
-    strokeWidth: 1.4,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_FILLED,
   },
-  // Data access
   reads: {
-    stroke: "var(--archik-edge-open)",
+    stroke: DEFAULT_STROKE,
     strokeWidth: 1.2,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_OPEN,
   },
   writes: {
-    stroke: "var(--archik-edge-filled)",
-    strokeWidth: 1.6,
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.7,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_FILLED,
   },
-  // Messaging
   publishes: {
-    stroke: "var(--archik-edge-async)",
+    stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_CIRCLE,
   },
   subscribes: {
-    stroke: "var(--archik-edge-async)",
+    stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    strokeDasharray: "6 4",
-    markerId: ARROW_MARKER_ASYNC,
+    strokeDasharray: "2 6",
+    animated: true,
+    markerId: ARROW_MARKER_FILLED,
   },
   streams_to: {
-    stroke: "var(--archik-edge-async)",
-    strokeWidth: 1.6,
-    strokeDasharray: "10 3 2 3",
-    markerId: ARROW_MARKER_ASYNC,
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.7,
+    strokeDasharray: "6 4",
+    animated: true,
+    markerId: ARROW_MARKER_FILLED,
   },
-  // Architectural
+  // -------- Routing — solid, no animation -------------------------------
+  routes_to: {
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_FILLED,
+  },
+  // -------- Structural relationships — static + muted -------------------
   implements: {
-    stroke: "var(--archik-edge-dim)",
+    stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
     strokeDasharray: "8 3",
     markerId: ARROW_MARKER_OPEN,
   },
   depends_on: {
-    stroke: "var(--archik-edge-dim)",
+    stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
     strokeDasharray: "6 4",
-    markerId: ARROW_MARKER_DEP,
+    markerId: ARROW_MARKER_OPEN,
+  },
+  has_a: {
+    stroke: STRUCTURAL_STROKE,
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_FILLED,
+  },
+  uses: {
+    stroke: STRUCTURAL_STROKE,
+    strokeWidth: 1.2,
+    strokeDasharray: "4 4",
+    markerId: ARROW_MARKER_OPEN,
   },
 };
 
@@ -119,6 +140,16 @@ export function EdgeRenderer({
   const labelAt = midpoint(all);
   const isSelected = selectedEdgeId === edge.id;
 
+  // Selected wins, then per-edge color override, then style default.
+  const stroke = isSelected
+    ? "var(--archik-selected)"
+    : (edge.color ?? style.stroke);
+  const strokeWidth = isSelected ? style.strokeWidth + 0.5 : style.strokeWidth;
+  const markerId = isSelected ? ARROW_MARKER_SELECTED : style.markerId;
+  const polylineClass = style.animated && !isSelected
+    ? "archik-edge-flowing"
+    : undefined;
+
   const handleClick = onSelectEdge
     ? (e: React.MouseEvent<SVGGElement>) => {
         e.stopPropagation();
@@ -147,15 +178,14 @@ export function EdgeRenderer({
         />
       )}
       <polyline
+        className={polylineClass}
         points={pointsString(all)}
         fill="none"
-        stroke={isSelected ? "var(--archik-selected)" : style.stroke}
-        strokeWidth={isSelected ? style.strokeWidth + 1 : style.strokeWidth}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
-        markerEnd={`url(#${
-          isSelected ? "archik-arrow-selected" : style.markerId
-        })`}
+        markerEnd={`url(#${markerId})`}
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}
@@ -165,9 +195,14 @@ export function EdgeRenderer({
           <text
             textAnchor="middle"
             fontSize={11}
-            fill="var(--archik-fg-dim)"
+            fontWeight={isSelected ? 700 : 500}
+            fill={
+              isSelected
+                ? "var(--archik-selected)"
+                : "var(--archik-fg-dim)"
+            }
             stroke="var(--archik-panel)"
-            strokeWidth={3}
+            strokeWidth={isSelected ? 4 : 3}
             paintOrder="stroke"
           >
             {edge.label}

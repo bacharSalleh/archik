@@ -1,23 +1,23 @@
 import type { PositionedDocument } from "../layout/types.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
-  ARROW_MARKER_ASYNC,
   ARROW_MARKER_CIRCLE,
-  ARROW_MARKER_DEP,
   ARROW_MARKER_FILLED,
   ARROW_MARKER_OPEN,
+  ARROW_MARKER_SELECTED,
   EdgeRenderer,
 } from "./EdgeRenderer.tsx";
 
 const VIEWBOX_PADDING = 24;
 
-function FilledTriangleMarker({
-  id,
-  fill,
-}: {
-  id: string;
-  fill: string;
-}): React.ReactElement {
+/**
+ * Markers use SVG `context-stroke` so the arrow head inherits the line's
+ * stroke color — that way per-edge color overrides and structural-vs-flow
+ * styles automatically tint the arrow without needing a marker per color.
+ *
+ * `context-stroke` is supported in modern Chrome / Firefox / Safari.
+ */
+function FilledTriangleMarker({ id }: { id: string }): React.ReactElement {
   return (
     <marker
       id={id}
@@ -28,18 +28,12 @@ function FilledTriangleMarker({
       markerHeight="6"
       orient="auto-start-reverse"
     >
-      <path d="M 0 0 L 10 5 L 0 10 z" fill={fill} />
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
     </marker>
   );
 }
 
-function OpenTriangleMarker({
-  id,
-  stroke,
-}: {
-  id: string;
-  stroke: string;
-}): React.ReactElement {
+function OpenTriangleMarker({ id }: { id: string }): React.ReactElement {
   return (
     <marker
       id={id}
@@ -53,7 +47,7 @@ function OpenTriangleMarker({
       <path
         d="M 1 1 L 11 6 L 1 11"
         fill="none"
-        stroke={stroke}
+        stroke="context-stroke"
         strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -62,13 +56,7 @@ function OpenTriangleMarker({
   );
 }
 
-function FilledCircleMarker({
-  id,
-  fill,
-}: {
-  id: string;
-  fill: string;
-}): React.ReactElement {
+function FilledCircleMarker({ id }: { id: string }): React.ReactElement {
   return (
     <marker
       id={id}
@@ -79,7 +67,23 @@ function FilledCircleMarker({
       markerHeight="6"
       orient="auto"
     >
-      <circle cx="5" cy="5" r="4" fill={fill} />
+      <circle cx="5" cy="5" r="4" fill="context-stroke" />
+    </marker>
+  );
+}
+
+function SelectedArrowMarker({ id }: { id: string }): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 10 10"
+      refX="10"
+      refY="5"
+      markerWidth="6"
+      markerHeight="6"
+      orient="auto-start-reverse"
+    >
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--archik-selected)" />
     </marker>
   );
 }
@@ -124,30 +128,10 @@ export function DiagramSvg({
       onClick={onSelectNothing}
     >
       <defs>
-        <FilledTriangleMarker
-          id={ARROW_MARKER_FILLED}
-          fill="var(--archik-edge-filled)"
-        />
-        <OpenTriangleMarker
-          id={ARROW_MARKER_OPEN}
-          stroke="var(--archik-edge-open)"
-        />
-        <OpenTriangleMarker
-          id={ARROW_MARKER_DEP}
-          stroke="var(--archik-edge-dim)"
-        />
-        <FilledTriangleMarker
-          id={ARROW_MARKER_ASYNC}
-          fill="var(--archik-edge-async)"
-        />
-        <FilledCircleMarker
-          id={ARROW_MARKER_CIRCLE}
-          fill="var(--archik-edge-async)"
-        />
-        <FilledTriangleMarker
-          id="archik-arrow-selected"
-          fill="var(--archik-selected)"
-        />
+        <FilledTriangleMarker id={ARROW_MARKER_FILLED} />
+        <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
+        <FilledCircleMarker id={ARROW_MARKER_CIRCLE} />
+        <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (
