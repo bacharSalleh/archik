@@ -1,6 +1,7 @@
 import { access, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { ParsedOptions } from "../options.ts";
+import { getString, type ParsedOptions } from "../options.ts";
+import { installSkill } from "./skill.ts";
 
 const STARTER = `version: "1.0"
 name: My Architecture
@@ -42,5 +43,20 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
   }
   await writeFile(abs, STARTER, "utf-8");
   console.log(`✓ Created ${file}`);
+
+  if (getString(opts, "skill") === "true") {
+    const result = await installSkill({ scope: "project", force: false });
+    if (result.ok) {
+      console.log(`✓ Installed archik skill → ${result.target}`);
+    } else if (result.reason === "exists") {
+      console.log(
+        `• Skill already present at ${result.target} (use \`archik skill --force\` to refresh)`,
+      );
+    } else {
+      console.error(`✗ Skill source missing at ${result.source}`);
+      return 1;
+    }
+  }
+
   return 0;
 }
