@@ -1,5 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
-import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
+import { HEADER_HEIGHT, NodeHeader } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -36,7 +36,11 @@ export function QueueNode({ node, selected }: Props): React.ReactElement {
         strokeOpacity={0.25}
         strokeWidth={1}
       />
-      <HeaderLabel cx={w / 2} cy={15} label="QUEUE" />
+      <NodeHeader
+        kind="queue"
+        iconAt={{ cx: radius + 8, cy: HEADER_HEIGHT / 2 }}
+        labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
+      />
       <text
         x={w / 2}
         y={nameY}

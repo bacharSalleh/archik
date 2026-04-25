@@ -24,15 +24,12 @@ describe("FrontendNode", () => {
     expect(getByText("Web")).toBeInTheDocument();
   });
 
-  it("includes a title bar (browser chrome) above the body", () => {
+  it("shows the FRONTEND kind label", () => {
     const { container } = render(
       <svg>
         <FrontendNode node={node} />
       </svg>,
     );
-    const chrome = container.querySelector(
-      ".archik-node--frontend [data-archik-frontend-chrome]",
-    );
-    expect(chrome).not.toBeNull();
+    expect(container.textContent?.toUpperCase()).toContain("FRONTEND");
   });
 });

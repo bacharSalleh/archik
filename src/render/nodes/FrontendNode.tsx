@@ -1,5 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
-import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
+import { HEADER_HEIGHT, NodeHeader } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -26,15 +26,6 @@ export function FrontendNode({ node, selected }: Props): React.ReactElement {
         stroke={stroke}
         strokeWidth={selected ? 1.8 : 1.4}
       />
-      {/* Chrome dots — left side of the header bar. */}
-      <g
-        data-archik-frontend-chrome=""
-        transform={`translate(8, ${HEADER_HEIGHT / 2})`}
-      >
-        <circle r={2.2} cx={0} cy={0} fill="var(--archik-node-chrome-dot)" />
-        <circle r={2.2} cx={7} cy={0} fill="var(--archik-node-chrome-dot)" />
-        <circle r={2.2} cx={14} cy={0} fill="var(--archik-node-chrome-dot)" />
-      </g>
       <line
         x1={0}
         y1={HEADER_HEIGHT}
@@ -44,7 +35,11 @@ export function FrontendNode({ node, selected }: Props): React.ReactElement {
         strokeOpacity={0.25}
         strokeWidth={1}
       />
-      <HeaderLabel cx={w / 2} cy={15} label="FRONTEND" />
+      <NodeHeader
+        kind="frontend"
+        iconAt={{ cx: 18, cy: HEADER_HEIGHT / 2 }}
+        labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
+      />
       <text
         x={w / 2}
         y={nameY}

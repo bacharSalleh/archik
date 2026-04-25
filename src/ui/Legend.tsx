@@ -32,12 +32,13 @@ export function Legend(): React.ReactElement {
           </div>
           {NODE_KINDS.map((kind) => {
             const meta = KIND_META[kind];
+            const Icon = meta.icon;
             return (
               <div
                 key={kind}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "16px 80px 1fr",
+                  gridTemplateColumns: "20px 80px 1fr",
                   alignItems: "center",
                   gap: 8,
                   padding: "5px 6px",
@@ -47,14 +48,14 @@ export function Legend(): React.ReactElement {
                 <span
                   aria-hidden="true"
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: meta.color,
-                    boxShadow: `0 0 6px ${meta.color}`,
-                    justifySelf: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: meta.color,
                   }}
-                />
+                >
+                  <Icon size={14} strokeWidth={1.8} />
+                </span>
                 <code
                   style={{
                     fontFamily:

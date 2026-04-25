@@ -1,9 +1,9 @@
 import type { PositionedNode } from "../../layout/types.ts";
-import { HEADER_HEIGHT, HeaderLabel } from "./NodeHeader.tsx";
+import { HEADER_HEIGHT, NodeHeader } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
-const MAX_DESC_CHARS = 28;
+const MAX_DESC_CHARS = 30;
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -15,8 +15,6 @@ export function ExternalNode({ node, selected }: Props): React.ReactElement {
   const h = node.height;
   const hasDescription = node.description !== undefined;
   const bodyTop = HEADER_HEIGHT;
-  // When description present: name slightly above body center, description
-  // near the bottom. When absent: name vertically centered in body.
   const bodyMid = bodyTop + (h - bodyTop) / 2;
   const nameY = hasDescription ? bodyMid - 2 : bodyMid + 4;
   const descriptionY = h - 12;
@@ -46,7 +44,11 @@ export function ExternalNode({ node, selected }: Props): React.ReactElement {
         strokeOpacity={0.25}
         strokeWidth={1}
       />
-      <HeaderLabel cx={w / 2} cy={15} label="EXTERNAL" />
+      <NodeHeader
+        kind="external"
+        iconAt={{ cx: 18, cy: HEADER_HEIGHT / 2 }}
+        labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
+      />
       <text
         x={w / 2}
         y={nameY}

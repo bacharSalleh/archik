@@ -1,31 +1,50 @@
-/**
- * Shared header strip text. Every shape renders the same compositional
- * header — kind tag (drawn by NodeRenderer), KIND label (this component),
- * info / status icons (drawn by NodeRenderer). Positioning the label is
- * the shape's responsibility because cylinders, capsules and chrome-bars
- * all want it at slightly different y values.
- */
+import { KIND_META } from "../kindPalette.ts";
+import type { NodeKind } from "../../domain/types.ts";
 
+export const HEADER_HEIGHT = 28;
+
+/**
+ * Header strip composition: lucide kind icon (left), KIND label
+ * (center), info-icon tray (right, drawn by NodeRenderer). Every shape
+ * provides its own (cx, cy) for the icon and label so cylinders /
+ * capsules / chrome bars can place them inside their natural body.
+ */
 type Props = {
-  cx: number;
-  cy: number;
-  label: string;
+  kind: NodeKind;
+  iconAt: { cx: number; cy: number };
+  labelAt: { cx: number; cy: number };
 };
 
-export function HeaderLabel({ cx, cy, label }: Props): React.ReactElement {
+export function NodeHeader({
+  kind,
+  iconAt,
+  labelAt,
+}: Props): React.ReactElement {
+  const meta = KIND_META[kind];
+  const Icon = meta.icon;
+  const ICON_SIZE = 14;
   return (
-    <text
-      x={cx}
-      y={cy}
-      textAnchor="middle"
-      fontSize={9.5}
-      fontWeight={600}
-      letterSpacing="0.12em"
-      fill="var(--archik-node-caption)"
-    >
-      {label.toUpperCase()}
-    </text>
+    <>
+      <g
+        transform={`translate(${iconAt.cx - ICON_SIZE / 2}, ${
+          iconAt.cy - ICON_SIZE / 2
+        })`}
+        pointerEvents="none"
+        aria-hidden="true"
+      >
+        <Icon size={ICON_SIZE} color={meta.color} strokeWidth={1.8} />
+      </g>
+      <text
+        x={labelAt.cx}
+        y={labelAt.cy}
+        textAnchor="middle"
+        fontSize={9.5}
+        fontWeight={600}
+        letterSpacing="0.12em"
+        fill="var(--archik-node-caption)"
+      >
+        {kind.toUpperCase()}
+      </text>
+    </>
   );
 }
-
-export const HEADER_HEIGHT = 24;

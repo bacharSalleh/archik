@@ -28,14 +28,14 @@ function buildElkOptions(options: LayoutOptions): Record<string, string> {
 }
 
 const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
-  service: { width: 156, height: 78 },
-  database: { width: 130, height: 100 },
-  queue: { width: 168, height: 72 },
-  cache: { width: 144, height: 86 },
-  frontend: { width: 160, height: 86 },
-  external: { width: 168, height: 96 },
-  function: { width: 152, height: 78 },
-  custom: { width: 220, height: 120 },
+  service: { width: 172, height: 82 },
+  database: { width: 172, height: 82 },
+  queue: { width: 188, height: 80 },
+  cache: { width: 172, height: 90 },
+  frontend: { width: 172, height: 90 },
+  external: { width: 184, height: 100 },
+  function: { width: 172, height: 82 },
+  custom: { width: 240, height: 130 },
 };
 
 function toElkNode(node: Node, children: ElkNode[]): ElkNode {

@@ -24,13 +24,12 @@ describe("DatabaseNode", () => {
     expect(getByText("Orders DB")).toBeInTheDocument();
   });
 
-  it("draws a cylinder (top + bottom ellipses)", () => {
+  it("shows the DATABASE kind label", () => {
     const { container } = render(
       <svg>
         <DatabaseNode node={dbNode} />
       </svg>,
     );
-    const ellipses = container.querySelectorAll("ellipse");
-    expect(ellipses.length).toBeGreaterThanOrEqual(2);
+    expect(container.textContent?.toUpperCase()).toContain("DATABASE");
   });
 });

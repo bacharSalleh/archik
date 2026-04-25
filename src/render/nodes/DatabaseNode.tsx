@@ -1,58 +1,47 @@
 import type { PositionedNode } from "../../layout/types.ts";
-import { HeaderLabel } from "./NodeHeader.tsx";
+import { HEADER_HEIGHT, NodeHeader } from "./NodeHeader.tsx";
 
 type Props = { node: PositionedNode; selected?: boolean };
 
+/**
+ * DatabaseNode renders as a rounded-rect card now (the cylinder was
+ * cute but ate space the user wants for icons/tags). The lucide
+ * Database icon in the header preserves the visual "this is a
+ * database" cue without eating real estate.
+ */
 export function DatabaseNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
-  const ry = Math.min(10, h / 8);
   const hasStack = node.stack !== undefined;
-  // Header lives in the body just below the top ellipse.
-  const headerY = ry * 2 + 12;
-  // Body content centered between header and bottom ellipse.
-  const bodyTop = headerY + 14;
-  const bodyBottom = h - ry * 2;
-  const bodyMid = (bodyTop + bodyBottom) / 2;
-  const nameY = hasStack ? bodyMid - 2 : bodyMid + 4;
+  const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
+  const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
-  const stroke = selected
-    ? "var(--archik-selected)"
-    : "var(--archik-node-stroke)";
-  const strokeWidth = selected ? 1.8 : 1.4;
-  const cls = selected ? "archik-selected-glow" : undefined;
-
   return (
     <g className="archik-node archik-node--database">
-      <path
-        className={cls}
-        d={`M 0 ${ry} V ${h - ry} A ${w / 2} ${ry} 0 0 0 ${w} ${h - ry} V ${ry}`}
+      <rect
+        className={selected ? "archik-selected-glow" : undefined}
+        width={w}
+        height={h}
+        rx={10}
+        ry={10}
         fill="var(--archik-node-fill)"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
+        stroke={selected ? "var(--archik-selected)" : "var(--archik-node-stroke)"}
+        strokeWidth={selected ? 1.8 : 1.4}
       />
-      <ellipse
-        className={cls}
-        cx={w / 2}
-        cy={ry}
-        rx={w / 2}
-        ry={ry}
-        fill="var(--archik-node-fill)"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
+      <line
+        x1={0}
+        y1={HEADER_HEIGHT}
+        x2={w}
+        y2={HEADER_HEIGHT}
+        stroke="var(--archik-node-stroke)"
+        strokeOpacity={0.25}
+        strokeWidth={1}
       />
-      <ellipse
-        cx={w / 2}
-        cy={h - ry}
-        rx={w / 2}
-        ry={ry}
-        fill="transparent"
-        stroke={stroke}
-        strokeWidth={1.2}
-        strokeDasharray="2 3"
-        opacity={0.6}
+      <NodeHeader
+        kind="database"
+        iconAt={{ cx: 18, cy: HEADER_HEIGHT / 2 }}
+        labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
       />
-      <HeaderLabel cx={w / 2} cy={headerY} label="DATABASE" />
       <text
         x={w / 2}
         y={nameY}
