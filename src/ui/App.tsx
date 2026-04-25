@@ -293,7 +293,11 @@ export function App(): React.ReactElement {
             }
           : {})}
       />
-      <main className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4 p-4">
+      <main
+        className={`grid min-h-0 flex-1 gap-4 p-4 ${
+          selection ? "grid-cols-[1fr_320px]" : "grid-cols-1"
+        }`}
+      >
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <Canvas
             document={doc}
@@ -311,18 +315,20 @@ export function App(): React.ReactElement {
             }
           />
         </div>
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          {selection?.type === "edge" ? (
-            <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
-          ) : (
-            <NodeInspector
-              node={selectedNode}
-              dispatch={dispatch}
-              onStartConnect={startConnect}
-              allNodes={doc.nodes}
-            />
-          )}
-        </aside>
+        {selection && (
+          <aside className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            {selection.type === "edge" ? (
+              <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
+            ) : (
+              <NodeInspector
+                node={selectedNode}
+                dispatch={dispatch}
+                onStartConnect={startConnect}
+                allNodes={doc.nodes}
+              />
+            )}
+          </aside>
+        )}
       </main>
     </div>
   );
