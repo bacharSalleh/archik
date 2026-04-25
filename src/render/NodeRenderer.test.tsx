@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import type { PositionedNode } from "../layout/types.ts";
@@ -80,5 +80,71 @@ describe("NodeRenderer", () => {
       .toBeNull();
     expect(container.querySelector("[data-archik-node-id='child-2']")).not
       .toBeNull();
+  });
+
+  it("calls onSelectNode with the node id when clicked", () => {
+    const onSelectNode = vi.fn();
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api" })} onSelectNode={onSelectNode} />
+      </svg>,
+    );
+    const wrapper = container.querySelector(
+      "[data-archik-node-id='api']",
+    ) as SVGGElement | null;
+    expect(wrapper).not.toBeNull();
+    wrapper!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onSelectNode).toHaveBeenCalledWith("api");
+  });
+
+  it("clicking a child fires only the child's selection (no parent firing)", () => {
+    const onSelectNode = vi.fn();
+    const parent = make({
+      id: "parent",
+      kind: "custom",
+      name: "P",
+      width: 400,
+      height: 200,
+      children: [
+        make({ id: "child-1", kind: "service", name: "C1", x: 20, y: 20 }),
+      ],
+    });
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={parent} onSelectNode={onSelectNode} />
+      </svg>,
+    );
+    const child = container.querySelector(
+      "[data-archik-node-id='child-1']",
+    ) as SVGGElement;
+    child.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onSelectNode).toHaveBeenCalledTimes(1);
+    expect(onSelectNode).toHaveBeenCalledWith("child-1");
+  });
+
+  it("marks the wrapper as selected when selectedNodeId matches", () => {
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api" })} selectedNodeId="api" />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-node-id='api']")
+        ?.getAttribute("data-archik-selected"),
+    ).toBe("true");
+  });
+
+  it("does not mark unrelated nodes as selected", () => {
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api" })} selectedNodeId="other" />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-node-id='api']")
+        ?.getAttribute("data-archik-selected"),
+    ).not.toBe("true");
   });
 });

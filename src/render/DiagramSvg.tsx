@@ -35,11 +35,17 @@ function ArrowMarker({
 type Props = {
   positioned: PositionedDocument;
   className?: string | undefined;
+  selectedNodeId?: string | undefined;
+  onSelectNode?: ((id: string) => void) | undefined;
+  onSelectNothing?: (() => void) | undefined;
 };
 
 export function DiagramSvg({
   positioned,
   className,
+  selectedNodeId,
+  onSelectNode,
+  onSelectNothing,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
   const h = Math.max(positioned.height, 1);
@@ -54,6 +60,7 @@ export function DiagramSvg({
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`${vx} ${vy} ${vw} ${vh}`}
       preserveAspectRatio="xMidYMid meet"
+      onClick={onSelectNothing}
     >
       <defs>
         <ArrowMarker id={ARROW_MARKER_DEFAULT} fill={ARROW_COLORS.default} />
@@ -67,7 +74,12 @@ export function DiagramSvg({
       </g>
       <g className="archik-nodes">
         {positioned.roots.map((node) => (
-          <NodeRenderer key={node.id} node={node} />
+          <NodeRenderer
+            key={node.id}
+            node={node}
+            {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+            {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+          />
         ))}
       </g>
     </svg>

@@ -8,9 +8,9 @@ import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 
-type Props = { node: PositionedNode };
+type ShapeProps = { node: PositionedNode };
 
-function Shape({ node }: Props): React.ReactElement {
+function Shape({ node }: ShapeProps): React.ReactElement {
   switch (node.kind) {
     case "service":
       return <ServiceNode node={node} />;
@@ -36,15 +36,55 @@ function Shape({ node }: Props): React.ReactElement {
   }
 }
 
-export function NodeRenderer({ node }: Props): React.ReactElement {
+type Props = {
+  node: PositionedNode;
+  selectedNodeId?: string | undefined;
+  onSelectNode?: ((id: string) => void) | undefined;
+};
+
+export function NodeRenderer({
+  node,
+  selectedNodeId,
+  onSelectNode,
+}: Props): React.ReactElement {
+  const isSelected = selectedNodeId === node.id;
+
+  const handleClick = onSelectNode
+    ? (e: React.MouseEvent<SVGGElement>) => {
+        e.stopPropagation();
+        onSelectNode(node.id);
+      }
+    : undefined;
+
   return (
     <g
       data-archik-node-id={node.id}
+      {...(isSelected ? { "data-archik-selected": "true" } : {})}
       transform={`translate(${node.x}, ${node.y})`}
+      {...(handleClick !== undefined ? { onClick: handleClick } : {})}
+      style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} />
+      {isSelected && (
+        <rect
+          width={node.width}
+          height={node.height}
+          rx={10}
+          ry={10}
+          fill="none"
+          stroke="#2563eb"
+          strokeWidth={2.5}
+          strokeOpacity={0.8}
+          pointerEvents="none"
+        />
+      )}
       {node.children.map((child) => (
-        <NodeRenderer key={child.id} node={child} />
+        <NodeRenderer
+          key={child.id}
+          node={child}
+          {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+          {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+        />
       ))}
     </g>
   );

@@ -16,10 +16,10 @@ describe("App", () => {
     } as Response);
 
     render(<App />);
-    expect(screen.getByText("Archik")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText(ordersDocument.name)).toBeInTheDocument();
+      expect(screen.getByText("Archik")).toBeInTheDocument();
     });
+    expect(screen.getByText(ordersDocument.name)).toBeInTheDocument();
   });
 
   it("shows an error if the document fails to load", async () => {

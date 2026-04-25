@@ -7,9 +7,18 @@ import { DiagramSvg } from "./DiagramSvg.tsx";
 type Props = {
   document: Document;
   className?: string | undefined;
+  selectedNodeId?: string | undefined;
+  onSelectNode?: ((id: string) => void) | undefined;
+  onSelectNothing?: (() => void) | undefined;
 };
 
-export function Canvas({ document, className }: Props): React.ReactElement {
+export function Canvas({
+  document,
+  className,
+  selectedNodeId,
+  onSelectNode,
+  onSelectNothing,
+}: Props): React.ReactElement {
   const layoutPromise = useMemo(() => layout(document), [document]);
   const [positioned, setPositioned] = useState<PositionedDocument | null>(null);
 
@@ -46,5 +55,13 @@ export function Canvas({ document, className }: Props): React.ReactElement {
     );
   }
 
-  return <DiagramSvg positioned={positioned} className={className} />;
+  return (
+    <DiagramSvg
+      positioned={positioned}
+      className={className}
+      {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+      {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+      {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
+    />
+  );
 }
