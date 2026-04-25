@@ -110,6 +110,23 @@ export function App(): React.ReactElement {
           setReloadError(undefined);
           setPast([]);
           setFuture([]);
+          // External file change may have removed nodes / edges that
+          // were currently selected or being connected from. Drop any
+          // stale UI state to keep the inspector and connect overlay
+          // consistent with the freshly-loaded document.
+          const validNodeIds = new Set(document.nodes.map((n) => n.id));
+          const validEdgeIds = new Set(document.edges.map((e) => e.id));
+          useUIStore.setState((s) => ({
+            selection: s.selection.filter((sel) =>
+              sel.type === "node"
+                ? validNodeIds.has(sel.id)
+                : validEdgeIds.has(sel.id),
+            ),
+            connectFrom:
+              s.connectFrom !== null && validNodeIds.has(s.connectFrom)
+                ? s.connectFrom
+                : null,
+          }));
         },
         (err: unknown) => {
           if (cancelled) return;
@@ -154,7 +171,20 @@ export function App(): React.ReactElement {
     try {
       await saveDocumentToUrl(DOCUMENT_URL, docToSave);
       setSaveStatus("saved");
-      setIsDirty(false);
+      // Only clear the dirty flag if the in-memory document still matches
+      // what we just persisted. The user may have kept editing during the
+      // PUT, in which case there are unsaved changes ahead of the file.
+      let stillSame = false;
+      setState((current) => {
+        if (
+          current.status === "ready" &&
+          current.document === docToSave
+        ) {
+          stillSame = true;
+        }
+        return current;
+      });
+      if (stillSame) setIsDirty(false);
       if (savedIndicatorTimerRef.current) {
         clearTimeout(savedIndicatorTimerRef.current);
       }

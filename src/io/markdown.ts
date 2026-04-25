@@ -22,6 +22,11 @@ function nodeSection(node: Node): string {
       lines.push(`  - \`${i.name}\` (${i.protocol})${desc}`);
     }
   }
+  const notes = node.notes?.filter((n) => n.trim().length > 0) ?? [];
+  if (notes.length > 0) {
+    lines.push(`- **notes**:`);
+    for (const note of notes) lines.push(`  - ${note}`);
+  }
   return lines.join("\n");
 }
 
