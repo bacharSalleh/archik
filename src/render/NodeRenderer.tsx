@@ -39,18 +39,18 @@ function Shape({ node, selected }: ShapeProps): React.ReactElement {
 }
 
 function KindTag({
-  x,
-  y,
+  cx,
+  cy,
   kind,
 }: {
-  x: number;
-  y: number;
+  cx: number;
+  cy: number;
   kind: PositionedNode["kind"];
 }): React.ReactElement {
   const color = KIND_META[kind].color;
   return (
     <g
-      transform={`translate(${x}, ${y})`}
+      transform={`translate(${cx}, ${cy})`}
       pointerEvents="none"
       aria-hidden="true"
     >
@@ -103,11 +103,15 @@ export function NodeRenderer({
         const anchors = iconAnchorsFor(node.kind, node.width, node.height);
         return (
           <>
-            <KindTag x={anchors.left.x} y={anchors.left.y} kind={node.kind} />
+            <KindTag
+              cx={anchors.left.x}
+              cy={anchors.left.y}
+              kind={node.kind}
+            />
             {hasDescription && (
               <InfoIcon
-                x={anchors.right.x}
-                y={anchors.right.y - 6}
+                cx={anchors.right.x}
+                cy={anchors.right.y}
                 color="var(--archik-node-caption)"
               />
             )}

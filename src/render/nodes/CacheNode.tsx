@@ -37,7 +37,7 @@ export function CacheNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={1}
       />
       <text
-        x={w / 2 + 8}
+        x={w / 2}
         y={stripeY - 6}
         textAnchor="middle"
         fontSize={9}
