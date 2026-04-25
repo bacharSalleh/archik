@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "archik": "tsx --tsconfig tsconfig.app.json src/cli/index.ts"
+  },
+  "bin": {
+    "archik": "./src/cli/index.ts"
   },
   "dependencies": {
     "chokidar": "^4.0.3",
@@ -31,6 +35,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.2",
     "vitest": "^3.2.4"
