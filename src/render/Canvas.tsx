@@ -103,8 +103,11 @@ export function Canvas({
           height: "100%",
           overflow: "auto",
           display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
+          // "safe center" centers when the content fits but falls back to
+          // start alignment when it overflows, so scrollbars can reach
+          // everything (plain "center" clips the leading overflow).
+          justifyContent: "safe center",
+          alignItems: "safe center",
         }}
       >
         <DiagramSvg
