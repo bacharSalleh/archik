@@ -88,6 +88,7 @@ function FilledCircleMarker({
 type Props = {
   positioned: PositionedDocument;
   className?: string | undefined;
+  zoom?: number;
   selectedNodeId?: string | undefined;
   selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
@@ -98,6 +99,7 @@ type Props = {
 export function DiagramSvg({
   positioned,
   className,
+  zoom = 1,
   selectedNodeId,
   selectedEdgeId,
   onSelectNode,
@@ -115,8 +117,8 @@ export function DiagramSvg({
     <svg
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width={vw}
-      height={vh}
+      width={vw * zoom}
+      height={vh * zoom}
       viewBox={`${vx} ${vy} ${vw} ${vh}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ display: "block", flexShrink: 0 }}
