@@ -72,12 +72,22 @@ export function Canvas({
   const [positioned, setPositioned] = useState<PositionedDocument | null>(null);
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<DragState>({ type: "idle" });
+  // Mirror of `drag` for synchronous reads inside pointer handlers — React
+  // state batching means the closure may still see "idle" between
+  // pointerdown and the next pointermove without this ref.
+  const dragRef = useRef<DragState>({ type: "idle" });
+  const setDragBoth = (next: DragState): void => {
+    dragRef.current = next;
+    setDrag(next);
+  };
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   // After a drag-connect, the click event still fires on the target node.
   // This flag is checked by a capture-phase click handler below to swallow
   // it, so the just-connected node doesn't get selected as a side effect.
   const swallowNextClick = useRef(false);
+  // Track the active pointer so we can release capture on pointerup.
+  const activePointerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +137,15 @@ export function Canvas({
     if (!nodeEl) return;
     const fromId = nodeEl.getAttribute("data-archik-node-id");
     if (!fromId) return;
-    setDrag({
+    // Capture the pointer so move / up events keep arriving even if the
+    // cursor briefly leaves the scroll container during a fast drag.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      activePointerRef.current = e.pointerId;
+    } catch {
+      // Pointer capture not supported / already captured — non-fatal.
+    }
+    setDragBoth({
       type: "potential",
       from: fromId,
       startX: e.clientX,
@@ -136,17 +154,18 @@ export function Canvas({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (drag.type === "idle") return;
+    const current = dragRef.current;
+    if (current.type === "idle") return;
     const svg = svgRef.current;
-    if (drag.type === "potential") {
-      const dx = e.clientX - drag.startX;
-      const dy = e.clientY - drag.startY;
+    if (current.type === "potential") {
+      const dx = e.clientX - current.startX;
+      const dy = e.clientY - current.startY;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       if (!svg) return;
       const pt = svgPointFromClient(svg, e.clientX, e.clientY);
-      setDrag({
+      setDragBoth({
         type: "dragging",
-        from: drag.from,
+        from: current.from,
         pointerSvgX: pt.x,
         pointerSvgY: pt.y,
       });
@@ -154,27 +173,40 @@ export function Canvas({
     }
     if (!svg) return;
     const pt = svgPointFromClient(svg, e.clientX, e.clientY);
-    setDrag({
+    setDragBoth({
       type: "dragging",
-      from: drag.from,
+      from: current.from,
       pointerSvgX: pt.x,
       pointerSvgY: pt.y,
     });
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (drag.type === "dragging") {
-      const target = e.target instanceof Element ? e.target : null;
-      const targetEl = target?.closest("[data-archik-node-id]");
-      const toId = targetEl?.getAttribute("data-archik-node-id") ?? null;
-      if (toId && toId !== drag.from && onConnectDrag) {
-        onConnectDrag(drag.from, toId);
+    const current = dragRef.current;
+    if (activePointerRef.current !== null) {
+      try {
+        e.currentTarget.releasePointerCapture(activePointerRef.current);
+      } catch {
+        // ignore
       }
-      // Suppress the click event that follows pointerup on the target so
-      // we don't re-select right after a successful drag-connect.
+      activePointerRef.current = null;
+    }
+    if (current.type === "dragging") {
+      // elementFromPoint is more reliable than e.target during a captured
+      // drag — the captured element receives the event, but we need the
+      // element actually under the cursor to find the drop target.
+      const dropEl = globalThis.document.elementFromPoint(
+        e.clientX,
+        e.clientY,
+      );
+      const targetEl = dropEl?.closest("[data-archik-node-id]");
+      const toId = targetEl?.getAttribute("data-archik-node-id") ?? null;
+      if (toId && toId !== current.from && onConnectDrag) {
+        onConnectDrag(current.from, toId);
+      }
       swallowNextClick.current = true;
     }
-    setDrag({ type: "idle" });
+    setDragBoth({ type: "idle" });
   };
 
   if (!positioned) {
@@ -209,7 +241,10 @@ export function Canvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={() => setDrag({ type: "idle" })}
+        onPointerCancel={() => {
+          activePointerRef.current = null;
+          setDragBoth({ type: "idle" });
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget && onSelectNothing) {
             onSelectNothing();
