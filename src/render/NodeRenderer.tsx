@@ -8,32 +8,66 @@ import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 
-type ShapeProps = { node: PositionedNode };
+type ShapeProps = { node: PositionedNode; selected: boolean };
 
-function Shape({ node }: ShapeProps): React.ReactElement {
+function Shape({ node, selected }: ShapeProps): React.ReactElement {
   switch (node.kind) {
     case "service":
-      return <ServiceNode node={node} />;
+      return <ServiceNode node={node} selected={selected} />;
     case "database":
-      return <DatabaseNode node={node} />;
+      return <DatabaseNode node={node} selected={selected} />;
     case "queue":
-      return <QueueNode node={node} />;
+      return <QueueNode node={node} selected={selected} />;
     case "cache":
-      return <CacheNode node={node} />;
+      return <CacheNode node={node} selected={selected} />;
     case "frontend":
-      return <FrontendNode node={node} />;
+      return <FrontendNode node={node} selected={selected} />;
     case "external":
-      return <ExternalNode node={node} />;
+      return <ExternalNode node={node} selected={selected} />;
     case "function":
-      return <FunctionNode node={node} />;
+      return <FunctionNode node={node} selected={selected} />;
     case "custom":
-      return <CustomNode node={node} />;
+      return <CustomNode node={node} selected={selected} />;
     default: {
       const _exhaustive: never = node.kind;
       void _exhaustive;
       throw new Error(`unreachable node kind`);
     }
   }
+}
+
+function DescriptionIndicator({
+  width,
+  hasStack,
+}: {
+  width: number;
+  hasStack: boolean;
+}): React.ReactElement {
+  void hasStack;
+  return (
+    <g
+      transform={`translate(${width - 14}, 8)`}
+      pointerEvents="none"
+      aria-hidden="true"
+    >
+      <circle
+        r={6}
+        fill="var(--archik-panel)"
+        stroke="var(--archik-node-caption)"
+        strokeWidth={1}
+      />
+      <text
+        textAnchor="middle"
+        y={3.5}
+        fontSize={9}
+        fontWeight={700}
+        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+        fill="var(--archik-node-caption)"
+      >
+        i
+      </text>
+    </g>
+  );
 }
 
 type Props = {
@@ -56,6 +90,9 @@ export function NodeRenderer({
       }
     : undefined;
 
+  const hasDescription =
+    node.description !== undefined && node.description.length > 0;
+
   return (
     <g
       data-archik-node-id={node.id}
@@ -64,19 +101,11 @@ export function NodeRenderer({
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
-      <Shape node={node} />
-      {isSelected && (
-        <rect
-          className="archik-selected-glow"
+      <Shape node={node} selected={isSelected} />
+      {hasDescription && node.kind !== "external" && (
+        <DescriptionIndicator
           width={node.width}
-          height={node.height}
-          rx={10}
-          ry={10}
-          fill="none"
-          stroke="var(--archik-selected)"
-          strokeWidth={2}
-          strokeOpacity={0.95}
-          pointerEvents="none"
+          hasStack={node.stack !== undefined}
         />
       )}
       {node.children.map((child) => (

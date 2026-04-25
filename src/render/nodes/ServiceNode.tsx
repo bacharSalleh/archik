@@ -1,8 +1,8 @@
 import type { PositionedNode } from "../../layout/types.ts";
 
-type Props = { node: PositionedNode };
+type Props = { node: PositionedNode; selected?: boolean };
 
-export function ServiceNode({ node }: Props): React.ReactElement {
+export function ServiceNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const hasStack = node.stack !== undefined;
@@ -11,13 +11,14 @@ export function ServiceNode({ node }: Props): React.ReactElement {
   return (
     <g className="archik-node archik-node--service">
       <rect
+        className={selected ? "archik-selected-glow" : undefined}
         width={w}
         height={h}
         rx={10}
         ry={10}
         fill="var(--archik-node-fill)"
-        stroke="var(--archik-node-stroke)"
-        strokeWidth={1.4}
+        stroke={selected ? "var(--archik-selected)" : "var(--archik-node-stroke)"}
+        strokeWidth={selected ? 1.8 : 1.4}
       />
       <text
         x={w / 2}

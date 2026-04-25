@@ -1,31 +1,38 @@
 import type { PositionedNode } from "../../layout/types.ts";
 
-type Props = { node: PositionedNode };
+type Props = { node: PositionedNode; selected?: boolean };
 
-export function DatabaseNode({ node }: Props): React.ReactElement {
+export function DatabaseNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const ry = Math.min(10, h / 8);
   const hasStack = node.stack !== undefined;
   const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
   const stackY = h / 2 + 14;
+  const stroke = selected
+    ? "var(--archik-selected)"
+    : "var(--archik-node-stroke)";
+  const strokeWidth = selected ? 1.8 : 1.4;
+  const cls = selected ? "archik-selected-glow" : undefined;
 
   return (
     <g className="archik-node archik-node--database">
       <path
+        className={cls}
         d={`M 0 ${ry} V ${h - ry} A ${w / 2} ${ry} 0 0 0 ${w} ${h - ry} V ${ry}`}
         fill="var(--archik-node-fill)"
-        stroke="var(--archik-node-stroke)"
-        strokeWidth={1.4}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
       />
       <ellipse
+        className={cls}
         cx={w / 2}
         cy={ry}
         rx={w / 2}
         ry={ry}
         fill="var(--archik-node-fill)"
-        stroke="var(--archik-node-stroke)"
-        strokeWidth={1.4}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
       />
       <ellipse
         cx={w / 2}
@@ -33,7 +40,7 @@ export function DatabaseNode({ node }: Props): React.ReactElement {
         rx={w / 2}
         ry={ry}
         fill="transparent"
-        stroke="var(--archik-node-stroke)"
+        stroke={stroke}
         strokeWidth={1.2}
         strokeDasharray="2 3"
         opacity={0.6}

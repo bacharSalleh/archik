@@ -1,8 +1,8 @@
 import type { PositionedNode } from "../../layout/types.ts";
 
-type Props = { node: PositionedNode };
+type Props = { node: PositionedNode; selected?: boolean };
 
-export function QueueNode({ node }: Props): React.ReactElement {
+export function QueueNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const radius = Math.min(h / 2, 24);
@@ -10,24 +10,28 @@ export function QueueNode({ node }: Props): React.ReactElement {
   const hasStack = node.stack !== undefined;
   const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
   const stackY = h / 2 + 14;
+  const stroke = selected
+    ? "var(--archik-selected)"
+    : "var(--archik-node-stroke)";
 
   return (
     <g className="archik-node archik-node--queue">
       <rect
+        className={selected ? "archik-selected-glow" : undefined}
         width={w}
         height={h}
         rx={radius}
         ry={radius}
         fill="var(--archik-node-fill)"
-        stroke="var(--archik-node-stroke)"
-        strokeWidth={1.4}
+        stroke={stroke}
+        strokeWidth={selected ? 1.8 : 1.4}
       />
       <line
         x1={dividerX}
         y1={6}
         x2={dividerX}
         y2={h - 6}
-        stroke="var(--archik-node-stroke)"
+        stroke={stroke}
         strokeOpacity={0.4}
         strokeWidth={1}
       />

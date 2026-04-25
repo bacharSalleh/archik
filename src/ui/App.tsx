@@ -300,11 +300,13 @@ export function App(): React.ReactElement {
           : {})}
       />
       <main
-        className={`grid min-h-0 flex-1 gap-4 p-4 ${
-          selection ? "grid-cols-[1fr_320px]" : "grid-cols-1"
-        }`}
+        className="flex min-h-0 flex-1 p-4"
+        style={{ gap: 0 }}
       >
-        <div className="archik-panel" style={{ overflow: "hidden" }}>
+        <div
+          className="archik-panel"
+          style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+        >
           <Canvas
             document={doc}
             className="h-full w-full archik-grid"
@@ -321,24 +323,31 @@ export function App(): React.ReactElement {
             }
           />
         </div>
-        {selection && (
-          <aside
-            key={`${selection.type}:${selection.id}`}
-            className="archik-panel archik-drawer"
+        <aside
+          aria-hidden={!selection}
+          className={`archik-drawer-shell ${
+            selection
+              ? "archik-drawer-shell--open"
+              : "archik-drawer-shell--closed"
+          }`}
+        >
+          <div
+            key={selection ? `${selection.type}:${selection.id}` : "empty"}
+            className="archik-panel archik-drawer-content archik-drawer-fade"
             style={{ overflow: "hidden" }}
           >
-            {selection.type === "edge" ? (
+            {selection?.type === "edge" ? (
               <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
-            ) : (
+            ) : selection?.type === "node" ? (
               <NodeInspector
                 node={selectedNode}
                 dispatch={dispatch}
                 onStartConnect={startConnect}
                 allNodes={doc.nodes}
               />
-            )}
-          </aside>
-        )}
+            ) : null}
+          </div>
+        </aside>
       </main>
     </div>
   );

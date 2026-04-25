@@ -240,10 +240,21 @@ body,
   background-position: 0 0, 0 0;
 }
 
-/* Subtle outer glow on selection (used by selected-overlay rect). */
+/* Pulsing phosphor glow used by the selected node/edge outline. */
 .archik-selected-glow {
   filter: drop-shadow(0 0 6px var(--archik-selected-glow))
     drop-shadow(0 0 2px var(--archik-selected-glow));
+  animation: archikPulse 1.8s ease-in-out infinite;
+}
+@keyframes archikPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px var(--archik-selected-glow))
+      drop-shadow(0 0 1px var(--archik-selected-glow));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px var(--archik-selected-glow))
+      drop-shadow(0 0 3px var(--archik-selected-glow));
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -274,6 +285,14 @@ body,
   animation: archikModalIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* SVG selection helpers ------------------------------------------------- */
+.archik-selected-outline {
+  fill: none;
+  stroke: var(--archik-selected);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
 @keyframes archikFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -284,12 +303,34 @@ body,
 }
 
 /* ---------------------------------------------------------------------------
-   Inspector drawer slide-in.
+   Inspector drawer — width transitions for smooth in/out, content fades.
    --------------------------------------------------------------------------- */
-.archik-drawer {
-  animation: archikSlideIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.archik-drawer-shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    width 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 200ms ease,
+    margin-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  min-width: 0;
 }
-@keyframes archikSlideIn {
-  from { opacity: 0; transform: translateX(16px); }
-  to   { opacity: 1; transform: none; }
+.archik-drawer-shell--open {
+  width: 320px;
+  opacity: 1;
+  margin-left: 16px;
+}
+.archik-drawer-shell--closed {
+  width: 0;
+  opacity: 0;
+  margin-left: 0;
+  pointer-events: none;
+}
+.archik-drawer-content {
+  width: 320px;
+  height: 100%;
+  flex-shrink: 0;
+}
+.archik-drawer-fade {
+  animation: archikFadeIn 220ms ease-out;
 }
