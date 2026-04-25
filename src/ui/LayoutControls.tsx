@@ -1,7 +1,29 @@
+import type { ViewMode } from "../layout/types.ts";
 import { Popover } from "./Popover.tsx";
 
 const STORAGE_KEY = "archik-density";
+const VIEW_MODE_STORAGE_KEY = "archik-view-mode";
 const DEFAULT_DENSITY = 1;
+const DEFAULT_VIEW_MODE: ViewMode = "detailed";
+
+export function loadViewMode(): ViewMode {
+  if (typeof localStorage === "undefined") return DEFAULT_VIEW_MODE;
+  try {
+    const raw = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return raw === "compact" ? "compact" : DEFAULT_VIEW_MODE;
+  } catch {
+    return DEFAULT_VIEW_MODE;
+  }
+}
+
+export function saveViewMode(value: ViewMode): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
+  } catch {
+    // ignore
+  }
+}
 
 export function loadDensity(): number {
   if (typeof localStorage === "undefined") return DEFAULT_DENSITY;

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Document } from "../domain/types.ts";
-import type { LayoutOptions, PositionedDocument } from "../layout/types.ts";
+import type {
+  LayoutOptions,
+  PositionedDocument,
+  ViewMode,
+} from "../layout/types.ts";
 import { layout } from "../layout/index.ts";
 import { DiagramSvg } from "./DiagramSvg.tsx";
 
@@ -14,6 +18,7 @@ type Props = {
   document: Document;
   className?: string | undefined;
   layoutOptions?: LayoutOptions;
+  viewMode?: ViewMode;
   selectedNodeId?: string | undefined;
   selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
@@ -25,6 +30,7 @@ export function Canvas({
   document,
   className,
   layoutOptions,
+  viewMode = "detailed",
   selectedNodeId,
   selectedEdgeId,
   onSelectNode,
@@ -113,6 +119,7 @@ export function Canvas({
         <DiagramSvg
           positioned={positioned}
           zoom={zoom}
+          viewMode={viewMode}
           {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
           {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}

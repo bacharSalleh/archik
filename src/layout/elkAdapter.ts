@@ -33,7 +33,7 @@ const CARD_SUBTITLE: { width: number; height: number } = {
   height: 90,
 };
 
-const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
+const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   // Compute
   service: CARD,
   function: CARD,
@@ -74,8 +74,47 @@ const DEFAULT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   custom: { width: 240, height: 130 },
 };
 
-function toElkNode(node: Node, children: ElkNode[]): ElkNode {
-  const size = DEFAULT_SIZE[node.kind];
+const CHIP: { width: number; height: number } = { width: 152, height: 36 };
+const CHIP_CONTAINER: { width: number; height: number } = {
+  width: 200,
+  height: 80,
+};
+
+const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
+  service: CHIP,
+  function: CHIP,
+  worker: CHIP,
+  agent: CHIP,
+  database: CHIP,
+  cache: CHIP,
+  vectordb: CHIP,
+  storage: CHIP,
+  queue: { width: 168, height: 36 },
+  topic: CHIP,
+  stream: CHIP,
+  gateway: CHIP,
+  cdn: CHIP,
+  interface: CHIP,
+  adapter: CHIP,
+  port: CHIP,
+  llm: CHIP,
+  prompt: CHIP,
+  tool: CHIP,
+  auth: CHIP,
+  observability: CHIP,
+  cloud: CHIP,
+  frontend: CHIP,
+  external: { width: 168, height: 40 },
+  module: CHIP_CONTAINER,
+  custom: CHIP_CONTAINER,
+};
+
+function toElkNode(
+  node: Node,
+  children: ElkNode[],
+  sizeTable: Record<NodeKind, { width: number; height: number }>,
+): ElkNode {
+  const size = sizeTable[node.kind];
   const elk: ElkNode = {
     id: node.id,
     width: size.width,
@@ -85,7 +124,10 @@ function toElkNode(node: Node, children: ElkNode[]): ElkNode {
   return elk;
 }
 
-function buildHierarchy(doc: Document): {
+function buildHierarchy(
+  doc: Document,
+  sizeTable: Record<NodeKind, { width: number; height: number }>,
+): {
   roots: ElkNode[];
   byId: Map<string, Node>;
 } {
@@ -101,7 +143,7 @@ function buildHierarchy(doc: Document): {
 
   function build(n: Node): ElkNode {
     const kids = (childrenOf.get(n.id) ?? []).map(build);
-    return toElkNode(n, kids);
+    return toElkNode(n, kids, sizeTable);
   }
 
   const rootNodes = childrenOf.get(undefined) ?? [];
@@ -178,7 +220,9 @@ async function runLayout(
   if (doc.nodes.length === 0) {
     return { document: doc, width: 0, height: 0, roots: [], edges: [] };
   }
-  const { roots, byId } = buildHierarchy(doc);
+  const sizeTable =
+    options.viewMode === "compact" ? COMPACT_SIZE : DETAILED_SIZE;
+  const { roots, byId } = buildHierarchy(doc, sizeTable);
   const graph: ElkNode = {
     id: "__root__",
     layoutOptions: buildElkOptions(options),

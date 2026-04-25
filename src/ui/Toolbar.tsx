@@ -1,5 +1,6 @@
-import { Redo2, Undo2 } from "lucide-react";
+import { LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
+import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
@@ -22,6 +23,8 @@ type Props = {
   onCancelConnect?: () => void;
   density?: number;
   onDensityChange?: (value: number) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (value: ViewMode) => void;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -55,6 +58,8 @@ export function Toolbar({
   onCancelConnect,
   density,
   onDensityChange,
+  viewMode,
+  onViewModeChange,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -144,6 +149,28 @@ export function Toolbar({
           </button>
         )}
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
+        {viewMode !== undefined && onViewModeChange !== undefined && (
+          <button
+            type="button"
+            onClick={() =>
+              onViewModeChange(viewMode === "compact" ? "detailed" : "compact")
+            }
+            title={
+              viewMode === "compact"
+                ? "Switch to detailed view"
+                : "Switch to compact view"
+            }
+            aria-label="Toggle view mode"
+            className="archik-btn"
+            style={{ padding: "5px 8px" }}
+          >
+            {viewMode === "compact" ? (
+              <LayoutGrid size={14} strokeWidth={1.8} />
+            ) : (
+              <Rows3 size={14} strokeWidth={1.8} />
+            )}
+          </button>
+        )}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />
         )}

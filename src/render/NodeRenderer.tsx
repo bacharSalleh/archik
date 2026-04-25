@@ -1,13 +1,25 @@
-import type { PositionedNode } from "../layout/types.ts";
+import type { PositionedNode, ViewMode } from "../layout/types.ts";
 import { ServiceNode } from "./nodes/ServiceNode.tsx";
 import { QueueNode } from "./nodes/QueueNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
+import { CompactNode } from "./nodes/CompactNode.tsx";
 import { InfoIcon, NotesIcon, iconAnchorsFor, trayCenters } from "./icons.tsx";
 
-type ShapeProps = { node: PositionedNode; selected: boolean };
+type ShapeProps = {
+  node: PositionedNode;
+  selected: boolean;
+  viewMode: ViewMode;
+};
 
-function Shape({ node, selected }: ShapeProps): React.ReactElement {
+function Shape({
+  node,
+  selected,
+  viewMode,
+}: ShapeProps): React.ReactElement {
+  if (viewMode === "compact") {
+    return <CompactNode node={node} selected={selected} />;
+  }
   switch (node.kind) {
     case "queue":
       return <QueueNode node={node} selected={selected} />;
@@ -54,12 +66,14 @@ type Props = {
   node: PositionedNode;
   selectedNodeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
+  viewMode?: ViewMode;
 };
 
 export function NodeRenderer({
   node,
   selectedNodeId,
   onSelectNode,
+  viewMode = "detailed",
 }: Props): React.ReactElement {
   const isSelected = selectedNodeId === node.id;
 
@@ -81,8 +95,8 @@ export function NodeRenderer({
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
-      <Shape node={node} selected={isSelected} />
-      {node.kind !== "custom" && node.kind !== "module" && (() => {
+      <Shape node={node} selected={isSelected} viewMode={viewMode} />
+      {viewMode === "detailed" && node.kind !== "custom" && node.kind !== "module" && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
         const trayItems: Array<"info" | "notes"> = [];
@@ -135,6 +149,7 @@ export function NodeRenderer({
         <NodeRenderer
           key={child.id}
           node={child}
+          viewMode={viewMode}
           {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
         />

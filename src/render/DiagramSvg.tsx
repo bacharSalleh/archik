@@ -1,4 +1,4 @@
-import type { PositionedDocument } from "../layout/types.ts";
+import type { PositionedDocument, ViewMode } from "../layout/types.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
   ARROW_MARKER_CIRCLE,
@@ -92,6 +92,7 @@ type Props = {
   positioned: PositionedDocument;
   className?: string | undefined;
   zoom?: number;
+  viewMode?: ViewMode;
   selectedNodeId?: string | undefined;
   selectedEdgeId?: string | undefined;
   onSelectNode?: ((id: string) => void) | undefined;
@@ -103,6 +104,7 @@ export function DiagramSvg({
   positioned,
   className,
   zoom = 1,
+  viewMode = "detailed",
   selectedNodeId,
   selectedEdgeId,
   onSelectNode,
@@ -148,6 +150,7 @@ export function DiagramSvg({
           <NodeRenderer
             key={node.id}
             node={node}
+            viewMode={viewMode}
             {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           />

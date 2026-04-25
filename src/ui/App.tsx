@@ -18,8 +18,11 @@ import { Toolbar } from "./Toolbar.tsx";
 import {
   densityToLayoutOptions,
   loadDensity,
+  loadViewMode,
   saveDensity,
+  saveViewMode,
 } from "./LayoutControls.tsx";
+import type { ViewMode } from "../layout/types.ts";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
 const SAVED_INDICATOR_MS = 1500;
@@ -52,9 +55,15 @@ export function App(): React.ReactElement {
     setDensityState(v);
     saveDensity(v);
   };
-  const layoutOptions = useMemo(() => densityToLayoutOptions(density), [
-    density,
-  ]);
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => loadViewMode());
+  const setViewMode = (v: ViewMode): void => {
+    setViewModeState(v);
+    saveViewMode(v);
+  };
+  const layoutOptions = useMemo(
+    () => ({ ...densityToLayoutOptions(density), viewMode }),
+    [density, viewMode],
+  );
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
   const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -353,6 +362,8 @@ export function App(): React.ReactElement {
         onAddNode={addNode}
         density={density}
         onDensityChange={setDensity}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
         onUndo={undo}
@@ -377,6 +388,7 @@ export function App(): React.ReactElement {
             document={doc}
             className="h-full w-full archik-grid"
             layoutOptions={layoutOptions}
+            viewMode={viewMode}
             {...(selection?.type === "node"
               ? { selectedNodeId: selection.id }
               : {})}
