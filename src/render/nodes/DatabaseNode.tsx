@@ -5,10 +5,13 @@ type Props = { node: PositionedNode };
 export function DatabaseNode({ node }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
-  const ry = Math.min(12, h / 6);
+  const ry = Math.min(10, h / 8);
   const fill = "#ffffff";
   const stroke = "#0f172a";
   const strokeWidth = 1.5;
+  const hasStack = node.stack !== undefined;
+  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
+  const stackY = h / 2 + 14;
 
   return (
     <g className="archik-node archik-node--database">
@@ -40,7 +43,7 @@ export function DatabaseNode({ node }: Props): React.ReactElement {
       />
       <text
         x={w / 2}
-        y={h / 2 + 4}
+        y={nameY}
         textAnchor="middle"
         fontFamily="Inter, system-ui, sans-serif"
         fontSize={13}
@@ -49,10 +52,10 @@ export function DatabaseNode({ node }: Props): React.ReactElement {
       >
         {node.name}
       </text>
-      {node.stack !== undefined && (
+      {hasStack && (
         <text
           x={w / 2}
-          y={h / 2 + 22}
+          y={stackY}
           textAnchor="middle"
           fontFamily="Inter, system-ui, sans-serif"
           fontSize={11}
