@@ -28,7 +28,30 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   onSelectNothing?: (() => void) | undefined;
+  /** Fired when the user drags from one node and releases over another. */
+  onConnectDrag?: (fromId: string, toId: string) => void;
 };
+
+const DRAG_THRESHOLD_PX = 5;
+
+type DragState =
+  | { type: "idle" }
+  | { type: "potential"; from: string; startX: number; startY: number }
+  | { type: "dragging"; from: string; pointerSvgX: number; pointerSvgY: number };
+
+function svgPointFromClient(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const transformed = pt.matrixTransform(ctm.inverse());
+  return { x: transformed.x, y: transformed.y };
+}
 
 export function Canvas({
   document,
@@ -40,6 +63,7 @@ export function Canvas({
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
+  onConnectDrag,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
     () => layout(document, layoutOptions),
@@ -47,7 +71,13 @@ export function Canvas({
   );
   const [positioned, setPositioned] = useState<PositionedDocument | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [drag, setDrag] = useState<DragState>({ type: "idle" });
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  // After a drag-connect, the click event still fires on the target node.
+  // This flag is checked by a capture-phase click handler below to swallow
+  // it, so the just-connected node doesn't get selected as a side effect.
+  const swallowNextClick = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +101,81 @@ export function Canvas({
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
   }, [positioned]);
+
+  // Capture-phase click swallower for the node that ends a drag-to-connect.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = (e: MouseEvent): void => {
+      if (swallowNextClick.current) {
+        swallowNextClick.current = false;
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    };
+    el.addEventListener("click", handler, { capture: true });
+    return () => el.removeEventListener("click", handler, { capture: true });
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return;
+    // Modifier-held clicks are reserved for multi-select / toggle.
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (!onConnectDrag) return;
+    const target = e.target instanceof Element ? e.target : null;
+    const nodeEl = target?.closest("[data-archik-node-id]");
+    if (!nodeEl) return;
+    const fromId = nodeEl.getAttribute("data-archik-node-id");
+    if (!fromId) return;
+    setDrag({
+      type: "potential",
+      from: fromId,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (drag.type === "idle") return;
+    const svg = svgRef.current;
+    if (drag.type === "potential") {
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      if (!svg) return;
+      const pt = svgPointFromClient(svg, e.clientX, e.clientY);
+      setDrag({
+        type: "dragging",
+        from: drag.from,
+        pointerSvgX: pt.x,
+        pointerSvgY: pt.y,
+      });
+      return;
+    }
+    if (!svg) return;
+    const pt = svgPointFromClient(svg, e.clientX, e.clientY);
+    setDrag({
+      type: "dragging",
+      from: drag.from,
+      pointerSvgX: pt.x,
+      pointerSvgY: pt.y,
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (drag.type === "dragging") {
+      const target = e.target instanceof Element ? e.target : null;
+      const targetEl = target?.closest("[data-archik-node-id]");
+      const toId = targetEl?.getAttribute("data-archik-node-id") ?? null;
+      if (toId && toId !== drag.from && onConnectDrag) {
+        onConnectDrag(drag.from, toId);
+      }
+      // Suppress the click event that follows pointerup on the target so
+      // we don't re-select right after a successful drag-connect.
+      swallowNextClick.current = true;
+    }
+    setDrag({ type: "idle" });
+  };
 
   if (!positioned) {
     return (
@@ -101,9 +206,11 @@ export function Canvas({
     >
       <div
         ref={scrollRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => setDrag({ type: "idle" })}
         onClick={(e) => {
-          // Only fire deselect when the click landed on the scroll container
-          // itself, not on a node/edge inside the SVG (those stopPropagation).
           if (e.target === e.currentTarget && onSelectNothing) {
             onSelectNothing();
           }
@@ -113,9 +220,6 @@ export function Canvas({
           height: "100%",
           overflow: "auto",
           display: "flex",
-          // "safe center" centers when the content fits but falls back to
-          // start alignment when it overflows, so scrollbars can reach
-          // everything (plain "center" clips the leading overflow).
           justifyContent: "safe center",
           alignItems: "safe center",
         }}
@@ -124,6 +228,16 @@ export function Canvas({
           positioned={positioned}
           zoom={zoom}
           viewMode={viewMode}
+          svgRef={svgRef}
+          dragGhost={
+            drag.type === "dragging"
+              ? {
+                  fromId: drag.from,
+                  pointerX: drag.pointerSvgX,
+                  pointerY: drag.pointerSvgY,
+                }
+              : null
+          }
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}

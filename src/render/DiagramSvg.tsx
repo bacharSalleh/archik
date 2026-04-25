@@ -93,6 +93,11 @@ type Props = {
   className?: string | undefined;
   zoom?: number;
   viewMode?: ViewMode;
+  svgRef?: React.RefObject<SVGSVGElement | null>;
+  /** Live ghost line during a drag-to-connect interaction. */
+  dragGhost?:
+    | { fromId: string; pointerX: number; pointerY: number }
+    | null;
   selectedNodeIds?: ReadonlySet<string>;
   selectedEdgeIds?: ReadonlySet<string>;
   onSelectNode?:
@@ -104,11 +109,37 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
 };
 
+function findNodeCenter(
+  positioned: PositionedDocument,
+  id: string,
+): { x: number; y: number } | null {
+  const walk = (
+    nodes: PositionedDocument["roots"],
+    offsetX: number,
+    offsetY: number,
+  ): { x: number; y: number } | null => {
+    for (const n of nodes) {
+      if (n.id === id) {
+        return {
+          x: offsetX + n.x + n.width / 2,
+          y: offsetY + n.y + n.height / 2,
+        };
+      }
+      const inner = walk(n.children, offsetX + n.x, offsetY + n.y);
+      if (inner) return inner;
+    }
+    return null;
+  };
+  return walk(positioned.roots, 0, 0);
+}
+
 export function DiagramSvg({
   positioned,
   className,
   zoom = 1,
   viewMode = "detailed",
+  svgRef,
+  dragGhost,
   selectedNodeIds,
   selectedEdgeIds,
   onSelectNode,
@@ -121,9 +152,13 @@ export function DiagramSvg({
   const vy = -VIEWBOX_PADDING;
   const vw = w + VIEWBOX_PADDING * 2;
   const vh = h + VIEWBOX_PADDING * 2;
+  const ghostStart = dragGhost
+    ? findNodeCenter(positioned, dragGhost.fromId)
+    : null;
 
   return (
     <svg
+      ref={svgRef}
       className={className}
       xmlns="http://www.w3.org/2000/svg"
       width={vw * zoom}
@@ -160,6 +195,28 @@ export function DiagramSvg({
           />
         ))}
       </g>
+      {dragGhost && ghostStart && (
+        <g className="archik-drag-ghost" pointerEvents="none">
+          <line
+            x1={ghostStart.x}
+            y1={ghostStart.y}
+            x2={dragGhost.pointerX}
+            y2={dragGhost.pointerY}
+            stroke="var(--archik-selected)"
+            strokeWidth={1.6}
+            strokeDasharray="6 4"
+            strokeLinecap="round"
+            opacity={0.85}
+          />
+          <circle
+            cx={dragGhost.pointerX}
+            cy={dragGhost.pointerY}
+            r={4}
+            fill="var(--archik-selected)"
+            opacity={0.9}
+          />
+        </g>
+      )}
     </svg>
   );
 }
