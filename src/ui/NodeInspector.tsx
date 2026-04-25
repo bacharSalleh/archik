@@ -6,12 +6,14 @@ type Props = {
   node: Node | undefined;
   dispatch: (cmd: Command) => void;
   onStartConnect?: ((fromId: string) => void) | undefined;
+  allNodes?: ReadonlyArray<Node>;
 };
 
 export function NodeInspector({
   node,
   dispatch,
   onStartConnect,
+  allNodes = [],
 }: Props): React.ReactElement {
   if (!node) {
     return (
@@ -77,6 +79,27 @@ export function NodeInspector({
           rows={3}
           className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
         />
+      </Field>
+
+      <Field label="Parent (group)" htmlFor="ni-parent">
+        <select
+          id="ni-parent"
+          value={node.parentId ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            update(v === "" ? { parentId: undefined } : { parentId: v });
+          }}
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1 outline-none focus:border-blue-500"
+        >
+          <option value="">(none)</option>
+          {allNodes
+            .filter((n) => n.id !== node.id)
+            .map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.name} ({n.id})
+              </option>
+            ))}
+        </select>
       </Field>
 
       <div className="mt-auto flex flex-col gap-2 pt-4">

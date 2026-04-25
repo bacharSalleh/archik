@@ -302,6 +302,7 @@ export function App(): React.ReactElement {
               node={selectedNode}
               dispatch={dispatch}
               onStartConnect={startConnect}
+              allNodes={doc.nodes}
             />
           )}
         </aside>

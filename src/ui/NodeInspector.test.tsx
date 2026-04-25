@@ -80,4 +80,66 @@ describe("NodeInspector", () => {
     render(<NodeInspector node={apiNode} dispatch={vi.fn()} />);
     expect(screen.getByText("api")).toBeInTheDocument();
   });
+
+  it("offers other nodes as parent options", () => {
+    const allNodes = [
+      apiNode,
+      { id: "platform", kind: "custom" as const, name: "Platform" },
+    ];
+    render(
+      <NodeInspector
+        node={apiNode}
+        dispatch={vi.fn()}
+        allNodes={allNodes}
+      />,
+    );
+    const select = screen.getByLabelText(/parent/i) as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map((o) => o.value);
+    expect(optionValues).toContain("");
+    expect(optionValues).toContain("platform");
+    expect(optionValues).not.toContain("api");
+  });
+
+  it("dispatches update_node with parentId when a parent is chosen", () => {
+    const dispatch = vi.fn();
+    const allNodes = [
+      apiNode,
+      { id: "platform", kind: "custom" as const, name: "Platform" },
+    ];
+    render(
+      <NodeInspector
+        node={apiNode}
+        dispatch={dispatch}
+        allNodes={allNodes}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/parent/i), {
+      target: { value: "platform" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_node",
+      id: "api",
+      patch: { parentId: "platform" },
+    });
+  });
+
+  it("dispatches update_node clearing parentId when '(none)' is chosen", () => {
+    const dispatch = vi.fn();
+    const child: Node = { ...apiNode, parentId: "platform" };
+    const allNodes = [
+      child,
+      { id: "platform", kind: "custom" as const, name: "Platform" },
+    ];
+    render(
+      <NodeInspector node={child} dispatch={dispatch} allNodes={allNodes} />,
+    );
+    fireEvent.change(screen.getByLabelText(/parent/i), {
+      target: { value: "" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_node",
+      id: "api",
+      patch: { parentId: undefined },
+    });
+  });
 });
