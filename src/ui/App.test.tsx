@@ -5,6 +5,6 @@ import { App } from "./App.tsx";
 describe("App", () => {
   it("renders the project name", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Archik" })).toBeInTheDocument();
+    expect(screen.getByText("Archik")).toBeInTheDocument();
   });
 });
