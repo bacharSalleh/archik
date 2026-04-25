@@ -18,14 +18,25 @@ export function Legend(): React.ReactElement {
       )}
     >
       {() => (
-        <div style={{ minWidth: 280, padding: 6 }}>
+        <div
+          style={{
+            minWidth: 320,
+            maxHeight: "min(70vh, 520px)",
+            overflowY: "auto",
+            padding: 6,
+          }}
+        >
           <div
             style={{
+              position: "sticky",
+              top: 0,
+              background: "var(--archik-panel)",
               fontSize: 10,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               color: "var(--archik-fg-muted)",
               padding: "4px 6px 8px",
+              zIndex: 1,
             }}
           >
             Node kinds

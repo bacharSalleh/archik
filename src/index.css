@@ -301,6 +301,10 @@ body,
   padding: 4px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   animation: archikModalIn 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-height: min(80vh, 600px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .archik-menu-item {
   display: flex;
