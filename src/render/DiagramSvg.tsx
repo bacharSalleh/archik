@@ -3,14 +3,16 @@ import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
   ARROW_COLORS,
   ARROW_MARKER_ASYNC,
-  ARROW_MARKER_DEFAULT,
+  ARROW_MARKER_CIRCLE,
   ARROW_MARKER_DEP,
+  ARROW_MARKER_FILLED,
+  ARROW_MARKER_OPEN,
   EdgeRenderer,
 } from "./EdgeRenderer.tsx";
 
 const VIEWBOX_PADDING = 24;
 
-function ArrowMarker({
+function FilledTriangleMarker({
   id,
   fill,
 }: {
@@ -28,6 +30,57 @@ function ArrowMarker({
       orient="auto-start-reverse"
     >
       <path d="M 0 0 L 10 5 L 0 10 z" fill={fill} />
+    </marker>
+  );
+}
+
+function OpenTriangleMarker({
+  id,
+  stroke,
+}: {
+  id: string;
+  stroke: string;
+}): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 12 12"
+      refX="11"
+      refY="6"
+      markerWidth="9"
+      markerHeight="9"
+      orient="auto-start-reverse"
+    >
+      <path
+        d="M 1 1 L 11 6 L 1 11"
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </marker>
+  );
+}
+
+function FilledCircleMarker({
+  id,
+  fill,
+}: {
+  id: string;
+  fill: string;
+}): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 10 10"
+      refX="9"
+      refY="5"
+      markerWidth="7"
+      markerHeight="7"
+      orient="auto"
+    >
+      <circle cx="5" cy="5" r="4" fill={fill} />
     </marker>
   );
 }
@@ -67,9 +120,26 @@ export function DiagramSvg({
       onClick={onSelectNothing}
     >
       <defs>
-        <ArrowMarker id={ARROW_MARKER_DEFAULT} fill={ARROW_COLORS.default} />
-        <ArrowMarker id={ARROW_MARKER_ASYNC} fill={ARROW_COLORS.async} />
-        <ArrowMarker id={ARROW_MARKER_DEP} fill={ARROW_COLORS.dep} />
+        <FilledTriangleMarker
+          id={ARROW_MARKER_FILLED}
+          fill={ARROW_COLORS.filled}
+        />
+        <OpenTriangleMarker
+          id={ARROW_MARKER_OPEN}
+          stroke={ARROW_COLORS.open}
+        />
+        <OpenTriangleMarker
+          id={ARROW_MARKER_DEP}
+          stroke={ARROW_COLORS.dep}
+        />
+        <FilledTriangleMarker
+          id={ARROW_MARKER_ASYNC}
+          fill={ARROW_COLORS.async}
+        />
+        <FilledCircleMarker
+          id={ARROW_MARKER_CIRCLE}
+          fill={ARROW_COLORS.circle}
+        />
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (

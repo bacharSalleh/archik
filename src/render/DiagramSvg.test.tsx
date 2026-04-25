@@ -70,15 +70,15 @@ describe("DiagramSvg", () => {
 
   it("includes one arrow marker per category in defs", () => {
     const { container } = render(<DiagramSvg positioned={populated} />);
-    expect(
-      container.querySelector("defs marker#archik-arrow-default"),
-    ).not.toBeNull();
-    expect(
-      container.querySelector("defs marker#archik-arrow-async"),
-    ).not.toBeNull();
-    expect(
-      container.querySelector("defs marker#archik-arrow-dep"),
-    ).not.toBeNull();
+    for (const id of [
+      "archik-arrow-filled",
+      "archik-arrow-open",
+      "archik-arrow-dep",
+      "archik-arrow-async",
+      "archik-arrow-circle",
+    ]) {
+      expect(container.querySelector(`defs marker#${id}`)).not.toBeNull();
+    }
   });
 
   it("renders every root node via NodeRenderer", () => {

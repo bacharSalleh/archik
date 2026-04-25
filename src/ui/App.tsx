@@ -118,21 +118,6 @@ export function App(): React.ReactElement {
     }
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent): void => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        if (isDirty) void save();
-        return;
-      }
-      if (e.key === "Escape") {
-        if (connectFrom) cancelConnect();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isDirty, save, connectFrom, cancelConnect]);
-
   const handleSelectNode = useCallback(
     (id: string) => {
       if (connectFrom === null) {
@@ -231,6 +216,38 @@ export function App(): React.ReactElement {
     },
     [selection, clearSelection],
   );
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (isDirty) void save();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (connectFrom) cancelConnect();
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const target = e.target;
+        const isEditing =
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLSelectElement ||
+          (target instanceof HTMLElement && target.isContentEditable);
+        if (isEditing) return;
+        if (!selection) return;
+        e.preventDefault();
+        if (selection.type === "node") {
+          dispatch({ type: "remove_node", id: selection.id });
+        } else {
+          dispatch({ type: "disconnect", id: selection.id });
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isDirty, save, connectFrom, cancelConnect, selection, dispatch]);
 
   if (state.status === "loading") {
     return <Splash>Loading {DOCUMENT_URL}…</Splash>;

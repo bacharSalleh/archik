@@ -65,34 +65,41 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
   });
 
-  it("uses the async arrow marker for publishes/subscribes", () => {
-    const pub = render(
-      <svg>
-        <EdgeRenderer edge={baseEdge({ relationship: "publishes" })} />
-      </svg>,
-    );
-    const sub = render(
+  it("uses a distinct arrow marker per relationship", () => {
+    const cases = [
+      ["http_call", "archik-arrow-filled"],
+      ["writes", "archik-arrow-filled"],
+      ["reads", "archik-arrow-open"],
+      ["publishes", "archik-arrow-circle"],
+      ["subscribes", "archik-arrow-async"],
+      ["depends_on", "archik-arrow-dep"],
+    ] as const;
+    for (const [rel, marker] of cases) {
+      const { container, unmount } = render(
+        <svg>
+          <EdgeRenderer edge={baseEdge({ relationship: rel })} />
+        </svg>,
+      );
+      const visiblePolyline = container.querySelector(
+        "polyline:not([data-archik-edge-hitarea])",
+      );
+      expect(visiblePolyline?.getAttribute("marker-end")).toBe(
+        `url(#${marker})`,
+      );
+      unmount();
+    }
+  });
+
+  it("dashes the line for subscribes (paired with publishes' solid + circle)", () => {
+    const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "subscribes" })} />
       </svg>,
     );
-    expect(
-      pub.container.querySelector("polyline")?.getAttribute("marker-end"),
-    ).toBe("url(#archik-arrow-async)");
-    expect(
-      sub.container.querySelector("polyline")?.getAttribute("marker-end"),
-    ).toBe("url(#archik-arrow-async)");
-  });
-
-  it("uses the dep arrow marker for depends_on", () => {
-    const { container } = render(
-      <svg>
-        <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
-      </svg>,
+    const visiblePolyline = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
     );
-    expect(
-      container.querySelector("polyline")?.getAttribute("marker-end"),
-    ).toBe("url(#archik-arrow-dep)");
+    expect(visiblePolyline?.getAttribute("stroke-dasharray")).toBeTruthy();
   });
 
   it("draws writes thicker than reads", () => {

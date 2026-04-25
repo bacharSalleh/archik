@@ -1,14 +1,18 @@
 import type { PositionedEdge, Point } from "../layout/types.ts";
 import type { Relationship } from "../domain/types.ts";
 
-export const ARROW_MARKER_DEFAULT = "archik-arrow-default";
-export const ARROW_MARKER_ASYNC = "archik-arrow-async";
+export const ARROW_MARKER_FILLED = "archik-arrow-filled";
+export const ARROW_MARKER_OPEN = "archik-arrow-open";
 export const ARROW_MARKER_DEP = "archik-arrow-dep";
+export const ARROW_MARKER_ASYNC = "archik-arrow-async";
+export const ARROW_MARKER_CIRCLE = "archik-arrow-circle";
 
 export const ARROW_COLORS = {
-  default: "#0f172a",
-  async: "#1d4ed8",
+  filled: "#0f172a",
+  open: "#334155",
   dep: "#64748b",
+  async: "#1d4ed8",
+  circle: "#1d4ed8",
 } as const;
 
 type EdgeStyle = {
@@ -22,26 +26,27 @@ const STYLES: Record<Relationship, EdgeStyle> = {
   http_call: {
     stroke: "#0f172a",
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_DEFAULT,
+    markerId: ARROW_MARKER_FILLED,
   },
   reads: {
     stroke: "#334155",
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_DEFAULT,
+    markerId: ARROW_MARKER_OPEN,
   },
   writes: {
     stroke: "#0f172a",
     strokeWidth: 1.6,
-    markerId: ARROW_MARKER_DEFAULT,
+    markerId: ARROW_MARKER_FILLED,
   },
   publishes: {
     stroke: "#1d4ed8",
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_ASYNC,
+    markerId: ARROW_MARKER_CIRCLE,
   },
   subscribes: {
     stroke: "#1d4ed8",
     strokeWidth: 1.4,
+    strokeDasharray: "6 4",
     markerId: ARROW_MARKER_ASYNC,
   },
   depends_on: {
