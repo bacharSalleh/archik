@@ -7,8 +7,11 @@ export function DatabaseNode({ node, selected }: Props): React.ReactElement {
   const h = node.height;
   const ry = Math.min(10, h / 8);
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
-  const stackY = h / 2 + 14;
+  // Icons live at y ~= ry*2..ry*2+12; push the text down so it never
+  // overlaps with the icon row inside the cylinder body.
+  const textBaseY = ry * 2 + 22;
+  const nameY = hasStack ? textBaseY : textBaseY + 6;
+  const stackY = textBaseY + 18;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";

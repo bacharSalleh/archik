@@ -8,8 +8,10 @@ export function QueueNode({ node, selected }: Props): React.ReactElement {
   const radius = Math.min(h / 2, 24);
   const dividerX = w - radius * 1.4;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
-  const stackY = h / 2 + 14;
+  // Icons sit at y=8 inside the body; push the name/stack baseline down.
+  const baseY = 28;
+  const nameY = hasStack ? baseY : baseY + 6;
+  const stackY = baseY + 18;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";

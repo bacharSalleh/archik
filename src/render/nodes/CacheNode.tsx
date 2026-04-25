@@ -5,10 +5,12 @@ type Props = { node: PositionedNode; selected?: boolean };
 export function CacheNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
-  const stripeY = h * 0.32;
+  // Slightly lower stripe so the kind tag at top-left has clear room
+  // to the left of the CACHE caption text.
+  const stripeY = h * 0.34;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h * 0.62 - 2 : h / 2 + 6;
-  const stackY = h * 0.62 + 14;
+  const nameY = hasStack ? h * 0.66 - 2 : h * 0.6;
+  const stackY = h * 0.66 + 14;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";
@@ -35,7 +37,7 @@ export function CacheNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={1}
       />
       <text
-        x={w / 2}
+        x={w / 2 + 8}
         y={stripeY - 6}
         textAnchor="middle"
         fontSize={9}

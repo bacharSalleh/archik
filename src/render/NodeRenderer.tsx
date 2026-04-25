@@ -8,6 +8,7 @@ import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { KIND_META } from "./kindPalette.ts";
+import { InfoIcon, iconAnchorsFor } from "./icons.tsx";
 
 type ShapeProps = { node: PositionedNode; selected: boolean };
 
@@ -37,48 +38,22 @@ function Shape({ node, selected }: ShapeProps): React.ReactElement {
   }
 }
 
-function DescriptionIndicator({
-  width,
-  hasStack,
-}: {
-  width: number;
-  hasStack: boolean;
-}): React.ReactElement {
-  void hasStack;
-  return (
-    <g
-      transform={`translate(${width - 14}, 8)`}
-      pointerEvents="none"
-      aria-hidden="true"
-    >
-      <circle
-        r={6}
-        fill="var(--archik-panel)"
-        stroke="var(--archik-node-caption)"
-        strokeWidth={1}
-      />
-      <text
-        textAnchor="middle"
-        y={3.5}
-        fontSize={9}
-        fontWeight={700}
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fill="var(--archik-node-caption)"
-      >
-        i
-      </text>
-    </g>
-  );
-}
-
 function KindTag({
+  x,
+  y,
   kind,
 }: {
+  x: number;
+  y: number;
   kind: PositionedNode["kind"];
 }): React.ReactElement {
   const color = KIND_META[kind].color;
   return (
-    <g transform="translate(8, 8)" pointerEvents="none" aria-hidden="true">
+    <g
+      transform={`translate(${x}, ${y})`}
+      pointerEvents="none"
+      aria-hidden="true"
+    >
       <circle r={3.5} fill={color} />
       <circle
         r={3.5}
@@ -123,15 +98,22 @@ export function NodeRenderer({
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} selected={isSelected} />
-      {node.kind !== "frontend" && node.kind !== "custom" && (
-        <KindTag kind={node.kind} />
-      )}
-      {hasDescription && node.kind !== "external" && (
-        <DescriptionIndicator
-          width={node.width}
-          hasStack={node.stack !== undefined}
-        />
-      )}
+      {(() => {
+        if (node.kind === "custom") return null;
+        const anchors = iconAnchorsFor(node.kind, node.width, node.height);
+        return (
+          <>
+            <KindTag x={anchors.left.x} y={anchors.left.y} kind={node.kind} />
+            {hasDescription && (
+              <InfoIcon
+                x={anchors.right.x}
+                y={anchors.right.y - 6}
+                color="var(--archik-node-caption)"
+              />
+            )}
+          </>
+        );
+      })()}
       {node.children.map((child) => (
         <NodeRenderer
           key={child.id}

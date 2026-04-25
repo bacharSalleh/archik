@@ -6,8 +6,10 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
-  const stackY = h / 2 + 14;
+  // λ + kind + info live in the top 22px; center text below.
+  const bodyMid = 22 + (h - 22) / 2;
+  const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
+  const stackY = bodyMid + 14;
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";

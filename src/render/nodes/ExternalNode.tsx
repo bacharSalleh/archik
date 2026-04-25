@@ -34,7 +34,7 @@ export function ExternalNode({ node, selected }: Props): React.ReactElement {
         strokeDasharray={selected ? undefined : "6 4"}
       />
       <text
-        x={w / 2}
+        x={w / 2 + 8}
         y={captionY}
         textAnchor="middle"
         fontSize={9}

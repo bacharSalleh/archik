@@ -6,8 +6,10 @@ export function ServiceNode({ node, selected }: Props): React.ReactElement {
   const w = node.width;
   const h = node.height;
   const hasStack = node.stack !== undefined;
-  const nameY = hasStack ? h / 2 - 4 : h / 2 + 4;
-  const stackY = h / 2 + 14;
+  // Top 18px reserved for icons (kind tag, info). Center the text below.
+  const bodyMid = 18 + (h - 18) / 2;
+  const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
+  const stackY = bodyMid + 14;
   return (
     <g className="archik-node archik-node--service">
       <rect
