@@ -64,23 +64,25 @@ function Shape({
 
 type Props = {
   node: PositionedNode;
-  selectedNodeId?: string | undefined;
-  onSelectNode?: ((id: string) => void) | undefined;
+  selectedNodeIds?: ReadonlySet<string>;
+  onSelectNode?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
   viewMode?: ViewMode;
 };
 
 export function NodeRenderer({
   node,
-  selectedNodeId,
+  selectedNodeIds,
   onSelectNode,
   viewMode = "detailed",
 }: Props): React.ReactElement {
-  const isSelected = selectedNodeId === node.id;
+  const isSelected = selectedNodeIds?.has(node.id) ?? false;
 
   const handleClick = onSelectNode
     ? (e: React.MouseEvent<SVGGElement>) => {
         e.stopPropagation();
-        onSelectNode(node.id);
+        onSelectNode(node.id, e);
       }
     : undefined;
 
@@ -150,7 +152,7 @@ export function NodeRenderer({
           key={child.id}
           node={child}
           viewMode={viewMode}
-          {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+          {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
         />
       ))}

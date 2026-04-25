@@ -93,10 +93,14 @@ type Props = {
   className?: string | undefined;
   zoom?: number;
   viewMode?: ViewMode;
-  selectedNodeId?: string | undefined;
-  selectedEdgeId?: string | undefined;
-  onSelectNode?: ((id: string) => void) | undefined;
-  onSelectEdge?: ((id: string) => void) | undefined;
+  selectedNodeIds?: ReadonlySet<string>;
+  selectedEdgeIds?: ReadonlySet<string>;
+  onSelectNode?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
+  onSelectEdge?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
   onSelectNothing?: (() => void) | undefined;
 };
 
@@ -105,8 +109,8 @@ export function DiagramSvg({
   className,
   zoom = 1,
   viewMode = "detailed",
-  selectedNodeId,
-  selectedEdgeId,
+  selectedNodeIds,
+  selectedEdgeIds,
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
@@ -140,7 +144,7 @@ export function DiagramSvg({
           <EdgeRenderer
             key={edge.id}
             edge={edge}
-            {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
+            {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
             {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           />
         ))}
@@ -151,7 +155,7 @@ export function DiagramSvg({
             key={node.id}
             node={node}
             viewMode={viewMode}
-            {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+            {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           />
         ))}

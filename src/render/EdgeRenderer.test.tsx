@@ -173,13 +173,17 @@ describe("EdgeRenderer", () => {
       "[data-archik-edge-id='e1']",
     ) as SVGGElement;
     wrapper.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(onSelectEdge).toHaveBeenCalledWith("e1");
+    expect(onSelectEdge).toHaveBeenCalledTimes(1);
+    expect(onSelectEdge.mock.calls[0]![0]).toBe("e1");
   });
 
-  it("marks the wrapper as selected when selectedEdgeId matches", () => {
+  it("marks the wrapper as selected when its id is in selectedEdgeIds", () => {
     const { container } = render(
       <svg>
-        <EdgeRenderer edge={baseEdge()} selectedEdgeId="e1" />
+        <EdgeRenderer
+          edge={baseEdge()}
+          selectedEdgeIds={new Set(["e1"])}
+        />
       </svg>,
     );
     expect(

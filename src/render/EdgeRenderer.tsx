@@ -119,13 +119,15 @@ function midpoint(points: Point[]): Point | undefined {
 
 type Props = {
   edge: PositionedEdge;
-  selectedEdgeId?: string | undefined;
-  onSelectEdge?: ((id: string) => void) | undefined;
+  selectedEdgeIds?: ReadonlySet<string>;
+  onSelectEdge?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
 };
 
 export function EdgeRenderer({
   edge,
-  selectedEdgeId,
+  selectedEdgeIds,
   onSelectEdge,
 }: Props): React.ReactElement | null {
   const section = edge.sections[0];
@@ -138,7 +140,7 @@ export function EdgeRenderer({
   ];
   const style = STYLES[edge.relationship];
   const labelAt = midpoint(all);
-  const isSelected = selectedEdgeId === edge.id;
+  const isSelected = selectedEdgeIds?.has(edge.id) ?? false;
 
   // Selected wins, then per-edge color override, then style default.
   const stroke = isSelected
@@ -153,7 +155,7 @@ export function EdgeRenderer({
   const handleClick = onSelectEdge
     ? (e: React.MouseEvent<SVGGElement>) => {
         e.stopPropagation();
-        onSelectEdge(edge.id);
+        onSelectEdge(edge.id, e);
       }
     : undefined;
 

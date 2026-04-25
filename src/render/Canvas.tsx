@@ -19,10 +19,14 @@ type Props = {
   className?: string | undefined;
   layoutOptions?: LayoutOptions;
   viewMode?: ViewMode;
-  selectedNodeId?: string | undefined;
-  selectedEdgeId?: string | undefined;
-  onSelectNode?: ((id: string) => void) | undefined;
-  onSelectEdge?: ((id: string) => void) | undefined;
+  selectedNodeIds?: ReadonlySet<string>;
+  selectedEdgeIds?: ReadonlySet<string>;
+  onSelectNode?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
+  onSelectEdge?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
   onSelectNothing?: (() => void) | undefined;
 };
 
@@ -31,8 +35,8 @@ export function Canvas({
   className,
   layoutOptions,
   viewMode = "detailed",
-  selectedNodeId,
-  selectedEdgeId,
+  selectedNodeIds,
+  selectedEdgeIds,
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
@@ -120,8 +124,8 @@ export function Canvas({
           positioned={positioned}
           zoom={zoom}
           viewMode={viewMode}
-          {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
-          {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
+          {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+          {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}

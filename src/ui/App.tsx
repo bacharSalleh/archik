@@ -11,7 +11,7 @@ import type { Command } from "../domain/commands.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
-import { useUIStore } from "./store.ts";
+import { useUIStore, type SelectionItem } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -73,9 +73,28 @@ export function App(): React.ReactElement {
   const connectFrom = useUIStore((s) => s.connectFrom);
   const selectNode = useUIStore((s) => s.selectNode);
   const selectEdge = useUIStore((s) => s.selectEdge);
+  const toggleNode = useUIStore((s) => s.toggleNode);
+  const toggleEdge = useUIStore((s) => s.toggleEdge);
   const clearSelection = useUIStore((s) => s.clearSelection);
   const startConnect = useUIStore((s) => s.startConnect);
   const cancelConnect = useUIStore((s) => s.cancelConnect);
+
+  const focused: SelectionItem | null =
+    selection.length > 0 ? (selection.at(-1) ?? null) : null;
+  const selectedNodeIds = useMemo(
+    () =>
+      new Set(
+        selection.filter((s) => s.type === "node").map((s) => s.id),
+      ),
+    [selection],
+  );
+  const selectedEdgeIds = useMemo(
+    () =>
+      new Set(
+        selection.filter((s) => s.type === "edge").map((s) => s.id),
+      ),
+    [selection],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -149,9 +168,13 @@ export function App(): React.ReactElement {
   }, []);
 
   const handleSelectNode = useCallback(
-    (id: string) => {
+    (id: string, event?: React.MouseEvent) => {
       if (connectFrom === null) {
-        selectNode(id);
+        if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+          toggleNode(id);
+        } else {
+          selectNode(id);
+        }
         return;
       }
       if (id === connectFrom) {
@@ -197,7 +220,18 @@ export function App(): React.ReactElement {
       cancelConnect();
       if (createdEdgeId) selectEdge(createdEdgeId);
     },
-    [connectFrom, cancelConnect, selectNode, selectEdge],
+    [connectFrom, cancelConnect, selectNode, toggleNode, selectEdge],
+  );
+
+  const handleSelectEdge = useCallback(
+    (id: string, event?: React.MouseEvent) => {
+      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+        toggleEdge(id);
+      } else {
+        selectEdge(id);
+      }
+    },
+    [selectEdge, toggleEdge],
   );
 
   const addNode = useCallback(
@@ -233,12 +267,6 @@ export function App(): React.ReactElement {
         try {
           const next = applyCommand(current.document, cmd);
           setCommandError(undefined);
-          if (
-            (cmd.type === "remove_node" || cmd.type === "disconnect") &&
-            selection?.id === cmd.id
-          ) {
-            clearSelection();
-          }
           setIsDirty(true);
           setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
           setFuture([]);
@@ -250,8 +278,47 @@ export function App(): React.ReactElement {
         }
       });
     },
-    [selection, clearSelection],
+    [],
   );
+
+  const deleteSelected = useCallback(() => {
+    if (selection.length === 0) return;
+    // Remove edges first so node-removal doesn't trip over orphan-cascade
+    // attempting to drop the same edge twice. Snapshot once for undo.
+    setState((current) => {
+      if (current.status !== "ready") return current;
+      let doc = current.document;
+      try {
+        const edgeIds = selection
+          .filter((s) => s.type === "edge")
+          .map((s) => s.id);
+        for (const id of edgeIds) {
+          if (doc.edges.some((e) => e.id === id)) {
+            doc = applyCommand(doc, { type: "disconnect", id });
+          }
+        }
+        const nodeIds = selection
+          .filter((s) => s.type === "node")
+          .map((s) => s.id);
+        for (const id of nodeIds) {
+          if (doc.nodes.some((n) => n.id === id)) {
+            doc = applyCommand(doc, { type: "remove_node", id });
+          }
+        }
+        if (doc === current.document) return current;
+        setCommandError(undefined);
+        setIsDirty(true);
+        setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
+        setFuture([]);
+        return { status: "ready", document: doc };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setCommandError(message);
+        return current;
+      }
+    });
+    clearSelection();
+  }, [selection, clearSelection]);
 
   const undo = useCallback(() => {
     if (state.status !== "ready" || past.length === 0) return;
@@ -305,18 +372,23 @@ export function App(): React.ReactElement {
           target instanceof HTMLSelectElement ||
           (target instanceof HTMLElement && target.isContentEditable);
         if (isEditing) return;
-        if (!selection) return;
+        if (selection.length === 0) return;
         e.preventDefault();
-        if (selection.type === "node") {
-          dispatch({ type: "remove_node", id: selection.id });
-        } else {
-          dispatch({ type: "disconnect", id: selection.id });
-        }
+        deleteSelected();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isDirty, save, connectFrom, cancelConnect, selection, dispatch, undo, redo]);
+  }, [
+    isDirty,
+    save,
+    connectFrom,
+    cancelConnect,
+    selection,
+    deleteSelected,
+    undo,
+    redo,
+  ]);
 
   if (state.status === "loading") {
     return <Splash>Loading {DOCUMENT_URL}…</Splash>;
@@ -333,17 +405,18 @@ export function App(): React.ReactElement {
 
   const doc = state.document;
   const selectedNode =
-    selection?.type === "node"
-      ? doc.nodes.find((n) => n.id === selection.id)
+    focused?.type === "node"
+      ? doc.nodes.find((n) => n.id === focused.id)
       : undefined;
   const selectedEdge =
-    selection?.type === "edge"
-      ? doc.edges.find((e) => e.id === selection.id)
+    focused?.type === "edge"
+      ? doc.edges.find((e) => e.id === focused.id)
       : undefined;
   const connectFromNode =
     connectFrom !== null
       ? doc.nodes.find((n) => n.id === connectFrom)
       : undefined;
+  const isMultiSelection = selection.length > 1;
 
   return (
     <div
@@ -389,35 +462,43 @@ export function App(): React.ReactElement {
             className="h-full w-full archik-grid"
             layoutOptions={layoutOptions}
             viewMode={viewMode}
-            {...(selection?.type === "node"
-              ? { selectedNodeId: selection.id }
-              : {})}
-            {...(selection?.type === "edge"
-              ? { selectedEdgeId: selection.id }
-              : {})}
+            selectedNodeIds={selectedNodeIds}
+            selectedEdgeIds={selectedEdgeIds}
             onSelectNode={handleSelectNode}
-            onSelectEdge={selectEdge}
+            onSelectEdge={handleSelectEdge}
             onSelectNothing={
               connectFrom === null ? clearSelection : cancelConnect
             }
           />
         </div>
         <aside
-          aria-hidden={!selection}
+          aria-hidden={selection.length === 0}
           className={`archik-drawer-shell ${
-            selection
+            selection.length > 0
               ? "archik-drawer-shell--open"
               : "archik-drawer-shell--closed"
           }`}
         >
           <div
-            key={selection ? `${selection.type}:${selection.id}` : "empty"}
+            key={
+              isMultiSelection
+                ? `multi:${selection.length}`
+                : focused
+                  ? `${focused.type}:${focused.id}`
+                  : "empty"
+            }
             className="archik-panel archik-drawer-content archik-drawer-fade"
             style={{ overflow: "hidden" }}
           >
-            {selection?.type === "edge" ? (
+            {isMultiSelection ? (
+              <BulkInspector
+                count={selection.length}
+                onDelete={deleteSelected}
+                onClear={clearSelection}
+              />
+            ) : focused?.type === "edge" ? (
               <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
-            ) : selection?.type === "node" ? (
+            ) : focused?.type === "node" ? (
               <NodeInspector
                 node={selectedNode}
                 dispatch={dispatch}
@@ -428,6 +509,62 @@ export function App(): React.ReactElement {
           </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+function BulkInspector({
+  count,
+  onDelete,
+  onClear,
+}: {
+  count: number;
+  onDelete: () => void;
+  onClear: () => void;
+}): React.ReactElement {
+  return (
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
+      <div>
+        <div className="archik-label">Selection</div>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "var(--archik-fg)",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {count} items
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--archik-fg-dim)",
+            marginTop: 4,
+          }}
+        >
+          Hold ⌘ / Ctrl while clicking to add or remove items.
+        </div>
+      </div>
+      <div className="archik-divider" />
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        <button
+          type="button"
+          onClick={onClear}
+          className="archik-btn"
+          style={{ justifyContent: "center", padding: "8px 12px" }}
+        >
+          Clear selection
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="archik-btn archik-btn-danger"
+          style={{ justifyContent: "center", padding: "8px 12px" }}
+        >
+          Delete {count} items
+        </button>
+      </div>
     </div>
   );
 }

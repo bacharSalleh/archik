@@ -94,7 +94,8 @@ describe("NodeRenderer", () => {
     ) as SVGGElement | null;
     expect(wrapper).not.toBeNull();
     wrapper!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(onSelectNode).toHaveBeenCalledWith("api");
+    expect(onSelectNode).toHaveBeenCalledTimes(1);
+    expect(onSelectNode.mock.calls[0]![0]).toBe("api");
   });
 
   it("clicking a child fires only the child's selection (no parent firing)", () => {
@@ -119,13 +120,16 @@ describe("NodeRenderer", () => {
     ) as SVGGElement;
     child.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onSelectNode).toHaveBeenCalledTimes(1);
-    expect(onSelectNode).toHaveBeenCalledWith("child-1");
+    expect(onSelectNode.mock.calls[0]![0]).toBe("child-1");
   });
 
-  it("marks the wrapper as selected when selectedNodeId matches", () => {
+  it("marks the wrapper as selected when its id is in selectedNodeIds", () => {
     const { container } = render(
       <svg>
-        <NodeRenderer node={make({ id: "api" })} selectedNodeId="api" />
+        <NodeRenderer
+          node={make({ id: "api" })}
+          selectedNodeIds={new Set(["api"])}
+        />
       </svg>,
     );
     expect(
@@ -138,7 +142,10 @@ describe("NodeRenderer", () => {
   it("does not mark unrelated nodes as selected", () => {
     const { container } = render(
       <svg>
-        <NodeRenderer node={make({ id: "api" })} selectedNodeId="other" />
+        <NodeRenderer
+          node={make({ id: "api" })}
+          selectedNodeIds={new Set(["other"])}
+        />
       </svg>,
     );
     expect(
