@@ -1,16 +1,58 @@
 ---
 name: archik
-description: Use when editing architecture.archik.yaml or running the archik CLI. Covers schema, node taxonomy, relationship vocabulary, common editing patterns, and CLI verification for the Archik diagram tool.
+description: Use whenever architecture.archik.yaml exists in the project, or the user asks about the system's architecture, services, dependencies, or data flow. The YAML is the shared map of the project between the user and Claude — read it before answering structural questions, and propose updates when work introduces or changes nodes/edges. Also covers the archik CLI for validation and rendering.
 ---
 
-# Editing Archik documents
+# Archik — the project's shared map
 
-Archik is a JSON-native architecture diagram tool. The single source of
-truth is `architecture.archik.yaml` at the project root. The canvas in
-the browser is a stateless projection of that file — edit the YAML and
-the diagram updates live (when the dev server is running).
+`architecture.archik.yaml` at the project root is **the user's source of
+truth for what the system looks like**. It lists every meaningful node
+(services, databases, queues, frontends, external APIs, …) and the
+edges between them. The canvas in the browser is a stateless projection
+of this file — when the user says "the orders service" or "the events
+queue", they mean the entity with that `id` in the YAML.
 
-## Hard rules
+Treat this file as a shared vocabulary. It exists so the user and you
+can talk about the system without re-explaining it every time.
+
+## When to consult the YAML
+
+Read it **before answering** any of these:
+
+- "What does X do?" / "What's the responsibility of X?"
+- "What writes to / reads from / publishes to Y?"
+- "Where does data flow when …?"
+- "What services exist?" / "What's in the architecture?"
+- "What depends on Z?" / "What would break if I remove Z?"
+- "Is there a queue / cache / gateway already?"
+
+Don't guess. The YAML has the answer or it doesn't — if it doesn't, say
+so and offer to add it.
+
+## When to propose updates to the YAML
+
+Proactively suggest edits (don't silently apply them — the user owns
+this file) when the work you're doing changes the structure:
+
+- Adding a new service, function, worker, frontend, queue, DB, etc.
+- Introducing a new dependency between existing components.
+- Adding a new external API integration.
+- Removing or renaming a component.
+- Splitting one component into several, or merging several into one.
+
+Frame it as: *"This adds a `payments-worker` that reads from the
+`order-events` queue and writes to `payments-db`. Want me to update
+`architecture.archik.yaml` to capture that?"*
+
+## When to defer
+
+- Pure refactors that don't change the component graph → leave it alone.
+- Local file moves / renames → leave it alone.
+- Bug fixes inside an existing node → leave it alone.
+
+The YAML tracks **shape**, not implementation detail.
+
+## Hard rules for editing
 
 - **Never put coordinates** (`x`, `y`, `width`, `height`, `viewport`) in
   the YAML. Layout is computed by ELK on every render. The schema
@@ -21,6 +63,9 @@ the diagram updates live (when the dev server is running).
   node id, the document fails to load.
 - **`parentId` references existing nodes** (typically `module` or
   `custom` containers).
+- **Don't rename a node id**. Remove the old node and re-add it with
+  the new id, then fix every edge that referenced it.
+- **Don't change `version`** — it's `"1.0"`.
 
 ## Schema (top-level)
 
@@ -75,6 +120,7 @@ metadata:               # optional
 | Structural  | `module`, `custom` |
 
 Picking the right kind:
+
 - A long-running HTTP service → `service`
 - A serverless function / lambda → `function`
 - A background job consumer → `worker`
@@ -128,6 +174,7 @@ Picking the right kind:
 | Architectural  | `implements`, `depends_on`, `has_a`, `uses` | static + muted |
 
 Picking the right relationship:
+
 - Service-to-service HTTP / RPC call → `http_call`
 - Calling a function or agent → `invokes`
 - Gateway routing requests → `routes_to`
@@ -225,36 +272,42 @@ edges:
 
 ## CLI
 
-Every command defaults to `architecture.archik.yaml` in the current
+These commands are available globally if archik was installed via
+`npm link`. Each defaults to `architecture.archik.yaml` in the current
 directory unless given a positional path.
 
 ```
-npm run archik -- init                       # scaffold a starter file
-npm run archik -- validate                   # schema check
-npm run archik -- validate path/to/file.yaml
-npm run archik -- render --out diagram.svg   # headless layout + SVG
-npm run archik -- render --theme light --out diagram-light.svg
-npm run archik -- watch                      # re-render on save
-npm run archik -- check                      # drift: nodes vs source dirs
+archik validate                    # schema check (run after every edit)
+archik validate path/to/file.yaml
+archik render --out diagram.svg    # headless layout → SVG
+archik render --theme light --out diagram-light.svg
+archik watch                       # re-render SVG on save
+archik check                       # drift: nodes vs source dirs
+archik dev                         # open the live editor in the browser
+archik init                        # scaffold a starter file
+archik skill                       # install/refresh this skill in cwd
 ```
 
-After making edits, run `npm run archik -- validate` to confirm the
-document parses. Schema errors include the path of the offending field
-so you can fix them precisely.
+If `archik` isn't on PATH (the user hasn't run `npm link` yet), fall
+back to the in-repo form: `npm run archik -- <command>` from the
+archik checkout.
 
-## Verification workflow for AI editors
+## Verification workflow
 
-1. Read the current `architecture.archik.yaml`.
-2. Make the requested edits as a YAML diff.
-3. Run `npm run archik -- validate` — fix any reported errors before
-   declaring the change done.
-4. If you added a sourceable kind (`service`, `function`, `worker`,
-   `agent`, `frontend`, `gateway`, `tool`, `module`), consider running
-   `npm run archik -- check` to see which nodes are documented but
-   don't have a matching source folder under `src/`, `services/`,
-   `packages/`, or `apps/`.
-5. Don't restart the dev server — the file watcher already broadcasts
-   changes to the open canvas.
+After **every** edit you make to `architecture.archik.yaml`:
+
+1. Run `archik validate` — fix any reported errors before declaring
+   the change done. Schema errors include the path of the offending
+   field so you can fix them precisely.
+2. If the project has an `archik dev` server running, the file watcher
+   broadcasts the change automatically — no restart needed.
+3. If the project commits a rendered SVG (e.g. `docs/architecture.svg`),
+   regenerate it with `archik render --out docs/architecture.svg` so
+   the committed picture matches the YAML.
+4. For nodes whose `kind` implies code (`service`, `function`, `worker`,
+   `agent`, `frontend`, `gateway`, `tool`, `module`), consider
+   `archik check` to flag nodes that don't have a matching source
+   folder under `src/`, `services/`, `packages/`, or `apps/`.
 
 ## Things to avoid
 
@@ -262,8 +315,9 @@ so you can fix them precisely.
   Zod schema rejects them.
 - Don't add visual properties (colors, sizes, positions) to nodes.
   Only edges have `color`. Everything else comes from the renderer.
-- Don't change `version` away from `"1.0"`.
-- Don't rename a node id; instead, remove the old node and re-add it,
-  fixing all incident edges.
-- Don't add empty notes / responsibilities / interfaces lists.
-  Either include real entries or omit the field entirely.
+- Don't add empty `notes` / `responsibilities` / `interfaces` lists —
+  either include real entries or omit the field entirely.
+- Don't blow away `description`, `responsibilities`, or `notes` the
+  user wrote unless they ask you to. They're encoded context.
+- Don't bulk-restructure the file as a side effect of a small edit.
+  Make the minimal change that captures what changed.

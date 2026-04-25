@@ -5,6 +5,7 @@ import { renderCommand } from "./commands/render.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { checkCommand } from "./commands/check.ts";
 import { devCommand } from "./commands/dev.ts";
+import { skillCommand } from "./commands/skill.ts";
 import { parseOptions } from "./options.ts";
 
 function printHelp(): void {
@@ -25,6 +26,9 @@ COMMANDS
                     --theme <name>   "dark" (default) or "light"
   watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
   check [path]      Drift detection — flag nodes without source dirs
+  skill             Install the Archik skill for Claude
+                    --user           install to ~/.claude/skills (all projects)
+                    --force          overwrite if it already exists
 
 The default path is architecture.archik.yaml in the current directory.
 `);
@@ -47,6 +51,8 @@ async function main(): Promise<number> {
       return watchCommand(opts);
     case "check":
       return checkCommand(opts);
+    case "skill":
+      return skillCommand(opts);
     case undefined:
     case "--help":
     case "-h":
