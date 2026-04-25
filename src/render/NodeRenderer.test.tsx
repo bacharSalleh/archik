@@ -34,7 +34,7 @@ describe("NodeRenderer", () => {
     expect(container.querySelector(".archik-node--database")).not.toBeNull();
   });
 
-  it("falls back to GenericNode for kind=queue", () => {
+  it("dispatches to QueueNode for kind=queue", () => {
     const { container } = render(
       <svg>
         <NodeRenderer node={make({ kind: "queue", name: "Q" })} />

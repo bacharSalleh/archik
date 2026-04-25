@@ -1,8 +1,36 @@
 import type { PositionedDocument } from "../layout/types.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
-import { ARROW_MARKER_ID, EdgeRenderer } from "./EdgeRenderer.tsx";
+import {
+  ARROW_COLORS,
+  ARROW_MARKER_ASYNC,
+  ARROW_MARKER_DEFAULT,
+  ARROW_MARKER_DEP,
+  EdgeRenderer,
+} from "./EdgeRenderer.tsx";
 
 const VIEWBOX_PADDING = 24;
+
+function ArrowMarker({
+  id,
+  fill,
+}: {
+  id: string;
+  fill: string;
+}): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 10 10"
+      refX="9"
+      refY="5"
+      markerWidth="8"
+      markerHeight="8"
+      orient="auto-start-reverse"
+    >
+      <path d="M 0 0 L 10 5 L 0 10 z" fill={fill} />
+    </marker>
+  );
+}
 
 type Props = {
   positioned: PositionedDocument;
@@ -28,17 +56,9 @@ export function DiagramSvg({
       preserveAspectRatio="xMidYMid meet"
     >
       <defs>
-        <marker
-          id={ARROW_MARKER_ID}
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="8"
-          markerHeight="8"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a" />
-        </marker>
+        <ArrowMarker id={ARROW_MARKER_DEFAULT} fill={ARROW_COLORS.default} />
+        <ArrowMarker id={ARROW_MARKER_ASYNC} fill={ARROW_COLORS.async} />
+        <ArrowMarker id={ARROW_MARKER_DEP} fill={ARROW_COLORS.dep} />
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (

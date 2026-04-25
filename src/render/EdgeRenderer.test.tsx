@@ -35,7 +35,7 @@ describe("EdgeRenderer", () => {
     expect(points).toContain("100,50");
   });
 
-  it("references the shared arrowhead marker via marker-end", () => {
+  it("references an arrowhead marker via marker-end", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge()} />
@@ -63,6 +63,56 @@ describe("EdgeRenderer", () => {
     );
     const poly = container.querySelector("polyline");
     expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
+  });
+
+  it("uses the async arrow marker for publishes/subscribes", () => {
+    const pub = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "publishes" })} />
+      </svg>,
+    );
+    const sub = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "subscribes" })} />
+      </svg>,
+    );
+    expect(
+      pub.container.querySelector("polyline")?.getAttribute("marker-end"),
+    ).toBe("url(#archik-arrow-async)");
+    expect(
+      sub.container.querySelector("polyline")?.getAttribute("marker-end"),
+    ).toBe("url(#archik-arrow-async)");
+  });
+
+  it("uses the dep arrow marker for depends_on", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
+      </svg>,
+    );
+    expect(
+      container.querySelector("polyline")?.getAttribute("marker-end"),
+    ).toBe("url(#archik-arrow-dep)");
+  });
+
+  it("draws writes thicker than reads", () => {
+    const reads = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "reads" })} />
+      </svg>,
+    );
+    const writes = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "writes" })} />
+      </svg>,
+    );
+    const r = Number(
+      reads.container.querySelector("polyline")?.getAttribute("stroke-width"),
+    );
+    const w = Number(
+      writes.container.querySelector("polyline")?.getAttribute("stroke-width"),
+    );
+    expect(w).toBeGreaterThan(r);
   });
 
   it("renders nothing visible when sections is empty (defensive)", () => {

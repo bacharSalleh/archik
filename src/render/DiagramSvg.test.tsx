@@ -68,9 +68,17 @@ describe("DiagramSvg", () => {
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
-  it("includes the arrow marker definition in defs", () => {
+  it("includes one arrow marker per category in defs", () => {
     const { container } = render(<DiagramSvg positioned={populated} />);
-    expect(container.querySelector("defs marker#archik-arrow")).not.toBeNull();
+    expect(
+      container.querySelector("defs marker#archik-arrow-default"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("defs marker#archik-arrow-async"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("defs marker#archik-arrow-dep"),
+    ).not.toBeNull();
   });
 
   it("renders every root node via NodeRenderer", () => {
