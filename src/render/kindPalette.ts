@@ -3,7 +3,6 @@ import {
   Box,
   Brain,
   Cable,
-  CircleDot,
   Cloud,
   Cog,
   Database,
@@ -15,11 +14,9 @@ import {
   HardDrive,
   Layers,
   Lock,
-  type LucideIcon,
   MessageSquare,
   Monitor,
   Package,
-  Plug,
   Radio,
   SendHorizontal,
   Server,
@@ -27,13 +24,25 @@ import {
   Waves,
   Wrench,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import type { NodeKind } from "../domain/types.ts";
+import { InterfaceIcon, SocketIcon } from "./customIcons.tsx";
+
+/**
+ * Slimmer icon contract that both lucide-react components and our own
+ * custom SVGs satisfy — the renderer only needs size/color/strokeWidth.
+ */
+export type KindIcon = ComponentType<{
+  size?: number | string;
+  color?: string;
+  strokeWidth?: number | string;
+}>;
 
 export type KindMeta = {
   /** Hex accent color used by the kind icon and the legend swatch. */
   color: string;
-  /** Lucide icon component used in node headers and the legend. */
-  icon: LucideIcon;
+  /** Icon component used in node headers and the legend. */
+  icon: KindIcon;
   /** Short one-liner shown in the legend popover. */
   description: string;
 };
@@ -115,8 +124,8 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
   // Hexagonal architecture ----------------------------------------------
   interface: {
     color: "#d946ef",
-    icon: Plug,
-    description: "Abstract contract / port specification.",
+    icon: InterfaceIcon,
+    description: "Abstract contract — the <i> a system commits to.",
   },
   adapter: {
     color: "#c026d3",
@@ -125,7 +134,7 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
   },
   port: {
     color: "#a21caf",
-    icon: CircleDot,
+    icon: SocketIcon,
     description: "Hexagonal-architecture port — the socket an adapter plugs into.",
   },
 
