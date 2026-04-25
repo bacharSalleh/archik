@@ -1,0 +1,89 @@
+import type { Document } from "../types.ts";
+
+export const ordersDocument: Document = {
+  version: "1.0",
+  name: "Orders Platform",
+  description: "Reference architecture used as a domain fixture in tests",
+  nodes: [
+    {
+      id: "web",
+      kind: "frontend",
+      name: "Web",
+      stack: "Next.js",
+      responsibilities: ["render order UI", "auth"],
+    },
+    {
+      id: "api",
+      kind: "service",
+      name: "Orders API",
+      stack: "Go",
+      responsibilities: ["accept orders", "publish events"],
+      interfaces: [
+        { name: "POST /orders", protocol: "http" },
+        { name: "GET /orders/:id", protocol: "http" },
+      ],
+    },
+    {
+      id: "db",
+      kind: "database",
+      name: "Orders DB",
+      stack: "Postgres 16",
+    },
+    {
+      id: "cache",
+      kind: "cache",
+      name: "Order Cache",
+      stack: "Redis 7",
+    },
+    {
+      id: "events",
+      kind: "queue",
+      name: "Order Events",
+      stack: "Kafka",
+    },
+    {
+      id: "worker",
+      kind: "service",
+      name: "Fulfillment Worker",
+      stack: "Go",
+    },
+    {
+      id: "stripe",
+      kind: "external",
+      name: "Stripe",
+      description: "Payments provider",
+    },
+  ],
+  edges: [
+    {
+      id: "web-api",
+      from: "web",
+      to: "api",
+      relationship: "http_call",
+      label: "place order",
+    },
+    { id: "api-db-w", from: "api", to: "db", relationship: "writes" },
+    { id: "api-cache-r", from: "api", to: "cache", relationship: "reads" },
+    {
+      id: "api-events",
+      from: "api",
+      to: "events",
+      relationship: "publishes",
+      label: "order.placed",
+    },
+    {
+      id: "worker-events",
+      from: "worker",
+      to: "events",
+      relationship: "subscribes",
+    },
+    { id: "worker-db-r", from: "worker", to: "db", relationship: "reads" },
+    {
+      id: "api-stripe",
+      from: "api",
+      to: "stripe",
+      relationship: "http_call",
+      label: "charge",
+    },
+  ],
+};
