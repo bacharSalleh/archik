@@ -1,5 +1,7 @@
 import type { Document } from "../domain/types.ts";
 import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
+import { exporters } from "../io/exporters.ts";
+import { CopyButton } from "./CopyButton.tsx";
 
 type Props = {
   document: Document;
@@ -22,6 +24,13 @@ export function Toolbar({
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">
+        {exporters.map((exporter) => (
+          <CopyButton
+            key={exporter.name}
+            exporter={exporter}
+            document={document}
+          />
+        ))}
         <button
           type="button"
           onClick={() => saveDocumentAsDownload(filename, document)}
