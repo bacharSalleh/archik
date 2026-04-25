@@ -59,14 +59,23 @@ export function Canvas({
   }
 
   return (
-    <DiagramSvg
-      positioned={positioned}
+    <div
       className={className}
-      {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
-      {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
-      {...(onSelectNode !== undefined ? { onSelectNode } : {})}
-      {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
-      {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
-    />
+      style={{
+        overflow: "auto",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <DiagramSvg
+        positioned={positioned}
+        {...(selectedNodeId !== undefined ? { selectedNodeId } : {})}
+        {...(selectedEdgeId !== undefined ? { selectedEdgeId } : {})}
+        {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+        {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+        {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
+      />
+    </div>
   );
 }
