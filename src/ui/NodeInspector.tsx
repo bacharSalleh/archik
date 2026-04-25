@@ -103,6 +103,11 @@ export function NodeInspector({
         </select>
       </Field>
 
+      <NotesField
+        notes={node.notes ?? []}
+        onChange={(next) => update({ notes: next.length > 0 ? next : undefined })}
+      />
+
       <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
         {onStartConnect !== undefined && (
           <button
@@ -142,6 +147,101 @@ function Field({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function NotesField({
+  notes,
+  onChange,
+}: {
+  notes: ReadonlyArray<string>;
+  onChange: (next: string[]) => void;
+}): React.ReactElement {
+  const updateAt = (i: number, value: string): void => {
+    const next = notes.slice();
+    next[i] = value;
+    onChange(next);
+  };
+  const removeAt = (i: number): void => {
+    onChange(notes.filter((_, idx) => idx !== i));
+  };
+  const add = (): void => {
+    onChange([...notes, ""]);
+  };
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 4,
+        }}
+      >
+        <span className="archik-label" style={{ margin: 0 }}>
+          Notes
+        </span>
+        <span
+          className="archik-mono"
+          style={{
+            fontSize: 10,
+            color: "var(--archik-fg-muted)",
+          }}
+        >
+          {notes.length}
+        </span>
+      </div>
+      {notes.length === 0 && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--archik-fg-muted)",
+            fontStyle: "italic",
+            marginBottom: 6,
+          }}
+        >
+          No notes yet.
+        </div>
+      )}
+      {notes.map((note, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            gap: 4,
+            marginBottom: 6,
+            alignItems: "flex-start",
+          }}
+        >
+          <textarea
+            value={note}
+            onChange={(e) => updateAt(i, e.target.value)}
+            placeholder={`Note ${i + 1}`}
+            rows={2}
+            className="archik-input"
+            style={{ flex: 1, resize: "vertical", fontSize: 12 }}
+          />
+          <button
+            type="button"
+            onClick={() => removeAt(i)}
+            title="Remove note"
+            aria-label="Remove note"
+            className="archik-btn"
+            style={{ padding: "4px 8px", color: "var(--archik-danger)" }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="archik-btn"
+        style={{ width: "100%", justifyContent: "center" }}
+      >
+        + Add note
+      </button>
     </div>
   );
 }

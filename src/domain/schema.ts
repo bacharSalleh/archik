@@ -22,6 +22,7 @@ export const NodeSchema = z.strictObject({
   stack: z.string().optional(),
   responsibilities: z.array(z.string().min(1)).optional(),
   interfaces: z.array(InterfaceSchema).optional(),
+  notes: z.array(z.string()).optional(),
   parentId: IdSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });

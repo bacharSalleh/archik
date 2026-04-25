@@ -7,7 +7,7 @@ import { FrontendNode } from "./nodes/FrontendNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
 import { FunctionNode } from "./nodes/FunctionNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
-import { InfoIcon, iconAnchorsFor } from "./icons.tsx";
+import { InfoIcon, NotesIcon, iconAnchorsFor, trayCenters } from "./icons.tsx";
 
 type ShapeProps = { node: PositionedNode; selected: boolean };
 
@@ -70,14 +70,53 @@ export function NodeRenderer({
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} selected={isSelected} />
-      {hasDescription && node.kind !== "custom" && (() => {
+      {node.kind !== "custom" && (() => {
+        const hasNotes =
+          node.notes !== undefined && node.notes.length > 0;
+        const trayItems: Array<"info" | "notes"> = [];
+        if (hasDescription) trayItems.push("info");
+        if (hasNotes) trayItems.push("notes");
+        if (trayItems.length === 0) return null;
         const anchors = iconAnchorsFor(node.kind, node.width, node.height);
+        const slots = trayCenters(anchors.right, trayItems.length);
         return (
-          <InfoIcon
-            cx={anchors.right.x}
-            cy={anchors.right.y}
-            color="var(--archik-node-caption)"
-          />
+          <>
+            {trayItems.map((kind, i) => {
+              const slot = slots[i]!;
+              if (kind === "info") {
+                return (
+                  <InfoIcon
+                    key="info"
+                    cx={slot.x}
+                    cy={slot.y}
+                    color="var(--archik-node-caption)"
+                  />
+                );
+              }
+              return (
+                <g key="notes">
+                  <NotesIcon
+                    cx={slot.x}
+                    cy={slot.y}
+                    color="var(--archik-node-caption)"
+                  />
+                  {node.notes && node.notes.length > 1 && (
+                    <text
+                      x={slot.x + 7}
+                      y={slot.y - 5}
+                      fontSize={8}
+                      fontWeight={700}
+                      fill="var(--archik-accent)"
+                      textAnchor="middle"
+                      pointerEvents="none"
+                    >
+                      {node.notes.length}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </>
         );
       })()}
       {node.children.map((child) => (
