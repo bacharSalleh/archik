@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Document } from "../domain/types.ts";
+import type { StatusMap } from "../domain/diff.ts";
 import type {
   LayoutOptions,
   PositionedDocument,
@@ -30,6 +31,8 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
   /** Fired when the user drags from one node and releases over another. */
   onConnectDrag?: (fromId: string, toId: string) => void;
+  /** When set, layer diff frames + edge tints over the diagram (review mode). */
+  diffStatuses?: StatusMap;
 };
 
 const DRAG_THRESHOLD_PX = 5;
@@ -63,6 +66,7 @@ export function Canvas({
   onSelectEdge,
   onSelectNothing,
   onConnectDrag,
+  diffStatuses,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
     () => layout(document, layoutOptions),
@@ -254,6 +258,7 @@ export function Canvas({
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
+          {...(diffStatuses !== undefined ? { diffStatuses } : {})}
         />
       </div>
       <ZoomControls

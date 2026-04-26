@@ -1,4 +1,5 @@
 import type { PositionedDocument, ViewMode } from "../layout/types.ts";
+import type { StatusMap } from "../domain/diff.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
   ARROW_MARKER_CIRCLE,
@@ -10,6 +11,11 @@ import {
   ARROW_MARKER_UML_TRIANGLE,
   EdgeRenderer,
 } from "./EdgeRenderer.tsx";
+import {
+  EdgeDiffOverlays,
+  NodeDiffFrames,
+  RemovedNodeDimmer,
+} from "./diffOverlay.tsx";
 
 const VIEWBOX_PADDING = 24;
 
@@ -193,6 +199,8 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   onSelectNothing?: (() => void) | undefined;
+  /** When set, layer per-status diff frames + edge tints over the diagram. */
+  diffStatuses?: StatusMap;
 };
 
 type InnerProps = {
@@ -293,6 +301,7 @@ export function DiagramSvg({
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
+  diffStatuses,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
   const h = Math.max(positioned.height, 1);
@@ -316,14 +325,25 @@ export function DiagramSvg({
       style={{ display: "block", flexShrink: 0 }}
       onClick={onSelectNothing}
     >
-      <DiagramInner
-        positioned={positioned}
-        viewMode={viewMode}
-        {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
-        {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
-        {...(onSelectNode !== undefined ? { onSelectNode } : {})}
-        {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
-      />
+      {diffStatuses && (
+        <RemovedNodeDimmer statuses={diffStatuses} scopeClass="archik-diff-base" />
+      )}
+      <g className={diffStatuses ? "archik-diff-base" : undefined}>
+        <DiagramInner
+          positioned={positioned}
+          viewMode={viewMode}
+          {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+          {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
+          {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+          {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+        />
+      </g>
+      {diffStatuses && (
+        <>
+          <EdgeDiffOverlays positioned={positioned} statuses={diffStatuses} />
+          <NodeDiffFrames positioned={positioned} statuses={diffStatuses} />
+        </>
+      )}
       {dragGhost && ghostStart && (
         <g className="archik-drag-ghost" pointerEvents="none">
           <line

@@ -2,18 +2,15 @@ version: "1.0"
 name: Archik
 description: Archik's own architecture — eating our own dog food. The YAML you're looking at is what `archik dev` renders when run from the root of this repo.
 nodes:
-  # ── Entry & CLI ──────────────────────────────────────────────────
   - id: bin
     kind: function
     name: bin/archik.js
     description: Entry shim. If dist/cli/archik.mjs exists, spawns the bundled CLI with node; otherwise falls back to tsx + src/. Sets ARCHIK_PKG_ROOT so the CLI never has to guess where it lives.
     stack: Node ESM
-
   - id: cli
     kind: module
     name: CLI
     description: Command dispatcher. Parses options, routes to the right handler.
-
   - id: cli-init
     kind: function
     name: init
@@ -39,50 +36,48 @@ nodes:
     name: skill
     description: Copy SKILL.md into ./.claude/skills/archik/ (or ~/.claude/skills/archik/ with --user).
     parentId: cli
-
   - id: daemon
     kind: port
     name: Daemon Lock
     description: O_EXCL state file in $TMPDIR/archik-cli/<sha-of-doc-path>.json. Holds pid + URL + log path. dev / start / stop / status all share it.
-
-  # ── Server (replaces Vite at runtime) ────────────────────────────
   - id: dev-server
     kind: service
     name: Dev Server
-    description: node:http server. Serves dist/ui/ statically, GET/PUT for the project's YAML, SSE on /__archik/events.
+    description: node:http server. Serves dist/ui/ statically and mounts the shared `handlers` module for YAML / sidecar / accept / diff. SSE on /__archik/events.
     stack: node:http
-
+  - id: handlers
+    kind: module
+    name: HTTP Handlers
+    description: Single source of truth for handleYaml, handleSidecar, handleAccept, handleDiffSvg. Mounted by both `archik dev` (node:http) and the Vite dogfood plugin so the suggest workflow behaves identically in published mode and in-repo `npm run dev`.
+  - id: vite-plugin
+    kind: adapter
+    name: Vite Plugin
+    description: archikWatch — Vite dev plugin that mounts the shared `handlers` and broadcasts archik:doc-changed / archik:suggestion-changed via Vite HMR.
+    stack: Vite
   - id: file-watcher
     kind: worker
     name: YAML Watcher
-    description: chokidar tail of architecture.archik.yaml. Pushes archik:doc-changed events to all SSE subscribers.
+    description: chokidar tail of architecture.archik.yaml + sidecar. Pushes archik:doc-changed / archik:suggestion-changed events to all SSE subscribers.
     stack: chokidar
-
-  # ── Canvas (React app, served from dist/ui/) ─────────────────────
   - id: canvas
     kind: frontend
     name: Canvas
     description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth.
     stack: React + Vite (build-time only)
-
   - id: inspector
     kind: module
     name: Inspectors
     description: Toolbar, NodeInspector, EdgeInspector, Legend, KindPicker, AddNodeForm, ExportMenu — every UI surface that mutates the document.
     parentId: canvas
-
   - id: live-reload
     kind: adapter
     name: Live Reload
     description: EventSource client subscribed to /__archik/events. Falls back to Vite HMR for in-repo `npm run dev`.
     parentId: canvas
-
-  # ── Core libraries (pure, no React, no ELK, no I/O) ──────────────
   - id: domain
     kind: module
     name: Domain
     description: Pure schema, validation, taxonomy, command operations. No React, no ELK, no I/O — safe to import from anywhere.
-
   - id: schema
     kind: interface
     name: Schema
@@ -96,70 +91,56 @@ nodes:
   - id: taxonomy
     kind: function
     name: Taxonomy
-    description: 26 node kinds, 12 relationships, plus per-kind icon and palette metadata.
+    description: 26 node kinds, 17 relationships, plus per-kind icon and palette metadata.
     parentId: domain
-
   - id: layout
     kind: service
     name: Layout Engine
     description: ELK adapter behind a LayoutEngine interface. Computes positions, edge routes, container padding, and offsets edges by their LCA so coords are absolute.
     stack: ELK.js
-
   - id: renderer
     kind: service
     name: SVG Renderer
     description: Per-shape components (Service, Cache, Queue, Frontend, Container, etc). Theme-aware. Same code path used by the canvas and headless `archik render`.
-
   - id: io
     kind: module
     name: I/O
     description: YAML/JSON parsers (Zod-backed), exporters (markdown, json, yaml), browser fetch/save adapters.
-
-  # ── AI surface — the whole point ─────────────────────────────────
   - id: skill
     kind: prompt
     name: Claude Skill
     description: SKILL.md — the schema, the 3-rule protocol (read before answering, propose updates, validate after every edit), and the 26-kind taxonomy. Installed under .claude/skills/archik/.
-
   - id: claude-code
     kind: agent
     name: Claude Code
     description: AI editor. Reads the skill at session start, edits the YAML alongside code changes, runs `archik validate` after every save.
-
-  # ── Externals & supply chain ─────────────────────────────────────
   - id: elk
     kind: external
     name: ELK
     description: Eclipse Layout Kernel. Hierarchical / layered placement and orthogonal edge routing.
-
   - id: npm
     kind: external
     name: npm registry
     description: Hosts the archik tarball at registry.npmjs.org/archik. Trusted Publishing via OIDC — no NPM_TOKEN stored anywhere.
-
   - id: github-actions
     kind: external
     name: GitHub Actions
     description: Builds + publishes on every v*.*.* tag push. Configured as a Trusted Publisher on npmjs.com/package/archik.
-
 edges:
   - id: bin-cli
     from: bin
     to: cli
     relationship: invokes
     label: spawn (dist or tsx)
-
   - id: init-skill
     from: cli-init
     to: cli-skill
     relationship: invokes
     label: default
-
   - id: validate-domain
     from: cli-validate
     to: schema
     relationship: uses
-
   - id: render-layout
     from: cli-render
     to: layout
@@ -172,7 +153,6 @@ edges:
     from: cli-render
     to: io
     relationship: uses
-
   - id: dev-server-spawn
     from: cli-dev
     to: dev-server
@@ -182,30 +162,35 @@ edges:
     to: daemon
     relationship: uses
     label: lock state
-
+  - id: server-handlers
+    from: dev-server
+    to: handlers
+    relationship: uses
+    label: mount routes
+  - id: vite-handlers
+    from: vite-plugin
+    to: handlers
+    relationship: uses
+    label: mount routes
   - id: server-watcher
     from: dev-server
     to: file-watcher
     relationship: invokes
-
   - id: watcher-livereload
     from: file-watcher
     to: live-reload
     relationship: publishes
     label: SSE
-
   - id: server-canvas
     from: dev-server
     to: canvas
     relationship: routes_to
     label: GET dist/ui
-
   - id: canvas-yaml
     from: canvas
     to: dev-server
     relationship: http_call
     label: GET / PUT YAML
-
   - id: canvas-domain
     from: canvas
     to: schema
@@ -218,18 +203,15 @@ edges:
     from: canvas
     to: renderer
     relationship: uses
-
   - id: inspector-commands
     from: inspector
     to: commands
     relationship: invokes
     label: edits
-
   - id: layout-elk
     from: layout
     to: elk
     relationship: invokes
-
   - id: layout-domain
     from: layout
     to: schema
@@ -238,7 +220,6 @@ edges:
     from: renderer
     to: taxonomy
     relationship: depends_on
-
   - id: claude-skill
     from: claude-code
     to: skill
@@ -254,15 +235,8 @@ edges:
     to: cli-validate
     relationship: invokes
     label: after every edit
-
   - id: gha-publish
     from: github-actions
     to: npm
     relationship: publishes
     label: OIDC, on tag
-
-  - id: bin-from-npm
-    from: bin
-    to: npm
-    relationship: depends_on
-    label: shipped here

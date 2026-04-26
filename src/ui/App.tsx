@@ -9,7 +9,8 @@ import {
   subscribeToDocumentChanges,
   subscribeToSuggestionChanges,
 } from "../io/liveReload.ts";
-import { diffDocuments } from "../domain/diff.ts";
+import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
+import type { StatusMap } from "../domain/diff.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
@@ -31,7 +32,6 @@ import type { ViewMode } from "../layout/types.ts";
 const DOCUMENT_URL = "/architecture.archik.yaml";
 const SUGGESTION_URL = "/architecture.archik.suggested.yaml";
 const ACCEPT_URL = "/__archik/accept-suggestion";
-const DIFF_SVG_URL = "/__archik/diff.svg";
 const SAVED_INDICATOR_MS = 1500;
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -62,9 +62,13 @@ export function App(): React.ReactElement {
         removed: number;
         changed: number;
         note?: string | undefined;
+        // Cache the parsed sidecar so Review can render instantly
+        // without re-parsing or hitting the network.
+        doc: Document;
       }
     | { status: "error"; message: string }
   >({ status: "none" });
+  const [reviewMode, setReviewMode] = useState<boolean>(false);
   // Undo / redo stacks. Each successful command snapshots the previous
   // document to `past` and clears `future`. Externally-driven loads
   // (file watcher, fresh fetch) reset both — undo can't span across.
@@ -218,6 +222,7 @@ export function App(): React.ReactElement {
           added: diff.nodes.added.length + diff.edges.added.length,
           removed: diff.nodes.removed.length + diff.edges.removed.length,
           changed: diff.nodes.changed.length + diff.edges.changed.length,
+          doc: sidecarDoc,
           ...(sidecarDoc.metadata?.suggestion?.note !== undefined
             ? { note: sidecarDoc.metadata.suggestion.note }
             : {}),
@@ -250,6 +255,7 @@ export function App(): React.ReactElement {
         return;
       }
       setSuggestion({ status: "none" });
+      setReviewMode(false);
       // The watcher will fire archik:doc-changed and the main load
       // effect will repaint with the new YAML.
     } catch (err) {
@@ -272,6 +278,7 @@ export function App(): React.ReactElement {
         return;
       }
       setSuggestion({ status: "none" });
+      setReviewMode(false);
     } catch (err) {
       setSuggestion({
         status: "error",
@@ -280,10 +287,8 @@ export function App(): React.ReactElement {
     }
   }, []);
 
-  const reviewSuggestion = useCallback((): void => {
-    if (typeof window !== "undefined") {
-      window.open(DIFF_SVG_URL, "_blank", "noopener,noreferrer");
-    }
+  const toggleReview = useCallback((): void => {
+    setReviewMode((m) => !m);
   }, []);
 
   const save = useCallback(async () => {
@@ -603,6 +608,21 @@ export function App(): React.ReactElement {
   }
 
   const doc = state.document;
+  // Review mode swaps the rendered document for the merged (current ∪
+  // suggestion) view and computes per-id status flags so the canvas
+  // can frame added / changed / removed items in the right colour.
+  const reviewing =
+    reviewMode &&
+    suggestion.status === "pending";
+  const reviewMerged =
+    reviewing && suggestion.status === "pending"
+      ? mergeForDiff(doc, suggestion.doc)
+      : null;
+  const reviewStatuses: StatusMap | null =
+    reviewing && suggestion.status === "pending"
+      ? statusMap(diffDocuments(doc, suggestion.doc))
+      : null;
+  const renderDoc = reviewMerged ?? doc;
   const selectedNode =
     focused?.type === "node"
       ? doc.nodes.find((n) => n.id === focused.id)
@@ -654,7 +674,8 @@ export function App(): React.ReactElement {
           removed={suggestion.removed}
           changed={suggestion.changed}
           note={suggestion.note}
-          onReview={reviewSuggestion}
+          reviewing={reviewing}
+          onReview={toggleReview}
           onAccept={() => void acceptSuggestion()}
           onReject={() => void rejectSuggestion()}
         />
@@ -750,7 +771,7 @@ export function App(): React.ReactElement {
           style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
         >
           <Canvas
-            document={doc}
+            document={renderDoc}
             className="h-full w-full archik-grid"
             layoutOptions={layoutOptions}
             viewMode={viewMode}
@@ -762,6 +783,7 @@ export function App(): React.ReactElement {
               connectFrom === null ? clearSelection : cancelConnect
             }
             onConnectDrag={handleConnectDrag}
+            {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
           />
         </div>
         <aside
@@ -881,6 +903,7 @@ function SuggestionBanner({
   removed,
   changed,
   note,
+  reviewing,
   onReview,
   onAccept,
   onReject,
@@ -889,6 +912,7 @@ function SuggestionBanner({
   removed: number;
   changed: number;
   note?: string | undefined;
+  reviewing: boolean;
   onReview: () => void;
   onAccept: () => void;
   onReject: () => void;
@@ -951,9 +975,19 @@ function SuggestionBanner({
           type="button"
           onClick={onReview}
           className="archik-btn"
-          style={{ padding: "5px 12px", fontSize: 12 }}
+          style={{
+            padding: "5px 12px",
+            fontSize: 12,
+            ...(reviewing
+              ? {
+                  background: "#a855f7",
+                  color: "white",
+                  borderColor: "#a855f7",
+                }
+              : {}),
+          }}
         >
-          Review
+          {reviewing ? "Hide diff" : "Review"}
         </button>
         <button
           type="button"
