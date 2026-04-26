@@ -151,6 +151,12 @@ function effectiveWidth(
   return Math.max(defaultWidth, Math.min(NODE_MAX_WIDTH, Math.ceil(needed)));
 }
 
+// Inner padding used for container bodies. The top is generous so it
+// reserves real estate for the CustomNode header bar (icon + name +
+// KIND tag); other sides give children room from the border so edges
+// crossing the boundary don't look like they pierce a child node.
+const CONTAINER_PADDING = { top: 48, left: 18, bottom: 18, right: 18 };
+
 function toElkNode(
   node: Node,
   children: ElkNode[],
@@ -163,7 +169,19 @@ function toElkNode(
     width: effectiveWidth(node, size.width, viewMode),
     height: size.height,
   };
-  if (children.length > 0) elk.children = children;
+  if (children.length > 0) {
+    elk.children = children;
+    // Containers in detailed mode grow their inner area to fit children
+    // *plus* the header zone we reserve at the top.
+    if (
+      viewMode === "detailed" &&
+      (node.kind === "module" || node.kind === "custom")
+    ) {
+      elk.layoutOptions = {
+        "elk.padding": `[top=${CONTAINER_PADDING.top}, left=${CONTAINER_PADDING.left}, bottom=${CONTAINER_PADDING.bottom}, right=${CONTAINER_PADDING.right}]`,
+      };
+    }
+  }
   return elk;
 }
 

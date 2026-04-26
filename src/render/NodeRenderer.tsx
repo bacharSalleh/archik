@@ -10,12 +10,14 @@ type ShapeProps = {
   node: PositionedNode;
   selected: boolean;
   viewMode: ViewMode;
+  depth: number;
 };
 
 function Shape({
   node,
   selected,
   viewMode,
+  depth,
 }: ShapeProps): React.ReactElement {
   if (viewMode === "compact") {
     return <CompactNode node={node} selected={selected} />;
@@ -27,7 +29,7 @@ function Shape({
       return <ExternalNode node={node} selected={selected} />;
     case "module":
     case "custom":
-      return <CustomNode node={node} selected={selected} />;
+      return <CustomNode node={node} selected={selected} depth={depth} />;
     // Every other kind renders as the standard card; the kind icon
     // and KIND label inside the header carry the visual identity.
     case "service":
@@ -69,6 +71,8 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   viewMode?: ViewMode;
+  /** Container nesting depth — 0 for roots, +1 per container ancestor. */
+  depth?: number;
 };
 
 export function NodeRenderer({
@@ -76,8 +80,13 @@ export function NodeRenderer({
   selectedNodeIds,
   onSelectNode,
   viewMode = "detailed",
+  depth = 0,
 }: Props): React.ReactElement {
   const isSelected = selectedNodeIds?.has(node.id) ?? false;
+  const isContainer =
+    (node.kind === "module" || node.kind === "custom") &&
+    node.children.length > 0;
+  const childDepth = isContainer ? depth + 1 : depth;
 
   const handleClick = onSelectNode
     ? (e: React.MouseEvent<SVGGElement>) => {
@@ -97,7 +106,7 @@ export function NodeRenderer({
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
-      <Shape node={node} selected={isSelected} viewMode={viewMode} />
+      <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
       {viewMode === "detailed" && node.kind !== "custom" && node.kind !== "module" && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
@@ -152,6 +161,7 @@ export function NodeRenderer({
           key={child.id}
           node={child}
           viewMode={viewMode}
+          depth={childDepth}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
         />

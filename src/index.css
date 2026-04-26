@@ -32,6 +32,7 @@
   --archik-node-fill-frame:   #ffffff;
   --archik-node-stroke:       #0f172a;
   --archik-node-stroke-soft:  #475569;
+  --archik-container-border:  #94a3b8;
   --archik-node-text:         #0f172a;
   --archik-node-text-dim:     #475569;
   --archik-node-caption:      #64748b;
@@ -76,6 +77,7 @@
   --archik-node-fill-frame:   #14203a;
   --archik-node-stroke:       #2c3e63;
   --archik-node-stroke-soft:  #1d2b48;
+  --archik-container-border:  #3a4f7a;
   --archik-node-text:         #e6edf7;
   --archik-node-text-dim:     #b6c2d8;
   --archik-node-caption:      #67e8f9;

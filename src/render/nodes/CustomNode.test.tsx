@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import { CustomNode } from "./CustomNode.tsx";
 import type { PositionedNode } from "../../layout/types.ts";
 
-const node: PositionedNode = {
+const empty: PositionedNode = {
   id: "platform",
   kind: "custom",
   name: "Platform",
@@ -14,22 +14,59 @@ const node: PositionedNode = {
   children: [],
 };
 
+const populated: PositionedNode = {
+  ...empty,
+  width: 320,
+  height: 200,
+  children: [
+    {
+      id: "api",
+      kind: "service",
+      name: "API",
+      x: 20,
+      y: 60,
+      width: 140,
+      height: 80,
+      children: [],
+    },
+  ],
+};
+
 describe("CustomNode", () => {
-  it("renders the name", () => {
-    const { getByText } = render(
+  it("renders the name as a placeholder when empty", () => {
+    const { getByText, container } = render(
       <svg>
-        <CustomNode node={node} />
+        <CustomNode node={empty} />
       </svg>,
     );
     expect(getByText("Platform")).toBeInTheDocument();
+    expect(container.querySelector(".archik-node--custom rect")).not.toBeNull();
   });
 
-  it("renders a plain rectangle (catch-all)", () => {
-    const { container } = render(
+  it("renders a header bar with kind tag once it has children", () => {
+    const { getByText, container } = render(
       <svg>
-        <CustomNode node={node} />
+        <CustomNode node={populated} />
       </svg>,
     );
-    expect(container.querySelector(".archik-node--custom rect")).not.toBeNull();
+    expect(getByText("Platform")).toBeInTheDocument();
+    expect(getByText("CUSTOM")).toBeInTheDocument();
+    expect(
+      container.querySelector(".archik-node--container"),
+    ).not.toBeNull();
+  });
+
+  it("deepens the background tint as nesting depth grows", () => {
+    const opacityAt = (depth: number): number => {
+      const { container } = render(
+        <svg>
+          <CustomNode node={populated} depth={depth} />
+        </svg>,
+      );
+      return parseFloat(
+        container.querySelector("rect")?.getAttribute("fill-opacity") ?? "0",
+      );
+    };
+    expect(opacityAt(2)).toBeGreaterThan(opacityAt(0));
   });
 });
