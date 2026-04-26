@@ -46,10 +46,15 @@ file. Nothing about Archik lives inside your project.
 
 ```
 archik init              Scaffold a starter architecture.archik.yaml
-archik dev [path]        Open the canvas in your browser (live editor)
+archik dev [path]        Open the canvas in your browser (foreground)
                          --port <n>       dev server port
                          --host <addr>    bind to host
                          --no-open        don't auto-open the browser
+archik start [path]      Same as dev, but detached — prompt returns immediately
+                         --port <n>       dev server port
+                         --host <addr>    bind to host
+archik stop [path]       Stop the background server started with `archik start`
+archik status            List running archik instances (across all projects)
 archik validate [path]   Validate a document against the schema
 archik render [path]     Render to a self-contained SVG file
                          --out <file>     output path (default: diagram.svg)
@@ -57,6 +62,12 @@ archik render [path]     Render to a self-contained SVG file
 archik watch [path]      Re-render to SVG on file changes
 archik check [path]      Drift detection — flag nodes without source dirs
 ```
+
+Use `archik dev` for an interactive session you'll Ctrl+C to end, and
+`archik start` / `archik stop` when you want the canvas running in the
+background while you keep working in the same terminal. State is kept in
+`$TMPDIR/archik-cli/` keyed by the YAML path, so you can run several
+projects' canvases at once.
 
 Default path is `architecture.archik.yaml` in the current directory.
 

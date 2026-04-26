@@ -2,6 +2,13 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import {
+  acquireLock,
+  daemonPaths,
+  ensureDaemonDir,
+  removeState,
+  updateState,
+} from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 import { getString } from "../options.ts";
 
@@ -24,6 +31,35 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
     return 1;
   }
 
+  // Single-instance lock keyed by YAML path. Foreground `dev` and
+  // backgrounded `start` share this lock, so two archik processes
+  // can't serve the same project at once.
+  ensureDaemonDir();
+  const paths = daemonPaths(docPath);
+  const lock = acquireLock(paths.stateFile, {
+    pid: process.pid,
+    docPath,
+    logFile: process.env["ARCHIK_LOG_FILE"] ?? "",
+    startedAt: new Date().toISOString(),
+    urls: { local: [], network: [] },
+  });
+  if (!lock.ok) {
+    const url = lock.existing.urls.local[0] ?? "(unknown)";
+    console.error(`✗ archik is already running for ${docPath}`);
+    console.error(`  PID ${lock.existing.pid} on ${url}`);
+    console.error(`  Run \`archik stop\` first.`);
+    return 1;
+  }
+
+  // Release the lock no matter how we exit.
+  let released = false;
+  const release = (): void => {
+    if (released) return;
+    released = true;
+    removeState(paths.stateFile);
+  };
+  process.on("exit", release);
+
   // Tell the Vite plugin to serve / watch this YAML instead of the one
   // in Archik's own install directory.
   process.env["ARCHIK_DOC_PATH"] = docPath;
@@ -33,17 +69,29 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   const port = portArg !== undefined ? Number.parseInt(portArg, 10) : undefined;
   const host = getString(opts, "host");
 
-  const server = await createServer({
-    root,
-    configFile: path.join(root, "vite.config.ts"),
-    server: {
-      open: !opts["no-open"],
-      ...(port !== undefined && Number.isFinite(port) ? { port } : {}),
-      ...(host !== undefined ? { host } : {}),
-    },
+  let server;
+  try {
+    server = await createServer({
+      root,
+      configFile: path.join(root, "vite.config.ts"),
+      server: {
+        open: !opts["no-open"],
+        ...(port !== undefined && Number.isFinite(port) ? { port } : {}),
+        ...(host !== undefined ? { host } : {}),
+      },
+    });
+    await server.listen();
+  } catch (err) {
+    release();
+    throw err;
+  }
+
+  // Now that we have a real URL, publish it so `archik status` and
+  // `archik start` (the parent process) can discover it.
+  updateState(paths.stateFile, {
+    urls: server.resolvedUrls ?? { local: [], network: [] },
   });
 
-  await server.listen();
   console.log(`\narchik dev — editing ${docPath}`);
   server.printUrls();
   console.log("\nPress Ctrl+C to stop.\n");
@@ -54,6 +102,7 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
       try {
         await server.close();
       } finally {
+        release();
         resolve(0);
       }
     };

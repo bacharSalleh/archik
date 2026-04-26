@@ -6,6 +6,9 @@ import { watchCommand } from "./commands/watch.ts";
 import { checkCommand } from "./commands/check.ts";
 import { devCommand } from "./commands/dev.ts";
 import { skillCommand } from "./commands/skill.ts";
+import { startCommand } from "./commands/start.ts";
+import { stopCommand } from "./commands/stop.ts";
+import { statusCommand } from "./commands/status.ts";
 import { parseOptions } from "./options.ts";
 
 function printHelp(): void {
@@ -17,10 +20,15 @@ USAGE
 COMMANDS
   init              Scaffold a starter architecture.archik.yaml
                     --skill          also install the Claude skill into ./.claude/skills
-  dev [path]        Open the canvas in your browser (live editor)
+  dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
                     --no-open        don't auto-open the browser
+  start [path]      Same as dev, but detached — returns the prompt immediately
+                    --port <n>       dev server port
+                    --host <addr>    bind to host
+  stop [path]       Stop the background server started with 'archik start'
+  status            List running archik instances (across all projects)
   validate [path]   Validate a document against the schema
   render [path]     Render the diagram to an SVG file
                     --out <file>     output path (default: diagram.svg)
@@ -44,6 +52,12 @@ async function main(): Promise<number> {
       return initCommand(opts);
     case "dev":
       return devCommand(opts);
+    case "start":
+      return startCommand(opts);
+    case "stop":
+      return stopCommand(opts);
+    case "status":
+      return statusCommand(opts);
     case "validate":
       return validateCommand(opts);
     case "render":

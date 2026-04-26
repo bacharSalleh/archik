@@ -298,7 +298,10 @@ archik render --out diagram.svg    # headless layout → SVG
 archik render --theme light --out diagram-light.svg
 archik watch                       # re-render SVG on save
 archik check                       # drift: nodes vs source dirs
-archik dev                         # open the live editor in the browser
+archik dev                         # open the live editor in the browser (foreground)
+archik start                       # same as dev, detached — returns the prompt
+archik stop                        # stop the background server
+archik status                      # list running archik instances
 archik init                        # scaffold a starter file
 archik skill                       # install/refresh this skill in cwd
 ```
