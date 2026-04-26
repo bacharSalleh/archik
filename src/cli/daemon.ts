@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   closeSync,
@@ -97,13 +98,53 @@ export function removeState(stateFile: string): void {
   }
 }
 
-export function isAlive(pid: number): boolean {
+/** Raw "is some process with this PID currently scheduled". */
+export function pidExists(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Best-effort process start time via `ps -o lstart=`. Returns null
+ * on any platform where that fails (Windows, locked-down container,
+ * malformed output) so the caller can fall back to "give it the
+ * benefit of the doubt" rather than killing a real daemon.
+ */
+function processStartTime(pid: number): Date | null {
+  const res = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], {
+    encoding: "utf8",
+  });
+  if (res.status !== 0) return null;
+  const trimmed = res.stdout.trim();
+  if (trimmed.length === 0) return null;
+  const parsed = new Date(trimmed);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+/**
+ * "Is the process recorded in the state file *still our daemon*?"
+ *
+ * `process.kill(pid, 0)` only tells us whether *some* process owns
+ * that PID right now — on Linux PIDs get recycled and an unrelated
+ * process can occupy the slot, locking the user out of `archik
+ * start`. We cross-check by asking the OS what time the PID was
+ * launched and comparing to the timestamp we wrote at lock time. A
+ * gap larger than the fork → state-write window means PID reuse.
+ */
+export function isAlive(state: Pick<DaemonState, "pid" | "startedAt">): boolean {
+  if (!pidExists(state.pid)) return false;
+  const actual = processStartTime(state.pid);
+  if (actual === null) return true; // can't verify — assume alive.
+  const recorded = new Date(state.startedAt);
+  if (!Number.isFinite(recorded.getTime())) return true;
+  // Allow a generous window: `ps -o lstart=` truncates to seconds,
+  // and there's a small gap between fork() and writing startedAt.
+  const STALE_WINDOW_MS = 30_000;
+  return Math.abs(actual.getTime() - recorded.getTime()) <= STALE_WINDOW_MS;
 }
 
 /**
@@ -128,7 +169,7 @@ export function acquireLock(
       const code = (err as NodeJS.ErrnoException).code;
       if (code !== "EEXIST") throw err;
       const existing = readState(stateFile);
-      if (existing && isAlive(existing.pid)) {
+      if (existing && isAlive(existing)) {
         return { ok: false, existing };
       }
       removeState(stateFile);

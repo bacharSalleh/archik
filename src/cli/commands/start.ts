@@ -6,6 +6,7 @@ import {
   daemonPaths,
   ensureDaemonDir,
   isAlive,
+  pidExists,
   readState,
   removeState,
 } from "../daemon.ts";
@@ -31,7 +32,7 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   // Friendly pre-flight: dev itself enforces the lock, but checking here
   // means we don't even spawn a child when something's already running.
   const existing = readState(paths.stateFile);
-  if (existing && isAlive(existing.pid)) {
+  if (existing && isAlive(existing)) {
     const url = existing.urls.local[0] ?? "(unknown)";
     console.error(`✗ archik is already running for ${docPath}`);
     console.error(`  PID ${existing.pid} on ${url}`);
@@ -78,12 +79,12 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
       ready = state;
       break;
     }
-    if (!isAlive(groupPid)) break;
+    if (!pidExists(groupPid)) break;
     await sleep(100);
   }
 
   if (!ready) {
-    if (isAlive(groupPid)) {
+    if (pidExists(groupPid)) {
       try {
         // Kill the spawned bin process — that's the group leader because
         // we created it with detached:true. Its blocking spawnSync of the

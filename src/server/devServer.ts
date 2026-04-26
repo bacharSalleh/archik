@@ -227,8 +227,15 @@ export async function startDevServer(
     if (url === EVENTS_URL) {
       const client = attachSse(res);
       clients.add(client);
+      // Wrap clearInterval defensively: if it ever throws, the second
+      // statement (clients.delete) wouldn't run and the client + its
+      // keepAlive timer would leak forever. Cheap insurance.
       const drop = () => {
-        clearInterval(client.keepAlive);
+        try {
+          clearInterval(client.keepAlive);
+        } catch {
+          // ignore — we still want to drop the client from the Set.
+        }
         clients.delete(client);
       };
       req.on("close", drop);

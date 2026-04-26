@@ -24,7 +24,7 @@ export async function statusCommand(_opts: ParsedOptions): Promise<number> {
     const stateFile = path.join(dir, f);
     const state = readState(stateFile);
     if (!state) continue;
-    if (!isAlive(state.pid)) {
+    if (!isAlive(state)) {
       removeState(stateFile);
       continue;
     }

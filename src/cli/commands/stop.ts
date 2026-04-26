@@ -35,7 +35,7 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
     return 0;
   }
 
-  if (!isAlive(state.pid)) {
+  if (!isAlive(state)) {
     removeState(paths.stateFile);
     console.log(`archik was not running (cleaned up stale state)`);
     return 0;
@@ -45,11 +45,11 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
 
   const deadline = Date.now() + SIGTERM_GRACE_MS;
   while (Date.now() < deadline) {
-    if (!isAlive(state.pid)) break;
+    if (!isAlive(state)) break;
     await sleep(100);
   }
 
-  if (isAlive(state.pid)) {
+  if (isAlive(state)) {
     killProcess(state.pid, "SIGKILL");
     await sleep(200);
   }

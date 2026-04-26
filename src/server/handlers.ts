@@ -10,6 +10,7 @@
  */
 import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
@@ -52,6 +53,27 @@ export async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
+/**
+ * Atomic write via tmp + rename. fs.writeFile is not atomic on POSIX
+ * — a partial write (ENOSPC, signal, OOM kill) would leave the user's
+ * source-of-truth YAML truncated. Renaming on the same filesystem is
+ * atomic, so if anything goes wrong the original file stays intact.
+ */
+async function atomicWrite(target: string, data: string): Promise<void> {
+  const tmp = `${target}.archik-tmp-${randomUUID().slice(0, 8)}`;
+  try {
+    await fs.writeFile(tmp, data, "utf-8");
+    await fs.rename(tmp, target);
+  } catch (err) {
+    try {
+      await fs.unlink(tmp);
+    } catch {
+      // Tmp may not exist if writeFile failed before creating it.
+    }
+    throw err;
+  }
+}
+
 export async function handleYaml(
   docPath: string,
   req: IncomingMessage,
@@ -80,7 +102,7 @@ export async function handleYaml(
     }
     try {
       const body = await readBody(req);
-      await fs.writeFile(docPath, body, "utf-8");
+      await atomicWrite(docPath, body);
       res.statusCode = 204;
       res.end();
     } catch (err) {
@@ -122,7 +144,7 @@ export async function handleSidecar(
     }
     try {
       const body = await readBody(req);
-      await fs.writeFile(sidecarPath, body, "utf-8");
+      await atomicWrite(sidecarPath, body);
       res.statusCode = 204;
       res.end();
     } catch (err) {
@@ -183,7 +205,7 @@ export async function handleAccept(
     return;
   }
   try {
-    await fs.writeFile(mainPath, cleaned, "utf-8");
+    await atomicWrite(mainPath, cleaned);
   } catch (err) {
     res.statusCode = 500;
     res.setHeader("content-type", "text/plain; charset=utf-8");
