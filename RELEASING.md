@@ -12,8 +12,8 @@ git push origin main --follow-tags     # pushes the commit AND the tag
 
 The tag push triggers `.github/workflows/publish.yml`, which runs
 `prepublishOnly` (typecheck + tests + build) and then `npm publish
---access public --provenance`. You don't run `npm publish` from
-your laptop — CI does it via OIDC.
+--access public`. You don't run `npm publish` from your laptop —
+CI does it via OIDC.
 
 ## Bump levels
 
@@ -70,13 +70,39 @@ credentials evaporate. Nothing long-lived sits in the repo or CI
 secrets. If your laptop or `~/.npmrc` ever leaks, no one can publish
 to `archik` from it.
 
+**Hard requirement: npm CLI ≥ 11.5.1.** Trusted Publishing's OIDC
+handshake landed there. Node 20 ships with npm 10.x, which signs
+provenance and then 404s on the actual `PUT` (because it doesn't yet
+know how to fetch the GitHub OIDC token). The publish workflow
+therefore runs `npm install -g npm@latest` before `npm publish`. Don't
+remove that step.
+
+## Why we don't pass `--provenance`
+
+`--provenance` would attach a sigstore-signed attestation linking the
+published tarball to a specific GitHub commit + workflow run. Lovely
+in theory, but **the source repository must be public** — npm refuses
+the publish with `E422 "Unsupported GitHub Actions source repository
+visibility: 'private'"` otherwise. Our repo is private on purpose, so
+we forgo provenance.
+
+If you ever flip the GitHub repo to public, you can put `--provenance`
+back on the publish command in `publish.yml` to get the attestation.
+The `id-token: write` permission is still in the workflow either way
+(Trusted Publishing also needs it).
+
 ## First-publish bootstrap (historical)
 
 `v0.1.0` had to be published manually from the laptop with a granular
 access token, because Trusted Publishing can only be configured for a
-package that already exists. The token was deleted from npm immediately
-after, and Trusted Publishing was wired before `v0.1.1`. Nothing to
-remember unless you ever republish under a new package name.
+package that already exists. The token was deleted from npm right
+after, and Trusted Publishing was wired up.
+
+`v0.1.1` was tagged but never made it to npm — it failed the OIDC
+handshake (npm CLI too old, see above) and then failed the
+`--provenance` check (private repo, see above). The two fixes landed
+across `v0.1.2`. Nothing to remember unless you republish under a new
+package name.
 
 ## Troubleshooting
 
@@ -86,10 +112,16 @@ https://www.npmjs.com/package/archik/access has the GitHub Actions
 publisher row with workflow `publish.yml` and **no** environment
 field set.
 
-**OIDC works but `--provenance` fails** →
-Older Node images sometimes ship an npm CLI with flaky OIDC support.
-Bump `node-version: "20"` to `"22"` in
-`.github/workflows/publish.yml` and re-run.
+**404 Not Found - PUT https://registry.npmjs.org/archik** →
+The npm CLI in CI is too old for Trusted Publishing's OIDC exchange.
+Confirm `npm install -g npm@latest` is still in `publish.yml` before
+the publish step. If it is, the runner image may have a broken
+update; pin to a known-good npm: `npm install -g npm@11.5.1`.
+
+**E422 "Unsupported GitHub Actions source repository visibility:
+'private'"** → You re-added `--provenance` to the publish command
+without first making the repo public. Either drop the flag again
+(see "Why we don't pass --provenance") or flip the repo to public.
 
 **Tag points at the wrong commit (CI runs old code)** →
 `git tag -l` lists tags. Move one with
