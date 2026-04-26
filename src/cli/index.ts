@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { initCommand } from "./commands/init.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
@@ -10,12 +12,26 @@ import { startCommand } from "./commands/start.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { statusCommand } from "./commands/status.ts";
 import { parseOptions } from "./options.ts";
+import { pkgRoot } from "./paths.ts";
+
+function readVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(pkgRoot(), "package.json"), "utf-8"),
+    ) as { version?: string };
+    return pkg.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 function printHelp(): void {
   console.log(`archik — JSON-native architecture diagram tool
 
 USAGE
   archik <command> [path] [options]
+  archik --version          Print the installed archik version
+  archik --help             Show this message
 
 COMMANDS
   init              Scaffold a starter architecture.archik.yaml
@@ -68,6 +84,11 @@ async function main(): Promise<number> {
       return checkCommand(opts);
     case "skill":
       return skillCommand(opts);
+    case "--version":
+    case "-v":
+    case "version":
+      console.log(readVersion());
+      return 0;
     case undefined:
     case "--help":
     case "-h":
