@@ -1,7 +1,7 @@
 {
   "name": "archik",
-  "version": "0.1.0",
-  "description": "JSON-native architecture diagram tool. The YAML file is the source of truth; the canvas is a stateless projection. Humans and LLMs edit the same file.",
+  "version": "0.1.1",
+  "description": "Architecture diagrams as YAML. Live canvas in the browser, headless SVG render in CI, and an installable Claude skill so the model edits the same file you do.",
   "keywords": [
     "architecture",
     "diagram",
@@ -17,11 +17,12 @@
   "author": "Bashar <welcomebachar@gmail.com>",
   "type": "module",
   "bin": {
-    "archik": "./bin/archik.js"
+    "archik": "bin/archik.js"
   },
   "files": [
     "bin",
     "dist",
+    "docs/hero.svg",
     ".claude/skills/archik.md",
     "README.md",
     "LICENSE"

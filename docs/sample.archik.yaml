@@ -1,0 +1,75 @@
+version: "1.0"
+name: Support Hub
+description: An LLM-assisted customer-support system. Used as the hero example in the Archik README.
+nodes:
+  - id: web
+    kind: frontend
+    name: Help Center
+    stack: Next.js
+  - id: api
+    kind: service
+    name: Support API
+    stack: Go + Postgres
+  - id: db
+    kind: database
+    name: Tickets DB
+    stack: Postgres 16
+  - id: queue
+    kind: queue
+    name: Inbound Tickets
+    stack: SQS
+  - id: router
+    kind: worker
+    name: Ticket Router
+    stack: Go
+  - id: agent
+    kind: agent
+    name: Support Agent
+    description: Drafts replies, escalates anything risky to a human.
+  - id: claude
+    kind: llm
+    name: Claude
+  - id: lookup
+    kind: tool
+    name: Lookup Order
+  - id: stripe
+    kind: external
+    name: Stripe
+    description: Payments + subscription state
+edges:
+  - id: web-api
+    from: web
+    to: api
+    relationship: http_call
+    label: ask question
+  - id: api-db
+    from: api
+    to: db
+    relationship: writes
+    label: save ticket
+  - id: api-queue
+    from: api
+    to: queue
+    relationship: publishes
+    label: new ticket
+  - id: router-queue
+    from: router
+    to: queue
+    relationship: subscribes
+  - id: router-agent
+    from: router
+    to: agent
+    relationship: invokes
+  - id: agent-claude
+    from: agent
+    to: claude
+    relationship: invokes
+    label: draft reply
+  - id: agent-lookup
+    from: agent
+    to: lookup
+    relationship: uses
+  - id: lookup-stripe
+    from: lookup
+    to: stripe
+    relationship: http_call
