@@ -40,8 +40,17 @@ export type EdgeSection = {
   bendPoints: Point[];
 };
 
+export type PositionedEdgeLabel = {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type PositionedEdge = Edge & {
   sections: EdgeSection[];
+  labels: PositionedEdgeLabel[];
 };
 
 export type PositionedDocument = {

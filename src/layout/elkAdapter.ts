@@ -3,11 +3,19 @@ import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 import type { Document, Node, NodeKind } from "../domain/types.ts";
 import type { LayoutEngine } from "./layoutEngine.ts";
 import {
+  estimateTextWidth,
+  LABEL_CHAR_PX,
+  LABEL_HEIGHT,
+  NAME_CHAR_PX,
+  STACK_CHAR_PX,
+} from "./text.ts";
+import {
   DEFAULT_LAYOUT_OPTIONS as DEFAULTS,
   type EdgeSection,
   type LayoutOptions,
   type PositionedDocument,
   type PositionedEdge,
+  type PositionedEdgeLabel,
   type PositionedNode,
   type Point,
 } from "./types.ts";
@@ -24,6 +32,13 @@ function buildElkOptions(options: LayoutOptions): Record<string, string> {
     "elk.spacing.nodeNode": String(nodeSpacing),
     "elk.padding": `[top=${padding}, left=${padding}, bottom=${padding}, right=${padding}]`,
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    // Reserve space for edge labels so they don't overlap nodes / each
+    // other. CENTER places the label at the long segment's midpoint;
+    // edgeLabel/labelLabel keep gaps around it.
+    "elk.edgeLabels.placement": "CENTER",
+    "elk.spacing.edgeLabel": "8",
+    "elk.spacing.labelLabel": "6",
+    "elk.spacing.edgeNode": "20",
   };
 }
 
@@ -109,15 +124,43 @@ const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   custom: CHIP_CONTAINER,
 };
 
+// Padding inside the card that we reserve so text never touches the
+// border. 12px each side. Module / custom containers grow to fit their
+// children, so we don't expand them here.
+const NODE_HORIZ_PADDING = 24;
+const NODE_MAX_WIDTH = 320;
+
+function effectiveWidth(
+  node: Node,
+  defaultWidth: number,
+  viewMode: "detailed" | "compact",
+): number {
+  if (node.kind === "module" || node.kind === "custom") return defaultWidth;
+
+  if (viewMode === "compact") {
+    // Compact chip shows the kind icon + name only. Icon + gutter ≈ 36px.
+    const nameW = estimateTextWidth(node.name, STACK_CHAR_PX);
+    const needed = 36 + nameW + 12;
+    return Math.max(defaultWidth, Math.min(NODE_MAX_WIDTH, Math.ceil(needed)));
+  }
+
+  const nameW = estimateTextWidth(node.name, NAME_CHAR_PX);
+  const stackW =
+    node.stack !== undefined ? estimateTextWidth(node.stack, STACK_CHAR_PX) : 0;
+  const needed = Math.max(nameW, stackW) + NODE_HORIZ_PADDING;
+  return Math.max(defaultWidth, Math.min(NODE_MAX_WIDTH, Math.ceil(needed)));
+}
+
 function toElkNode(
   node: Node,
   children: ElkNode[],
   sizeTable: Record<NodeKind, { width: number; height: number }>,
+  viewMode: "detailed" | "compact",
 ): ElkNode {
   const size = sizeTable[node.kind];
   const elk: ElkNode = {
     id: node.id,
-    width: size.width,
+    width: effectiveWidth(node, size.width, viewMode),
     height: size.height,
   };
   if (children.length > 0) elk.children = children;
@@ -127,6 +170,7 @@ function toElkNode(
 function buildHierarchy(
   doc: Document,
   sizeTable: Record<NodeKind, { width: number; height: number }>,
+  viewMode: "detailed" | "compact",
 ): {
   roots: ElkNode[];
   byId: Map<string, Node>;
@@ -143,7 +187,7 @@ function buildHierarchy(
 
   function build(n: Node): ElkNode {
     const kids = (childrenOf.get(n.id) ?? []).map(build);
-    return toElkNode(n, kids, sizeTable);
+    return toElkNode(n, kids, sizeTable, viewMode);
   }
 
   const rootNodes = childrenOf.get(undefined) ?? [];
@@ -151,11 +195,26 @@ function buildHierarchy(
 }
 
 function toElkEdges(doc: Document): ElkExtendedEdge[] {
-  return doc.edges.map((e) => ({
-    id: e.id,
-    sources: [e.from],
-    targets: [e.to],
-  }));
+  return doc.edges.map((e) => {
+    const elk: ElkExtendedEdge = {
+      id: e.id,
+      sources: [e.from],
+      targets: [e.to],
+    };
+    if (e.label !== undefined && e.label.length > 0) {
+      // Tell ELK how much real estate the label needs so the layered
+      // algorithm reserves space along the route. Without this the
+      // labels overlap nodes whenever a segment is too short.
+      elk.labels = [
+        {
+          text: e.label,
+          width: Math.ceil(estimateTextWidth(e.label, LABEL_CHAR_PX)),
+          height: LABEL_HEIGHT,
+        },
+      ];
+    }
+    return elk;
+  });
 }
 
 function num(x: number | undefined): number {
@@ -192,6 +251,7 @@ function elkToPositionedEdges(
   doc: Document,
 ): PositionedEdge[] {
   const sectionsById = new Map<string, EdgeSection[]>();
+  const labelsById = new Map<string, PositionedEdgeLabel[]>();
   const collect = (n: ElkNode) => {
     for (const e of n.edges ?? []) {
       const sections: EdgeSection[] = (e.sections ?? []).map((s) => ({
@@ -200,6 +260,14 @@ function elkToPositionedEdges(
         bendPoints: (s.bendPoints ?? []).map(toPoint),
       }));
       sectionsById.set(e.id, sections);
+      const labels: PositionedEdgeLabel[] = (e.labels ?? []).map((l) => ({
+        text: typeof l.text === "string" ? l.text : "",
+        x: num(l.x),
+        y: num(l.y),
+        width: num(l.width),
+        height: num(l.height),
+      }));
+      labelsById.set(e.id, labels);
     }
     for (const c of n.children ?? []) collect(c);
   };
@@ -208,6 +276,7 @@ function elkToPositionedEdges(
   return doc.edges.map((e) => ({
     ...e,
     sections: sectionsById.get(e.id) ?? [],
+    labels: labelsById.get(e.id) ?? [],
   }));
 }
 
@@ -220,9 +289,9 @@ async function runLayout(
   if (doc.nodes.length === 0) {
     return { document: doc, width: 0, height: 0, roots: [], edges: [] };
   }
-  const sizeTable =
-    options.viewMode === "compact" ? COMPACT_SIZE : DETAILED_SIZE;
-  const { roots, byId } = buildHierarchy(doc, sizeTable);
+  const viewMode = options.viewMode === "compact" ? "compact" : "detailed";
+  const sizeTable = viewMode === "compact" ? COMPACT_SIZE : DETAILED_SIZE;
+  const { roots, byId } = buildHierarchy(doc, sizeTable, viewMode);
   const graph: ElkNode = {
     id: "__root__",
     layoutOptions: buildElkOptions(options),

@@ -139,7 +139,13 @@ export function EdgeRenderer({
     section.endPoint,
   ];
   const style = STYLES[edge.relationship];
-  const labelAt = midpoint(all);
+  // Prefer the ELK-placed label position — it accounts for adjacent
+  // nodes and other labels. Fall back to the polyline midpoint for
+  // edges without a label box reserved.
+  const placed = edge.labels[0];
+  const labelAt = placed
+    ? { x: placed.x + placed.width / 2, y: placed.y + placed.height / 2 }
+    : midpoint(all);
   const isSelected = selectedEdgeIds?.has(edge.id) ?? false;
 
   // Selected wins, then per-edge color override, then style default.
@@ -193,7 +199,11 @@ export function EdgeRenderer({
           : {})}
       />
       {edge.label !== undefined && labelAt !== undefined && (
-        <g transform={`translate(${labelAt.x}, ${labelAt.y - 6})`}>
+        <g
+          transform={`translate(${labelAt.x}, ${
+            placed ? labelAt.y + 4 : labelAt.y - 6
+          })`}
+        >
           <text
             textAnchor="middle"
             fontSize={11}

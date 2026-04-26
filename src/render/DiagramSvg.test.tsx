@@ -58,6 +58,7 @@ const populated: PositionedDocument = {
           bendPoints: [],
         },
       ],
+      labels: [],
     },
   ],
 };

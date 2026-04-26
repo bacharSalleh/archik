@@ -17,6 +17,7 @@ const baseEdge = (
       bendPoints: [{ x: 60, y: 10 }],
     },
   ],
+  labels: [],
   ...overrides,
 });
 

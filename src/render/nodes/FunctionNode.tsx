@@ -1,5 +1,8 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { fitText, NAME_CHAR_PX, STACK_CHAR_PX } from "../../layout/text.ts";
 import { HEADER_HEIGHT, NodeHeader } from "./NodeHeader.tsx";
+
+const TEXT_PADDING = 24;
 
 type Props = { node: PositionedNode; selected?: boolean };
 
@@ -10,6 +13,11 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
   const bodyMid = HEADER_HEIGHT + (h - HEADER_HEIGHT) / 2;
   const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
+  const innerW = Math.max(0, w - TEXT_PADDING);
+  const displayName = fitText(node.name, innerW, NAME_CHAR_PX);
+  const displayStack = hasStack
+    ? fitText(node.stack as string, innerW, STACK_CHAR_PX)
+    : "";
   const stroke = selected
     ? "var(--archik-selected)"
     : "var(--archik-node-stroke)";
@@ -48,7 +56,7 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
         fontWeight={600}
         fill="var(--archik-node-text)"
       >
-        {node.name}
+        {displayName}
       </text>
       {hasStack && (
         <text
@@ -58,7 +66,7 @@ export function FunctionNode({ node, selected }: Props): React.ReactElement {
           fontSize={11}
           fill="var(--archik-node-text-dim)"
         >
-          {node.stack}
+          {displayStack}
         </text>
       )}
     </g>

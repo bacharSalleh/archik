@@ -1,4 +1,5 @@
 import type { PositionedNode } from "../../layout/types.ts";
+import { fitText, STACK_CHAR_PX } from "../../layout/text.ts";
 import { KIND_META } from "../kindPalette.ts";
 
 type Props = { node: PositionedNode; selected?: boolean };
@@ -62,7 +63,7 @@ export function CompactNode({ node, selected }: Props): React.ReactElement {
           fontWeight={600}
           fill="var(--archik-node-caption)"
         >
-          {node.name}
+          {fitText(node.name, Math.max(0, w - 38), STACK_CHAR_PX)}
         </text>
       </g>
     );
@@ -98,7 +99,7 @@ export function CompactNode({ node, selected }: Props): React.ReactElement {
         fontWeight={600}
         fill="var(--archik-node-text)"
       >
-        {node.name}
+        {fitText(node.name, Math.max(0, w - 36), STACK_CHAR_PX)}
       </text>
     </g>
   );
