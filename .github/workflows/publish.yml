@@ -15,8 +15,9 @@ jobs:
     permissions:
       contents: read
       id-token: write   # OIDC: lets GitHub mint the token npm exchanges
-                        # for short-lived publish credentials. Required for
-                        # both Trusted Publishing and `--provenance`.
+                        # for short-lived publish credentials (Trusted
+                        # Publishing). Still required even without
+                        # --provenance.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,5 +43,10 @@ jobs:
       # publish step doesn't need a separate `npm run build` here.
       # Auth comes from OIDC (Trusted Publishing on npmjs.com) — no
       # NPM_TOKEN secret stored anywhere.
+      #
+      # We deliberately do NOT pass --provenance: provenance attestations
+      # require a *public* source repository, and ours is private. Trusted
+      # Publishing itself works fine without it; we just lose the
+      # cryptographic build-origin proof on the published tarball.
       - name: Publish
-        run: npm publish --access public --provenance
+        run: npm publish --access public
