@@ -3,7 +3,7 @@
 > An architecture diagram tool where the file is the source of truth — and Claude can edit it alongside you.
 
 <p align="center">
-  <img src="docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
 </p>
 
 You write a small YAML file describing your nodes (services, databases, queues, agents, LLMs, …) and the edges between them. Archik gives you a live browser canvas, a CLI for CI, and an installable AI skill so Claude Code understands your architecture file the same way you do — no proprietary format, no coordinates in the YAML, no manual layout.
