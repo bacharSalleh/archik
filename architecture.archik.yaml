@@ -1,75 +1,268 @@
 version: "1.0"
-name: Orders Platform
-description: Reference architecture for the Archik canvas
+name: Archik
+description: Archik's own architecture — eating our own dog food. The YAML you're looking at is what `archik dev` renders when run from the root of this repo.
 nodes:
-  - id: web
+  # ── Entry & CLI ──────────────────────────────────────────────────
+  - id: bin
+    kind: function
+    name: bin/archik.js
+    description: Entry shim. If dist/cli/archik.mjs exists, spawns the bundled CLI with node; otherwise falls back to tsx + src/. Sets ARCHIK_PKG_ROOT so the CLI never has to guess where it lives.
+    stack: Node ESM
+
+  - id: cli
+    kind: module
+    name: CLI
+    description: Command dispatcher. Parses options, routes to the right handler.
+
+  - id: cli-init
+    kind: function
+    name: init
+    description: Scaffold architecture.archik.yaml and install the Claude skill (default).
+    parentId: cli
+  - id: cli-validate
+    kind: function
+    name: validate
+    description: Zod-validate the YAML. Exits 1 on schema error — CI-friendly.
+    parentId: cli
+  - id: cli-render
+    kind: function
+    name: render
+    description: Headless ELK + React server-side render to a self-contained SVG file.
+    parentId: cli
+  - id: cli-dev
+    kind: function
+    name: dev / start / stop / status
+    description: Lifecycle of the canvas server. Single-instance per YAML enforced by the daemon lock.
+    parentId: cli
+  - id: cli-skill
+    kind: function
+    name: skill
+    description: Copy SKILL.md into ./.claude/skills/archik/ (or ~/.claude/skills/archik/ with --user).
+    parentId: cli
+
+  - id: daemon
+    kind: port
+    name: Daemon Lock
+    description: O_EXCL state file in $TMPDIR/archik-cli/<sha-of-doc-path>.json. Holds pid + URL + log path. dev / start / stop / status all share it.
+
+  # ── Server (replaces Vite at runtime) ────────────────────────────
+  - id: dev-server
+    kind: service
+    name: Dev Server
+    description: node:http server. Serves dist/ui/ statically, GET/PUT for the project's YAML, SSE on /__archik/events.
+    stack: node:http
+
+  - id: file-watcher
+    kind: worker
+    name: YAML Watcher
+    description: chokidar tail of architecture.archik.yaml. Pushes archik:doc-changed events to all SSE subscribers.
+    stack: chokidar
+
+  # ── Canvas (React app, served from dist/ui/) ─────────────────────
+  - id: canvas
     kind: frontend
-    name: Web
-    stack: Next.js
-    responsibilities:
-      - render order UI
-      - auth
-  - id: api
+    name: Canvas
+    description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth.
+    stack: React + Vite (build-time only)
+
+  - id: inspector
+    kind: module
+    name: Inspectors
+    description: Toolbar, NodeInspector, EdgeInspector, Legend, KindPicker, AddNodeForm, ExportMenu — every UI surface that mutates the document.
+    parentId: canvas
+
+  - id: live-reload
+    kind: adapter
+    name: Live Reload
+    description: EventSource client subscribed to /__archik/events. Falls back to Vite HMR for in-repo `npm run dev`.
+    parentId: canvas
+
+  # ── Core libraries (pure, no React, no ELK, no I/O) ──────────────
+  - id: domain
+    kind: module
+    name: Domain
+    description: Pure schema, validation, taxonomy, command operations. No React, no ELK, no I/O — safe to import from anywhere.
+
+  - id: schema
+    kind: interface
+    name: Schema
+    description: Zod schemas + TypeScript types. The single source of truth for what counts as a valid Archik document.
+    parentId: domain
+  - id: commands
+    kind: function
+    name: Commands
+    description: Pure functions — addNode, removeEdge, updateNode, etc. Drive undo/redo via a command history.
+    parentId: domain
+  - id: taxonomy
+    kind: function
+    name: Taxonomy
+    description: 26 node kinds, 12 relationships, plus per-kind icon and palette metadata.
+    parentId: domain
+
+  - id: layout
     kind: service
-    name: Orders API
-    stack: Go
-    responsibilities:
-      - accept orders
-      - publish events
-    interfaces:
-      - name: POST /orders
-        protocol: http
-      - name: GET /orders/:id
-        protocol: http
-  - id: db
-    kind: database
-    name: Orders DB
-    stack: Postgres 16
-  - id: cache
-    kind: cache
-    name: Order Cache
-    stack: Redis 7
-  - id: events
-    kind: queue
-    name: Order Events
-    stack: Kafka
-  - id: worker
+    name: Layout Engine
+    description: ELK adapter behind a LayoutEngine interface. Computes positions, edge routes, container padding, and offsets edges by their LCA so coords are absolute.
+    stack: ELK.js
+
+  - id: renderer
     kind: service
-    name: Fulfillment Worker
-    stack: Go
-  - id: stripe
+    name: SVG Renderer
+    description: Per-shape components (Service, Cache, Queue, Frontend, Container, etc). Theme-aware. Same code path used by the canvas and headless `archik render`.
+
+  - id: io
+    kind: module
+    name: I/O
+    description: YAML/JSON parsers (Zod-backed), exporters (markdown, json, yaml), browser fetch/save adapters.
+
+  # ── AI surface — the whole point ─────────────────────────────────
+  - id: skill
+    kind: prompt
+    name: Claude Skill
+    description: SKILL.md — the schema, the 3-rule protocol (read before answering, propose updates, validate after every edit), and the 26-kind taxonomy. Installed under .claude/skills/archik/.
+
+  - id: claude-code
+    kind: agent
+    name: Claude Code
+    description: AI editor. Reads the skill at session start, edits the YAML alongside code changes, runs `archik validate` after every save.
+
+  # ── Externals & supply chain ─────────────────────────────────────
+  - id: elk
     kind: external
-    name: Stripe
-    description: Payments provider
+    name: ELK
+    description: Eclipse Layout Kernel. Hierarchical / layered placement and orthogonal edge routing.
+
+  - id: npm
+    kind: external
+    name: npm registry
+    description: Hosts the archik tarball at registry.npmjs.org/archik. Trusted Publishing via OIDC — no NPM_TOKEN stored anywhere.
+
+  - id: github-actions
+    kind: external
+    name: GitHub Actions
+    description: Builds + publishes on every v*.*.* tag push. Configured as a Trusted Publisher on npmjs.com/package/archik.
+
 edges:
-  - id: web-api
-    from: web
-    to: api
-    relationship: http_call
-    label: place order
-  - id: api-db-w
-    from: api
-    to: db
-    relationship: writes
-  - id: api-cache-r
-    from: api
-    to: cache
-    relationship: reads
-  - id: api-events
-    from: api
-    to: events
+  - id: bin-cli
+    from: bin
+    to: cli
+    relationship: invokes
+    label: spawn (dist or tsx)
+
+  - id: init-skill
+    from: cli-init
+    to: cli-skill
+    relationship: invokes
+    label: default
+
+  - id: validate-domain
+    from: cli-validate
+    to: schema
+    relationship: uses
+
+  - id: render-layout
+    from: cli-render
+    to: layout
+    relationship: uses
+  - id: render-renderer
+    from: cli-render
+    to: renderer
+    relationship: uses
+  - id: render-io
+    from: cli-render
+    to: io
+    relationship: uses
+
+  - id: dev-server-spawn
+    from: cli-dev
+    to: dev-server
+    relationship: invokes
+  - id: dev-daemon
+    from: cli-dev
+    to: daemon
+    relationship: uses
+    label: lock state
+
+  - id: server-watcher
+    from: dev-server
+    to: file-watcher
+    relationship: invokes
+
+  - id: watcher-livereload
+    from: file-watcher
+    to: live-reload
     relationship: publishes
-    label: order.placed
-  - id: worker-events
-    from: worker
-    to: events
-    relationship: subscribes
-  - id: worker-db-r
-    from: worker
-    to: db
-    relationship: reads
-  - id: api-stripe
-    from: api
-    to: stripe
+    label: SSE
+
+  - id: server-canvas
+    from: dev-server
+    to: canvas
+    relationship: routes_to
+    label: GET dist/ui
+
+  - id: canvas-yaml
+    from: canvas
+    to: dev-server
     relationship: http_call
-    label: charge
+    label: GET / PUT YAML
+
+  - id: canvas-domain
+    from: canvas
+    to: schema
+    relationship: uses
+  - id: canvas-layout
+    from: canvas
+    to: layout
+    relationship: invokes
+  - id: canvas-renderer
+    from: canvas
+    to: renderer
+    relationship: uses
+
+  - id: inspector-commands
+    from: inspector
+    to: commands
+    relationship: invokes
+    label: edits
+
+  - id: layout-elk
+    from: layout
+    to: elk
+    relationship: invokes
+
+  - id: layout-domain
+    from: layout
+    to: schema
+    relationship: depends_on
+  - id: renderer-taxonomy
+    from: renderer
+    to: taxonomy
+    relationship: depends_on
+
+  - id: claude-skill
+    from: claude-code
+    to: skill
+    relationship: uses
+    label: protocol
+  - id: claude-yaml
+    from: claude-code
+    to: io
+    relationship: writes
+    label: edit YAML
+  - id: claude-validate
+    from: claude-code
+    to: cli-validate
+    relationship: invokes
+    label: after every edit
+
+  - id: gha-publish
+    from: github-actions
+    to: npm
+    relationship: publishes
+    label: OIDC, on tag
+
+  - id: bin-from-npm
+    from: bin
+    to: npm
+    relationship: depends_on
+    label: shipped here
