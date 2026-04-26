@@ -103,6 +103,45 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
+/**
+ * The dev server only listens on loopback by default, but a
+ * cross-origin page in the browser (e.g. a malicious site visited
+ * while `archik dev` is running) can still issue a fetch() PUT to
+ * 127.0.0.1 because browsers don't block cross-origin writes by
+ * default — only reads. So we explicitly check:
+ *
+ *   * `Host` is loopback (defends against DNS rebinding from a
+ *     resolver that points the attacker's domain at our local IP).
+ *   * If `Origin` is present, it must match Host (only the canvas
+ *     served by this same server is allowed to mutate the YAML).
+ *
+ * Read paths (GET/HEAD) skip the check — they're idempotent and the
+ * canvas often loads from a slightly different host string.
+ */
+function isWriteAllowed(req: IncomingMessage): boolean {
+  const host = req.headers["host"];
+  if (typeof host !== "string") return false;
+  const hostName = host.split(":")[0]!.toLowerCase();
+  if (
+    hostName !== "localhost" &&
+    hostName !== "127.0.0.1" &&
+    hostName !== "[::1]" &&
+    hostName !== "::1"
+  ) {
+    return false;
+  }
+  const origin = req.headers["origin"];
+  if (typeof origin === "string" && origin.length > 0) {
+    try {
+      const u = new URL(origin);
+      if (u.host !== host) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 async function handleYaml(
   docPath: string,
   req: IncomingMessage,
@@ -126,6 +165,14 @@ async function handleYaml(
     return;
   }
   if (req.method === "PUT") {
+    if (!isWriteAllowed(req)) {
+      res.statusCode = 403;
+      res.setHeader("content-type", "text/plain; charset=utf-8");
+      res.end(
+        "Forbidden: PUT must come from a same-origin loopback page.",
+      );
+      return;
+    }
     try {
       const body = await readBody(req);
       await fs.writeFile(docPath, body, "utf-8");

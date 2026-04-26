@@ -90,21 +90,19 @@ function BaseDiagram({
   // Nothing fancy — DiagramSvg handles a lot of details (markers,
   // children recursion, header bars, edge styling per relationship).
   // We just dim what's removed so the live shape stands out.
-  const removedNodeIds = new Set<string>();
+  const removedNodeIds: string[] = [];
   for (const [id, status] of statuses.nodes) {
-    if (status === "removed") removedNodeIds.add(id);
+    if (status === "removed") removedNodeIds.push(id);
   }
+  const removedSelectors = removedNodeIds
+    .map(
+      (id) =>
+        `.archik-diff-base [data-archik-node-id="${cssEscape(id)}"] { opacity: 0.35; }`,
+    )
+    .join("\n");
   return (
     <g className="archik-diff-base">
-      <style>{`
-        .archik-diff-base [data-archik-node-id="${"" /* placeholder */}"] { opacity: 1; }
-        ${[...removedNodeIds]
-          .map(
-            (id) =>
-              `.archik-diff-base [data-archik-node-id="${cssEscape(id)}"] { opacity: 0.35; }`,
-          )
-          .join("\n")}
-      `}</style>
+      {removedSelectors !== "" && <style>{removedSelectors}</style>}
       <DiagramInner positioned={positioned} />
     </g>
   );
