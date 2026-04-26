@@ -44,13 +44,109 @@ export const DocumentMetadataSchema = z.strictObject({
   updatedAt: z.string().min(1),
 });
 
-export const DocumentSchema = z.strictObject({
-  version: z.literal("1.0"),
-  name: z.string().min(1),
-  description: z.string().optional(),
-  nodes: z.array(NodeSchema),
-  edges: z.array(EdgeSchema),
-  metadata: DocumentMetadataSchema.optional(),
-});
+export const DocumentSchema = z
+  .strictObject({
+    version: z.literal("1.0"),
+    name: z.string().min(1),
+    description: z.string().optional(),
+    nodes: z.array(NodeSchema),
+    edges: z.array(EdgeSchema),
+    metadata: DocumentMetadataSchema.optional(),
+  })
+  // Cross-reference invariants. Without these, the structural schema
+  // happily accepts dangling edges / parentId, duplicate ids, parent
+  // cycles, etc., and downstream code (layout, diff, render) silently
+  // produces the wrong picture.
+  .superRefine((doc, ctx) => {
+    const nodeIds = new Set<string>();
+    for (let i = 0; i < doc.nodes.length; i++) {
+      const node = doc.nodes[i]!;
+      if (nodeIds.has(node.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes", i, "id"],
+          message: `duplicate node id "${node.id}"`,
+        });
+      }
+      nodeIds.add(node.id);
+    }
+
+    const edgeIds = new Set<string>();
+    for (let i = 0; i < doc.edges.length; i++) {
+      const edge = doc.edges[i]!;
+      if (edgeIds.has(edge.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i, "id"],
+          message: `duplicate edge id "${edge.id}"`,
+        });
+      }
+      edgeIds.add(edge.id);
+
+      if (!nodeIds.has(edge.from)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i, "from"],
+          message: `edge "${edge.id}" references unknown node "${edge.from}"`,
+        });
+      }
+      if (!nodeIds.has(edge.to)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i, "to"],
+          message: `edge "${edge.id}" references unknown node "${edge.to}"`,
+        });
+      }
+      if (edge.from === edge.to) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i],
+          message: `edge "${edge.id}" is a self-loop (from === to). Self-loops aren't meaningful in an architecture diagram.`,
+        });
+      }
+    }
+
+    // parentId integrity — exists, no self-parent, no cycle.
+    const parentOf = new Map<string, string | undefined>();
+    for (const node of doc.nodes) parentOf.set(node.id, node.parentId);
+    for (let i = 0; i < doc.nodes.length; i++) {
+      const node = doc.nodes[i]!;
+      if (node.parentId === undefined) continue;
+      if (node.parentId === node.id) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes", i, "parentId"],
+          message: `node "${node.id}" lists itself as parentId`,
+        });
+        continue;
+      }
+      if (!nodeIds.has(node.parentId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes", i, "parentId"],
+          message: `node "${node.id}" parentId "${node.parentId}" doesn't match any node`,
+        });
+        continue;
+      }
+      // Walk up the parent chain to detect cycles. Bound the walk by
+      // the total node count so a cycle can't loop forever.
+      const seen = new Set<string>([node.id]);
+      let cursor: string | undefined = node.parentId;
+      let steps = 0;
+      while (cursor !== undefined && steps <= doc.nodes.length) {
+        if (seen.has(cursor)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["nodes", i, "parentId"],
+            message: `node "${node.id}" is part of a parentId cycle (via "${cursor}")`,
+          });
+          break;
+        }
+        seen.add(cursor);
+        cursor = parentOf.get(cursor);
+        steps++;
+      }
+    }
+  });
 
 export const DOCUMENT_VERSION = "1.0" as const;

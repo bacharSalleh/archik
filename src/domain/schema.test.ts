@@ -248,4 +248,112 @@ describe("DocumentSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  describe("cross-reference rules", () => {
+    const baseNodes = [
+      { id: "api", kind: "service", name: "API" },
+      { id: "db", kind: "database", name: "DB" },
+    ];
+
+    it("rejects an edge whose `from` references a missing node", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "e1", from: "ghost", to: "db", relationship: "writes" },
+        ],
+      });
+      expect(r.success).toBe(false);
+      if (!r.success) {
+        expect(JSON.stringify(r.error.issues)).toContain("ghost");
+      }
+    });
+
+    it("rejects an edge whose `to` references a missing node", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "e1", from: "api", to: "ghost", relationship: "writes" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects a self-loop edge", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "e1", from: "api", to: "api", relationship: "depends_on" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects duplicate node ids", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "api", kind: "service", name: "A" },
+          { id: "api", kind: "service", name: "B" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects duplicate edge ids", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "e1", from: "api", to: "db", relationship: "writes" },
+          { id: "e1", from: "db", to: "api", relationship: "reads" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects parentId pointing at a missing node", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          ...baseNodes,
+          { id: "child", kind: "service", name: "C", parentId: "ghost" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects a node whose parentId is itself", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [{ id: "loop", kind: "service", name: "L", parentId: "loop" }],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects a parentId cycle", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "a", kind: "module", name: "A", parentId: "b" },
+          { id: "b", kind: "module", name: "B", parentId: "a" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("accepts a deep but acyclic parent chain", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "root", kind: "module", name: "Root" },
+          { id: "mid", kind: "module", name: "Mid", parentId: "root" },
+          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid" },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+  });
 });
