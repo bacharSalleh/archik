@@ -1,0 +1,37 @@
+name: Publish to npm
+
+# Pushing a tag like v0.1.1 triggers this. The job builds the bundled
+# tarball and runs `npm publish`, so you never have to publish from
+# your laptop. The version in the tag must match package.json's
+# `version` (npm enforces this).
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # needed for npm provenance attestations
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      # `prepublishOnly` runs typecheck + tests + build for us, so the
+      # publish step doesn't need a separate `npm run build` here.
+      - name: Publish
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

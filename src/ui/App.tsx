@@ -107,6 +107,9 @@ export function App(): React.ReactElement {
           loadedOnceRef.current = true;
           setState({ status: "ready", document });
           setIsDirty(false);
+          if (typeof window !== "undefined" && document.name) {
+            window.document.title = `${document.name} — Archik`;
+          }
           setReloadError(undefined);
           setPast([]);
           setFuture([]);
