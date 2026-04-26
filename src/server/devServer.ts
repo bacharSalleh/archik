@@ -234,19 +234,49 @@ async function handleAccept(
     res.end("Forbidden");
     return;
   }
+  // Two-step apply: validate fully *before* touching the main file
+  // (so a broken sidecar can't corrupt the source of truth), then
+  // swallow a missing sidecar after the write so a concurrent reject
+  // doesn't make us look like we failed.
+  let cleaned;
   try {
     const text = await fs.readFile(sidecarPath, "utf-8");
     const doc = parseYaml(text); // Zod-validates incl. cross-refs
-    const cleaned = stripSuggestionMarker(doc);
-    await fs.writeFile(mainPath, stringifyYaml(cleaned), "utf-8");
-    await fs.unlink(sidecarPath);
-    res.statusCode = 204;
-    res.end();
+    cleaned = stringifyYaml(stripSuggestionMarker(doc));
   } catch (err) {
     res.statusCode = 400;
     res.setHeader("content-type", "text/plain; charset=utf-8");
     res.end(err instanceof Error ? err.message : String(err));
+    return;
   }
+  try {
+    await fs.writeFile(mainPath, cleaned, "utf-8");
+  } catch (err) {
+    res.statusCode = 500;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(
+      `Failed to write main file: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
+  }
+  try {
+    await fs.unlink(sidecarPath);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      // Main file is updated but sidecar still on disk — partial state.
+      // Tell the client; they can retry the reject manually.
+      res.statusCode = 207;
+      res.setHeader("content-type", "text/plain; charset=utf-8");
+      res.end(
+        `Main file accepted, but sidecar still on disk: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return;
+    }
+    // sidecar already gone (concurrent reject) — that's fine.
+  }
+  res.statusCode = 204;
+  res.end();
 }
 
 /**

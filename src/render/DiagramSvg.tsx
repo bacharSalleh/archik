@@ -2,9 +2,12 @@ import type { PositionedDocument, ViewMode } from "../layout/types.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import {
   ARROW_MARKER_CIRCLE,
+  ARROW_MARKER_DOUBLE,
   ARROW_MARKER_FILLED,
   ARROW_MARKER_OPEN,
   ARROW_MARKER_SELECTED,
+  ARROW_MARKER_UML_DIAMOND_FILLED,
+  ARROW_MARKER_UML_TRIANGLE,
   EdgeRenderer,
 } from "./EdgeRenderer.tsx";
 
@@ -88,6 +91,89 @@ function SelectedArrowMarker({ id }: { id: string }): React.ReactElement {
   );
 }
 
+/**
+ * UML hollow-triangle marker — the "is-a" arrowhead used at the
+ * parent end of `extends` (inheritance) and the interface end of
+ * `implements` (realisation). Backed with the panel colour so the
+ * line passes behind it cleanly.
+ */
+function UmlTriangleMarker({ id }: { id: string }): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 14 14"
+      refX="13"
+      refY="7"
+      markerWidth="11"
+      markerHeight="11"
+      orient="auto-start-reverse"
+    >
+      <path
+        d="M 1 1 L 13 7 L 1 13 z"
+        fill="var(--archik-panel)"
+        stroke="context-stroke"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </marker>
+  );
+}
+
+/**
+ * UML filled-diamond marker — sits at the *owner* end of a
+ * composition relationship. We use markerStart for this so it
+ * appears at the source (whole) end of the source→target line.
+ */
+function UmlDiamondFilledMarker({ id }: { id: string }): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 16 10"
+      refX="0"
+      refY="5"
+      markerWidth="12"
+      markerHeight="9"
+      orient="auto-start-reverse"
+    >
+      <path
+        d="M 0 5 L 8 0 L 16 5 L 8 10 z"
+        fill="context-stroke"
+        stroke="context-stroke"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+    </marker>
+  );
+}
+
+/**
+ * Double-tick chevron — used by `grpc` to differentiate from the
+ * generic http_call's filled triangle. Reads as "typed RPC" rather
+ * than "any HTTP".
+ */
+function DoubleArrowMarker({ id }: { id: string }): React.ReactElement {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 14 12"
+      refX="13"
+      refY="6"
+      markerWidth="9"
+      markerHeight="8"
+      orient="auto-start-reverse"
+    >
+      <path
+        d="M 1 1 L 7 6 L 1 11 M 6 1 L 12 6 L 6 11"
+        fill="none"
+        stroke="context-stroke"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </marker>
+  );
+}
+
 type Props = {
   positioned: PositionedDocument;
   className?: string | undefined;
@@ -142,6 +228,9 @@ export function DiagramInner({
         <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
         <FilledCircleMarker id={ARROW_MARKER_CIRCLE} />
         <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
+        <UmlTriangleMarker id={ARROW_MARKER_UML_TRIANGLE} />
+        <UmlDiamondFilledMarker id={ARROW_MARKER_UML_DIAMOND_FILLED} />
+        <DoubleArrowMarker id={ARROW_MARKER_DOUBLE} />
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (

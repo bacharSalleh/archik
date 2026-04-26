@@ -305,8 +305,14 @@ body,
 .archik-edge-flowing {
   animation: archikEdgeFlow 1.4s linear infinite;
 }
+/* Faster variant — used by streams_to and websocket where the
+   intuition is "lots of small messages, all the time." */
+.archik-edge-flowing-fast {
+  animation: archikEdgeFlow 0.6s linear infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .archik-edge-flowing {
+  .archik-edge-flowing,
+  .archik-edge-flowing-fast {
     animation: none;
   }
 }

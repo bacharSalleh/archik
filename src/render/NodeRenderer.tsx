@@ -2,6 +2,8 @@ import type { PositionedNode, ViewMode } from "../layout/types.ts";
 import { ServiceNode } from "./nodes/ServiceNode.tsx";
 import { QueueNode } from "./nodes/QueueNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
+import { DatabaseNode } from "./nodes/DatabaseNode.tsx";
+import { CloudNode } from "./nodes/CloudNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { CompactNode } from "./nodes/CompactNode.tsx";
 import { InfoIcon, NotesIcon, iconAnchorsFor, trayCenters } from "./icons.tsx";
@@ -33,6 +35,10 @@ function Shape({
       return <QueueNode node={node} selected={selected} />;
     case "external":
       return <ExternalNode node={node} selected={selected} />;
+    case "database":
+      return <DatabaseNode node={node} selected={selected} />;
+    case "cloud":
+      return <CloudNode node={node} selected={selected} />;
     case "module":
     case "custom":
       return <CustomNode node={node} selected={selected} depth={depth} />;
@@ -42,7 +48,6 @@ function Shape({
     case "function":
     case "worker":
     case "agent":
-    case "database":
     case "cache":
     case "vectordb":
     case "storage":
@@ -58,7 +63,6 @@ function Shape({
     case "tool":
     case "auth":
     case "observability":
-    case "cloud":
     case "frontend":
       return <ServiceNode node={node} selected={selected} />;
     default: {

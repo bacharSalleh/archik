@@ -124,17 +124,30 @@ The YAML tracks **shape**, not implementation detail.
 
 ## Hard rules for editing
 
+The schema enforces these — `archik validate` will reject the file
+if you break any of them, so don't bother trying.
+
 - **Never put coordinates** (`x`, `y`, `width`, `height`, `viewport`) in
   the YAML. Layout is computed by ELK on every render. The schema
   rejects unknown keys at root, node, edge, and metadata levels.
 - **Every id matches** `^[a-z][a-z0-9-]*$` — lowercase, starts with a
   letter, hyphens allowed.
-- **Edges reference existing nodes**. If `from` or `to` doesn't match a
-  node id, the document fails to load.
-- **`parentId` references existing nodes** (typically `module` or
-  `custom` containers).
+- **Node ids and edge ids are unique** within their respective lists.
+  Duplicates fail validation.
+- **Edges reference existing nodes**. If `from` or `to` doesn't match
+  a node id, the document fails to load.
+- **No self-loop edges** — `from === to` isn't meaningful for an
+  architecture diagram and the schema rejects it.
+- **`parentId` references an existing node** (any kind — typically a
+  `module` or `custom` container, but any node-with-children renders
+  as a container).
+- **No `parentId` cycles** — a → b → a, or a node with itself as parent.
+- **Any node with children is rendered as a container** regardless of
+  kind. So you can have a `frontend` "Web App" containing `module`
+  sub-areas, or a `service` containing `adapter` children — the icon
+  and KIND tag in the header still reflect the node's own kind.
 - **Don't rename a node id**. Remove the old node and re-add it with
-  the new id, then fix every edge that referenced it.
+  the new id, then fix every edge / parentId that referenced it.
 - **Don't change `version`** — it's `"1.0"`.
 
 ## Schema (top-level)
@@ -218,8 +231,27 @@ Picking the right kind:
 - A logical grouping container (component, module) → `module`
 - Anything that doesn't fit and you want a custom shape → `custom`
 
-`module` and `custom` render as containers when they have children — set
-`parentId` on the children to nest them inside.
+**Distinct visual shapes** (not just an icon — the *outline* differs):
+
+| Kind | Shape |
+| ---- | ----- |
+| `database` | classic UML cylinder |
+| `cloud` | cumulus cloud silhouette |
+| `queue` | rounded capsule (pill) |
+| `external` | dashed-border card |
+| `module` / `custom` (with children) | container panel with header + tinted body |
+
+Every other kind renders as the standard rounded card — the kind icon
+in the header and the KIND label do the visual lifting. Don't expect
+each kind to have its own outline; the icon + KIND tag is the
+identity.
+
+**Containers**: any node with children (declared via other nodes'
+`parentId`) renders as a container, regardless of kind. So
+`frontend` "Web App" can contain `module` sub-areas, a `service`
+can contain hexagonal `port`/`adapter` children, etc. The kind of
+the container itself controls the icon + accent colour shown in the
+header bar.
 
 ## Edge fields
 
@@ -234,29 +266,56 @@ Picking the right kind:
   color: "#f97316"      # optional, any CSS color (hex / named / var())
 ```
 
-## Relationships (12 total)
+## Relationships (17 total)
 
-| Category       | Relationship | Visual |
-| -------------- | ------------ | ------ |
-| Sync calls     | `http_call`, `invokes`, `routes_to` | dotted, animated |
-| Data access    | `reads`, `writes` | dotted, animated |
-| Messaging      | `publishes`, `subscribes`, `streams_to` | dotted, animated |
-| Architectural  | `implements`, `depends_on`, `has_a`, `uses` | static + muted |
+| Category       | Relationship | Visual signature |
+| -------------- | ------------ | ---------------- |
+| Sync wire      | `http_call`     | dotted, animated, filled-triangle arrow |
+|                | `grpc`          | thicker dashed, animated, **double-tick chevron** arrow |
+|                | `invokes`       | dotted, animated, filled-triangle arrow |
+|                | `routes_to`     | solid, no animation |
+| Bidirectional  | `websocket`     | dashed, **fast** animation, **arrows on both ends** |
+| Async callback | `webhook`       | long-dash dashed, animated, hollow-triangle arrow |
+| Data access    | `reads`         | dotted, animated, hollow-triangle arrow |
+|                | `writes`        | thicker dotted, animated, filled-triangle arrow |
+| Messaging      | `publishes`     | dotted, animated, **circle** arrow head |
+|                | `subscribes`    | dotted, animated, filled-triangle arrow |
+|                | `streams_to`    | long-dash, **fast** animation, filled-triangle |
+| UML structural | `implements`    | dashed, **hollow-triangle** at the interface end (UML realisation) |
+|                | `extends`       | solid, **hollow-triangle** at parent end (UML inheritance) |
+|                | `composes`      | solid, **filled-diamond at the owner (source) end** (UML composition) |
+| Loose deps     | `depends_on`    | dashed, hollow-triangle arrow |
+|                | `has_a`         | solid, filled-triangle (informal composition) |
+|                | `uses`          | short-dash, hollow-triangle (lightest dependency) |
 
 Picking the right relationship:
 
-- Service-to-service HTTP / RPC call → `http_call`
-- Calling a function or agent → `invokes`
-- Gateway routing requests → `routes_to`
+**Wire-protocol calls** (something is going over the network *now*):
+- Generic HTTP / REST call → `http_call`
+- Typed RPC (protobuf, Connect, Twirp) → `grpc`
+- Function / agent / lambda invocation → `invokes`
+- Gateway / ingress routing → `routes_to`
+- Long-lived bidirectional connection (chat, live trading, collab) → `websocket`
+- Async callback the *other party* pushes to *us* (Stripe webhook, GitHub event) → `webhook`
+
+**Data access**:
 - DB read query → `reads`
 - DB write / mutation → `writes`
+
+**Messaging**:
 - Emitting an event / message → `publishes`
 - Consuming an event / message → `subscribes`
-- Continuous stream of records → `streams_to`
-- Adapter implements an interface → `implements`
-- A depends on B at the package / build level → `depends_on`
-- Composition / ownership ("has a") → `has_a`
-- Lighter-weight dependency → `uses`
+- Continuous stream of records (Kafka, Kinesis, log shipping) → `streams_to`
+
+**UML class-diagram structural** (drawn in the same style as a UML class diagram, so the visual matches what an engineer expects on a board):
+- Adapter realises an abstract interface → `implements`
+- Subclass / subtype inherits → `extends`
+- Whole owns the part's lifecycle (component composition) → `composes`
+
+**Looser architectural** (not UML-strict — for "X depends on Y" without claiming a specific relationship):
+- Package / build-level dependency → `depends_on`
+- Informal "has a" without lifecycle ownership → `has_a`
+- Lightest weight: "X uses Y somewhere" → `uses`
 
 ## Common editing patterns
 
@@ -338,6 +397,67 @@ edges:
     from: stripe-adapter
     to: payment-port
     relationship: implements
+```
+
+**Modelling a real-time chat with WebSocket + a Stripe webhook**:
+
+```yaml
+nodes:
+  - id: web
+    kind: frontend
+    name: Web App
+  - id: api
+    kind: service
+    name: Chat API
+  - id: stripe
+    kind: external
+    name: Stripe
+edges:
+  - id: web-api-ws
+    from: web
+    to: api
+    relationship: websocket             # bidirectional, fast animation
+    label: messages
+  - id: stripe-api-webhook
+    from: stripe
+    to: api
+    relationship: webhook               # async callback
+    label: payment.succeeded
+```
+
+**gRPC between two Go services + UML class hierarchy**:
+
+```yaml
+nodes:
+  - id: orders
+    kind: service
+    name: Orders
+  - id: payments
+    kind: service
+    name: Payments
+  - id: order
+    kind: interface
+    name: Order
+  - id: subscription-order
+    kind: interface
+    name: SubscriptionOrder
+  - id: cart
+    kind: custom
+    name: Cart
+edges:
+  - id: orders-payments-grpc
+    from: orders
+    to: payments
+    relationship: grpc                  # double-tick chevron
+    label: ChargeRequest
+  - id: subscription-extends-order
+    from: subscription-order
+    to: order
+    relationship: extends               # UML hollow triangle
+  - id: cart-composes-order
+    from: cart
+    to: order
+    relationship: composes              # UML filled diamond at Cart
 ```
 
 ## CLI

@@ -5,6 +5,9 @@ export const ARROW_MARKER_FILLED = "archik-arrow-filled";
 export const ARROW_MARKER_OPEN = "archik-arrow-open";
 export const ARROW_MARKER_CIRCLE = "archik-arrow-circle";
 export const ARROW_MARKER_SELECTED = "archik-arrow-selected";
+export const ARROW_MARKER_UML_TRIANGLE = "archik-arrow-uml-triangle";
+export const ARROW_MARKER_UML_DIAMOND_FILLED = "archik-arrow-uml-diamond-filled";
+export const ARROW_MARKER_DOUBLE = "archik-arrow-double";
 
 type EdgeStyle = {
   /** Default stroke colour. Any edge with `color` set overrides this. */
@@ -14,21 +17,38 @@ type EdgeStyle = {
   strokeDasharray?: string;
   /** When true the polyline gets the marching-dots flow animation. */
   animated?: boolean;
-  /** Which arrow marker to use for the head. */
+  /** Faster variant of the marching-dots animation. */
+  animatedFast?: boolean;
+  /** Marker on the *target* end of the edge (always set). */
   markerId: string;
+  /**
+   * Optional marker on the *source* end. Used for bidirectional
+   * relationships (websocket) and UML composition's filled diamond
+   * which sits at the owner end.
+   */
+  markerStartId?: string;
 };
 
 const DEFAULT_STROKE = "var(--archik-edge-filled)";
 const STRUCTURAL_STROKE = "var(--archik-edge-dim)";
 
 const STYLES: Record<Relationship, EdgeStyle> = {
-  // -------- Data on wire — dotted + animated ----------------------------
+  // -------- Sync request / response over the wire ----------------------
   http_call: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
     markerId: ARROW_MARKER_FILLED,
+  },
+  grpc: {
+    // Typed RPC — heavier line + double-tick arrow head distinguishes
+    // from generic http.
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.8,
+    strokeDasharray: "3 4",
+    animated: true,
+    markerId: ARROW_MARKER_DOUBLE,
   },
   invokes: {
     stroke: DEFAULT_STROKE,
@@ -37,6 +57,34 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     animated: true,
     markerId: ARROW_MARKER_FILLED,
   },
+  routes_to: {
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_FILLED,
+  },
+
+  // -------- Persistent / async wire protocols --------------------------
+  websocket: {
+    // Long-lived bidirectional. Arrows on both ends, fast animation
+    // to evoke the always-on chatter.
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.6,
+    strokeDasharray: "4 3",
+    animatedFast: true,
+    markerId: ARROW_MARKER_FILLED,
+    markerStartId: ARROW_MARKER_FILLED,
+  },
+  webhook: {
+    // Async callback the other party pushes back. Long dashes hint at
+    // "delayed", animation kept slow to distinguish from http_call.
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.4,
+    strokeDasharray: "10 5",
+    animated: true,
+    markerId: ARROW_MARKER_OPEN,
+  },
+
+  // -------- Data access ------------------------------------------------
   reads: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.2,
@@ -51,6 +99,8 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     animated: true,
     markerId: ARROW_MARKER_FILLED,
   },
+
+  // -------- Messaging --------------------------------------------------
   publishes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
@@ -69,21 +119,35 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.7,
     strokeDasharray: "6 4",
-    animated: true,
+    animatedFast: true,
     markerId: ARROW_MARKER_FILLED,
   },
-  // -------- Routing — solid, no animation -------------------------------
-  routes_to: {
-    stroke: DEFAULT_STROKE,
-    strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
-  },
-  // -------- Structural relationships — static + muted -------------------
+
+  // -------- UML structural relationships -------------------------------
+  // implements / extends / composes follow UML class-diagram conventions
+  // so the visual matches what a software engineer expects on a board.
   implements: {
+    // Realisation of an abstract interface — UML: dashed line +
+    // hollow triangle at the interface end.
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    strokeDasharray: "8 3",
-    markerId: ARROW_MARKER_OPEN,
+    strokeDasharray: "8 4",
+    markerId: ARROW_MARKER_UML_TRIANGLE,
+  },
+  extends: {
+    // Inheritance — UML: solid line + hollow triangle at the parent end.
+    stroke: STRUCTURAL_STROKE,
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_UML_TRIANGLE,
+  },
+  composes: {
+    // Composition — UML: solid line + filled diamond at the *owner*
+    // end. ELK-rendered edges go from source → target, so we put the
+    // diamond at markerStart (source = the whole that owns).
+    stroke: STRUCTURAL_STROKE,
+    strokeWidth: 1.4,
+    markerId: ARROW_MARKER_FILLED,
+    markerStartId: ARROW_MARKER_UML_DIAMOND_FILLED,
   },
   depends_on: {
     stroke: STRUCTURAL_STROKE,
@@ -154,9 +218,17 @@ export function EdgeRenderer({
     : (edge.color ?? style.stroke);
   const strokeWidth = isSelected ? style.strokeWidth + 0.5 : style.strokeWidth;
   const markerId = isSelected ? ARROW_MARKER_SELECTED : style.markerId;
-  const polylineClass = style.animated && !isSelected
-    ? "archik-edge-flowing"
-    : undefined;
+  const markerStartId =
+    !isSelected && style.markerStartId !== undefined
+      ? style.markerStartId
+      : undefined;
+  const polylineClass = isSelected
+    ? undefined
+    : style.animatedFast
+      ? "archik-edge-flowing-fast"
+      : style.animated
+        ? "archik-edge-flowing"
+        : undefined;
 
   const handleClick = onSelectEdge
     ? (e: React.MouseEvent<SVGGElement>) => {
@@ -194,6 +266,9 @@ export function EdgeRenderer({
         strokeLinecap="round"
         strokeLinejoin="round"
         markerEnd={`url(#${markerId})`}
+        {...(markerStartId !== undefined
+          ? { markerStart: `url(#${markerStartId})` }
+          : {})}
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}

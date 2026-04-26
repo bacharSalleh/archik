@@ -55,7 +55,7 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   worker: CARD,
   agent: CARD,
   // Data
-  database: CARD,
+  database: { width: 180, height: 110 }, // cylinder needs vertical room for the top/bottom ellipses
   cache: CARD_SUBTITLE,
   vectordb: CARD,
   storage: CARD,
@@ -79,7 +79,7 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   // Observability
   observability: CARD,
   // Cloud
-  cloud: CARD,
+  cloud: { width: 200, height: 120 }, // cumulus bumps need vertical headroom
   // UI
   frontend: CARD_SUBTITLE,
   // External

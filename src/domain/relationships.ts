@@ -1,10 +1,14 @@
 import { z } from "zod";
 
 export const RELATIONSHIPS = [
-  // synchronous calls
-  "http_call",
-  "invokes",
-  "routes_to",
+  // synchronous calls — short-lived request/response over the wire
+  "http_call",       // generic HTTP / REST call
+  "grpc",            // typed RPC (protobuf, Connect, etc.)
+  "invokes",         // function/agent/lambda invocation
+  "routes_to",       // gateway / router forwarding requests
+  // bidirectional / persistent / async wire protocols
+  "websocket",       // long-lived bidirectional WS connection
+  "webhook",         // async callback the other party pushes to us
   // data access
   "reads",
   "writes",
@@ -13,10 +17,12 @@ export const RELATIONSHIPS = [
   "subscribes",
   "streams_to",
   // architectural / structural
-  "implements",
-  "depends_on",
-  "has_a",
-  "uses",
+  "implements",      // adapter implements an abstract interface
+  "extends",         // UML inheritance — subtype of another type
+  "composes",        // UML composition — whole owns the part's lifecycle
+  "depends_on",      // package / build-level dependency
+  "has_a",           // composition (looser than UML "composes")
+  "uses",            // lightest-weight relationship
 ] as const;
 
 export const RelationshipSchema = z.enum(RELATIONSHIPS);
