@@ -13,6 +13,10 @@ dist-ssr
 *.local
 *.tsbuildinfo
 
+# Local Claude harness state — may contain API tokens.
+.claude/settings.backup.json
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
