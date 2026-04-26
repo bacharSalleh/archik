@@ -1,14 +1,26 @@
 import path from "node:path";
-import { promises as fs } from "node:fs";
 import type { Plugin, ViteDevServer } from "vite";
+import { suggestionPath } from "../src/domain/suggestion.ts";
+import {
+  handleAccept,
+  handleDiffSvg,
+  handleSidecar,
+  handleYaml,
+} from "../src/server/handlers.ts";
 
 const FILE_NAME = "architecture.archik.yaml";
-const URL_PATH = `/${FILE_NAME}`;
-const WS_EVENT = "archik:doc-changed";
-const MIME = "application/yaml; charset=utf-8";
+const YAML_URL = `/${FILE_NAME}`;
+// Stable client URL — the on-disk sidecar respects the user's actual
+// extension (.yaml or .yml), but the canvas always asks here.
+const SIDECAR_URL = `/architecture.archik.suggested.yaml`;
+const ACCEPT_URL = "/__archik/accept-suggestion";
+const DIFF_SVG_URL = "/__archik/diff.svg";
+const DOC_EVENT = "archik:doc-changed";
+const SUGGESTION_EVENT = "archik:suggestion-changed";
 
 export function archikWatch(): Plugin {
-  let absPath = "";
+  let docPath = "";
+  let sidecarPath = "";
 
   return {
     name: "archik-watch",
@@ -18,53 +30,42 @@ export function archikWatch(): Plugin {
       // but the document lives wherever the user is working). Falls back
       // to the file inside the project root for plain `npm run dev`.
       const explicit = process.env["ARCHIK_DOC_PATH"];
-      absPath = explicit
+      docPath = explicit
         ? path.resolve(explicit)
         : path.resolve(server.config.root, FILE_NAME);
+      sidecarPath = suggestionPath(docPath);
 
-      server.middlewares.use(URL_PATH, async (req, res, next) => {
-        if (req.method === "GET" || req.method === "HEAD") {
-          try {
-            const text = await fs.readFile(absPath, "utf-8");
-            res.setHeader("content-type", MIME);
-            res.setHeader("cache-control", "no-store");
-            if (req.method === "HEAD") {
-              res.end();
-            } else {
-              res.end(text);
-            }
-          } catch (err) {
-            res.statusCode = 404;
-            const msg = err instanceof Error ? err.message : String(err);
-            res.end(`Not found: ${absPath}\n${msg}`);
-          }
-          return;
-        }
-        if (req.method === "PUT") {
-          try {
-            const chunks: Buffer[] = [];
-            for await (const chunk of req) chunks.push(chunk as Buffer);
-            const body = Buffer.concat(chunks).toString("utf-8");
-            await fs.writeFile(absPath, body, "utf-8");
-            res.statusCode = 204;
-            res.end();
-          } catch (err) {
-            res.statusCode = 500;
-            const msg = err instanceof Error ? err.message : String(err);
-            res.end(`Save failed: ${msg}`);
-          }
-          return;
-        }
-        return next();
+      server.middlewares.use(YAML_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleYaml(docPath, req, res);
       });
 
-      server.watcher.add(absPath);
+      server.middlewares.use(SIDECAR_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleSidecar(sidecarPath, req, res);
+      });
+
+      server.middlewares.use(ACCEPT_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleAccept(docPath, sidecarPath, req, res);
+      });
+
+      server.middlewares.use(DIFF_SVG_URL, (_req, res) => {
+        void handleDiffSvg(docPath, sidecarPath, res);
+      });
+
+      server.watcher.add([docPath, sidecarPath]);
       const onChange = (changedPath: string): void => {
-        if (path.resolve(changedPath) !== absPath) return;
-        server.ws.send({ type: "custom", event: WS_EVENT });
+        const resolved = path.resolve(changedPath);
+        if (resolved === docPath) {
+          server.ws.send({ type: "custom", event: DOC_EVENT });
+        } else if (resolved === sidecarPath) {
+          server.ws.send({ type: "custom", event: SUGGESTION_EVENT });
+        }
       };
       server.watcher.on("change", onChange);
       server.watcher.on("add", onChange);
+      server.watcher.on("unlink", onChange);
     },
   };
 }
