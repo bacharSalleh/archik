@@ -122,10 +122,10 @@ The full schema reference (every node kind, every relationship, common patterns,
 
 ```bash
 archik skill --user
-$EDITOR ~/.claude/skills/archik.md
+$EDITOR ~/.claude/skills/archik/SKILL.md
 ```
 
-Or read it directly in this repo: [`.claude/skills/archik.md`](.claude/skills/archik.md).
+Or read it directly in this repo: [`.claude/skills/archik/SKILL.md`](.claude/skills/archik/SKILL.md).
 
 ## Design notes
 

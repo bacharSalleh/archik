@@ -23,7 +23,7 @@
     "bin",
     "dist",
     "docs/hero.svg",
-    ".claude/skills/archik.md",
+    ".claude/skills/archik",
     "README.md",
     "LICENSE"
   ],

@@ -18,7 +18,18 @@ export async function installSkill(args: {
   // pkgRoot() handles both dev (src/) and bundled (dist/cli/archik.mjs)
   // entry points; the previous walk-up-3-levels trick worked in dev but
   // overshot to `node_modules/` in the bundled install.
-  const source = path.join(pkgRoot(), ".claude", "skills", "archik.md");
+  //
+  // Skill layout follows Claude Code convention:
+  //   .claude/skills/<skill-name>/SKILL.md
+  // so future skills (e.g. archik-validate) can sit alongside as
+  // siblings without colliding.
+  const source = path.join(
+    pkgRoot(),
+    ".claude",
+    "skills",
+    "archik",
+    "SKILL.md",
+  );
 
   try {
     await stat(source);
@@ -26,11 +37,12 @@ export async function installSkill(args: {
     return { ok: false, reason: "missing-source", source };
   }
 
-  const targetDir =
+  const skillsDir =
     args.scope === "user"
       ? path.join(os.homedir(), ".claude", "skills")
       : path.resolve(".claude", "skills");
-  const target = path.join(targetDir, "archik.md");
+  const targetDir = path.join(skillsDir, "archik");
+  const target = path.join(targetDir, "SKILL.md");
 
   if (!args.force) {
     try {
