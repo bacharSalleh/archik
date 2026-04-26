@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # needed for npm provenance attestations
+      id-token: write   # OIDC: lets GitHub mint the token npm exchanges
+                        # for short-lived publish credentials. Required for
+                        # both Trusted Publishing and `--provenance`.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
 
       # `prepublishOnly` runs typecheck + tests + build for us, so the
       # publish step doesn't need a separate `npm run build` here.
+      # Auth comes from OIDC (Trusted Publishing on npmjs.com) — no
+      # NPM_TOKEN secret stored anywhere.
       - name: Publish
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
