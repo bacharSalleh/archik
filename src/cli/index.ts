@@ -11,6 +11,7 @@ import { skillCommand } from "./commands/skill.ts";
 import { startCommand } from "./commands/start.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { statusCommand } from "./commands/status.ts";
+import { diffCommand } from "./commands/diff.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -52,6 +53,9 @@ COMMANDS
                     --theme <name>   "dark" (default) or "light"
   watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
   check [path]      Drift detection — flag nodes without source dirs
+  diff <a> <b>      Show what changed between two architecture YAMLs
+                    --out <file>     also write a colour-coded SVG diff
+                    --theme <name>   "dark" (default) or "light"
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -85,6 +89,8 @@ async function main(): Promise<number> {
       return checkCommand(opts);
     case "skill":
       return skillCommand(opts);
+    case "diff":
+      return diffCommand(opts);
     case "--version":
     case "-v":
     case "version":

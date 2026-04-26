@@ -109,6 +109,65 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
 };
 
+type InnerProps = {
+  positioned: PositionedDocument;
+  viewMode?: ViewMode;
+  selectedNodeIds?: ReadonlySet<string>;
+  selectedEdgeIds?: ReadonlySet<string>;
+  onSelectNode?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
+  onSelectEdge?:
+    | ((id: string, event: React.MouseEvent) => void)
+    | undefined;
+};
+
+/**
+ * The defs + edges + nodes block, without the surrounding <svg>.
+ * Reusable from DiffSvg (and any future renderer that wants to layer
+ * its own annotations on top of the standard diagram).
+ */
+export function DiagramInner({
+  positioned,
+  viewMode = "detailed",
+  selectedNodeIds,
+  selectedEdgeIds,
+  onSelectNode,
+  onSelectEdge,
+}: InnerProps): React.ReactElement {
+  return (
+    <>
+      <defs>
+        <FilledTriangleMarker id={ARROW_MARKER_FILLED} />
+        <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
+        <FilledCircleMarker id={ARROW_MARKER_CIRCLE} />
+        <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
+      </defs>
+      <g className="archik-edges">
+        {positioned.edges.map((edge) => (
+          <EdgeRenderer
+            key={edge.id}
+            edge={edge}
+            {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
+            {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+          />
+        ))}
+      </g>
+      <g className="archik-nodes">
+        {positioned.roots.map((node) => (
+          <NodeRenderer
+            key={node.id}
+            node={node}
+            viewMode={viewMode}
+            {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+            {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+          />
+        ))}
+      </g>
+    </>
+  );
+}
+
 function findNodeCenter(
   positioned: PositionedDocument,
   id: string,
@@ -168,33 +227,14 @@ export function DiagramSvg({
       style={{ display: "block", flexShrink: 0 }}
       onClick={onSelectNothing}
     >
-      <defs>
-        <FilledTriangleMarker id={ARROW_MARKER_FILLED} />
-        <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
-        <FilledCircleMarker id={ARROW_MARKER_CIRCLE} />
-        <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
-      </defs>
-      <g className="archik-edges">
-        {positioned.edges.map((edge) => (
-          <EdgeRenderer
-            key={edge.id}
-            edge={edge}
-            {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
-            {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
-          />
-        ))}
-      </g>
-      <g className="archik-nodes">
-        {positioned.roots.map((node) => (
-          <NodeRenderer
-            key={node.id}
-            node={node}
-            viewMode={viewMode}
-            {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
-            {...(onSelectNode !== undefined ? { onSelectNode } : {})}
-          />
-        ))}
-      </g>
+      <DiagramInner
+        positioned={positioned}
+        viewMode={viewMode}
+        {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+        {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
+        {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+        {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+      />
       {dragGhost && ghostStart && (
         <g className="archik-drag-ghost" pointerEvents="none">
           <line
