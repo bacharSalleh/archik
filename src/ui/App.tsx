@@ -4,8 +4,12 @@ import {
   loadDocumentFromUrlWithText,
   saveDocumentToUrl,
 } from "../io/fileAdapter.ts";
-import { stringifyYaml } from "../io/yaml.ts";
-import { subscribeToDocumentChanges } from "../io/liveReload.ts";
+import { parseYaml, stringifyYaml } from "../io/yaml.ts";
+import {
+  subscribeToDocumentChanges,
+  subscribeToSuggestionChanges,
+} from "../io/liveReload.ts";
+import { diffDocuments } from "../domain/diff.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
@@ -25,6 +29,9 @@ import {
 import type { ViewMode } from "../layout/types.ts";
 
 const DOCUMENT_URL = "/architecture.archik.yaml";
+const SUGGESTION_URL = "/architecture.archik.suggested.yaml";
+const ACCEPT_URL = "/__archik/accept-suggestion";
+const DIFF_SVG_URL = "/__archik/diff.svg";
 const SAVED_INDICATOR_MS = 1500;
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -44,6 +51,20 @@ export function App(): React.ReactElement {
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isDirty, setIsDirty] = useState(false);
+  // Pending Claude-authored suggestion sidecar. Banner shows when
+  // present; user picks Review (opens server-rendered diff in a new
+  // tab), Accept (POST → main becomes sidecar), or Reject (DELETE).
+  const [suggestion, setSuggestion] = useState<
+    | { status: "none" }
+    | {
+        status: "pending";
+        added: number;
+        removed: number;
+        changed: number;
+        note?: string | undefined;
+      }
+    | { status: "error"; message: string }
+  >({ status: "none" });
   // Undo / redo stacks. Each successful command snapshots the previous
   // document to `past` and clears `future`. Externally-driven loads
   // (file watcher, fresh fetch) reset both — undo can't span across.
@@ -156,6 +177,113 @@ export function App(): React.ReactElement {
         clearTimeout(savedIndicatorTimerRef.current);
       }
     };
+  }, []);
+
+  // Pending-suggestion poll. Runs whenever the main doc reloads (so
+  // the diff stats refresh against the latest truth) and on every
+  // `archik:suggestion-changed` event from the dev server.
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    const currentDoc = state.document;
+    let cancelled = false;
+    const loadSuggestion = async (): Promise<void> => {
+      try {
+        const res = await fetch(SUGGESTION_URL, { cache: "no-store" });
+        if (cancelled) return;
+        if (res.status === 404) {
+          setSuggestion({ status: "none" });
+          return;
+        }
+        if (!res.ok) {
+          setSuggestion({
+            status: "error",
+            message: `Sidecar fetch failed: HTTP ${res.status}`,
+          });
+          return;
+        }
+        const text = await res.text();
+        let sidecarDoc: Document;
+        try {
+          sidecarDoc = parseYaml(text);
+        } catch (err) {
+          setSuggestion({
+            status: "error",
+            message: err instanceof Error ? err.message : String(err),
+          });
+          return;
+        }
+        const diff = diffDocuments(currentDoc, sidecarDoc);
+        setSuggestion({
+          status: "pending",
+          added: diff.nodes.added.length + diff.edges.added.length,
+          removed: diff.nodes.removed.length + diff.edges.removed.length,
+          changed: diff.nodes.changed.length + diff.edges.changed.length,
+          ...(sidecarDoc.metadata?.suggestion?.note !== undefined
+            ? { note: sidecarDoc.metadata.suggestion.note }
+            : {}),
+        });
+      } catch (err) {
+        if (cancelled) return;
+        setSuggestion({
+          status: "error",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    };
+    void loadSuggestion();
+    const unsubscribe = subscribeToSuggestionChanges(loadSuggestion);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [state]);
+
+  const acceptSuggestion = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch(ACCEPT_URL, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.text();
+        setSuggestion({
+          status: "error",
+          message: `Accept failed: ${body || `HTTP ${res.status}`}`,
+        });
+        return;
+      }
+      setSuggestion({ status: "none" });
+      // The watcher will fire archik:doc-changed and the main load
+      // effect will repaint with the new YAML.
+    } catch (err) {
+      setSuggestion({
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, []);
+
+  const rejectSuggestion = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch(SUGGESTION_URL, { method: "DELETE" });
+      if (!res.ok && res.status !== 404) {
+        const body = await res.text();
+        setSuggestion({
+          status: "error",
+          message: `Reject failed: ${body || `HTTP ${res.status}`}`,
+        });
+        return;
+      }
+      setSuggestion({ status: "none" });
+    } catch (err) {
+      setSuggestion({
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, []);
+
+  const reviewSuggestion = useCallback((): void => {
+    if (typeof window !== "undefined") {
+      window.open(DIFF_SVG_URL, "_blank", "noopener,noreferrer");
+    }
   }, []);
 
   const save = useCallback(async () => {
@@ -520,6 +648,52 @@ export function App(): React.ReactElement {
             }
           : {})}
       />
+      {suggestion.status === "pending" && (
+        <SuggestionBanner
+          added={suggestion.added}
+          removed={suggestion.removed}
+          changed={suggestion.changed}
+          note={suggestion.note}
+          onReview={reviewSuggestion}
+          onAccept={() => void acceptSuggestion()}
+          onReject={() => void rejectSuggestion()}
+        />
+      )}
+      {suggestion.status === "error" && (
+        <div
+          role="alert"
+          style={{
+            background: "rgba(217, 119, 6, 0.12)",
+            borderBottom: "1px solid rgba(217, 119, 6, 0.45)",
+            color: "var(--archik-warning)",
+            padding: "8px 16px",
+            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span style={{ fontWeight: 700 }}>SUGGESTION ERROR —</span>
+          <span style={{ flex: 1, color: "var(--archik-fg)" }}>
+            {suggestion.message}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSuggestion({ status: "none" })}
+            aria-label="Dismiss"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--archik-fg-dim)",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {reloadError !== undefined && (
         <div
           role="alert"
@@ -698,6 +872,119 @@ function Splash({ children }: { children: React.ReactNode }): React.ReactElement
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function SuggestionBanner({
+  added,
+  removed,
+  changed,
+  note,
+  onReview,
+  onAccept,
+  onReject,
+}: {
+  added: number;
+  removed: number;
+  changed: number;
+  note?: string | undefined;
+  onReview: () => void;
+  onAccept: () => void;
+  onReject: () => void;
+}): React.ReactElement {
+  const total = added + removed + changed;
+  return (
+    <div
+      role="region"
+      aria-label="Pending suggestion"
+      style={{
+        background: "rgba(168, 85, 247, 0.12)",
+        borderBottom: "1px solid rgba(168, 85, 247, 0.45)",
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        fontSize: 12,
+        lineHeight: 1.4,
+      }}
+    >
+      <span
+        style={{
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          color: "#c4b5fd",
+        }}
+      >
+        📝 SUGGESTION PENDING
+      </span>
+      <span style={{ color: "var(--archik-fg)" }}>
+        {total === 0 ? (
+          "(identical to current — nothing to apply)"
+        ) : (
+          <>
+            <span style={{ color: "var(--archik-success)" }}>
+              +{added}
+            </span>{" "}
+            <span style={{ color: "var(--archik-danger)" }}>
+              −{removed}
+            </span>{" "}
+            <span style={{ color: "var(--archik-warning)" }}>
+              ~{changed}
+            </span>
+          </>
+        )}
+        {note ? (
+          <span
+            style={{
+              marginLeft: 10,
+              color: "var(--archik-fg-dim)",
+              fontStyle: "italic",
+            }}
+          >
+            "{note}"
+          </span>
+        ) : null}
+      </span>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={onReview}
+          className="archik-btn"
+          style={{ padding: "5px 12px", fontSize: 12 }}
+        >
+          Review
+        </button>
+        <button
+          type="button"
+          onClick={onAccept}
+          disabled={total === 0}
+          className="archik-btn"
+          style={{
+            padding: "5px 12px",
+            fontSize: 12,
+            background: "var(--archik-success)",
+            color: "white",
+            borderColor: "var(--archik-success)",
+            opacity: total === 0 ? 0.5 : 1,
+          }}
+        >
+          Accept
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="archik-btn"
+          style={{
+            padding: "5px 12px",
+            fontSize: 12,
+            color: "var(--archik-danger)",
+            borderColor: "var(--archik-danger)",
+          }}
+        >
+          Reject
+        </button>
+      </div>
     </div>
   );
 }

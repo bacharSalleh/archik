@@ -12,6 +12,7 @@ import { startCommand } from "./commands/start.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { statusCommand } from "./commands/status.ts";
 import { diffCommand } from "./commands/diff.ts";
+import { suggestCommand } from "./commands/suggest.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -56,6 +57,10 @@ COMMANDS
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
+  suggest [sub]     Manage Claude's pending architecture suggestion
+                    show             summarise the pending sidecar (default)
+                    accept           apply the sidecar over the main file
+                    reject           discard the sidecar
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -91,6 +96,8 @@ async function main(): Promise<number> {
       return skillCommand(opts);
     case "diff":
       return diffCommand(opts);
+    case "suggest":
+      return suggestCommand(opts);
     case "--version":
     case "-v":
     case "version":

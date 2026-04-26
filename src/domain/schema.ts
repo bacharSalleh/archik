@@ -39,9 +39,27 @@ export const EdgeSchema = z.strictObject({
   color: z.string().optional(),
 });
 
+/**
+ * Marker block that turns a regular document into a "suggestion"
+ * sidecar. When present, archik treats the file as Claude's draft of
+ * a proposed architecture change rather than the source of truth.
+ *
+ *   metadata:
+ *     suggestion:
+ *       from: "architecture.archik.yaml"   # the file this proposes to change
+ *       at: "2026-04-26T17:00:00Z"          # when the suggestion was authored
+ *       note: "add Stripe payment flow"     # optional one-liner
+ */
+export const SuggestionMetadataSchema = z.strictObject({
+  from: z.string().min(1),
+  at: z.string().min(1),
+  note: z.string().optional(),
+});
+
 export const DocumentMetadataSchema = z.strictObject({
-  createdAt: z.string().min(1),
-  updatedAt: z.string().min(1),
+  createdAt: z.string().min(1).optional(),
+  updatedAt: z.string().min(1).optional(),
+  suggestion: SuggestionMetadataSchema.optional(),
 });
 
 export const DocumentSchema = z

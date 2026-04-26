@@ -1,18 +1,32 @@
 export const DOCUMENT_CHANGED_EVENT = "archik:doc-changed";
+export const SUGGESTION_CHANGED_EVENT = "archik:suggestion-changed";
 
 type Listener = () => void;
-const listeners = new Set<Listener>();
+const docListeners = new Set<Listener>();
+const suggestionListeners = new Set<Listener>();
 
 export function subscribeToDocumentChanges(listener: Listener): () => void {
   attachLiveReload();
-  listeners.add(listener);
+  docListeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    docListeners.delete(listener);
+  };
+}
+
+export function subscribeToSuggestionChanges(listener: Listener): () => void {
+  attachLiveReload();
+  suggestionListeners.add(listener);
+  return () => {
+    suggestionListeners.delete(listener);
   };
 }
 
 export function emitDocumentChanged(): void {
-  for (const l of [...listeners]) l();
+  for (const l of [...docListeners]) l();
+}
+
+export function emitSuggestionChanged(): void {
+  for (const l of [...suggestionListeners]) l();
 }
 
 // Live-reload comes from one of two sources:
@@ -32,6 +46,9 @@ function attachLiveReload(): void {
       events.addEventListener(DOCUMENT_CHANGED_EVENT, () =>
         emitDocumentChanged(),
       );
+      events.addEventListener(SUGGESTION_CHANGED_EVENT, () =>
+        emitSuggestionChanged(),
+      );
     } catch {
       // sandbox / CSP blocks EventSource — canvas still loads, just
       // without live reload.
@@ -39,5 +56,6 @@ function attachLiveReload(): void {
   }
   if (import.meta.hot) {
     import.meta.hot.on(DOCUMENT_CHANGED_EVENT, emitDocumentChanged);
+    import.meta.hot.on(SUGGESTION_CHANGED_EVENT, emitSuggestionChanged);
   }
 }

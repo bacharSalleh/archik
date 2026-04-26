@@ -5,13 +5,48 @@ import { stringifyYaml } from "../io/yaml.ts";
 import { ordersDocument } from "../domain/__fixtures__/orders.ts";
 import { emitDocumentChanged } from "../io/liveReload.ts";
 
+const SUGGESTION_URL = "/architecture.archik.suggested.yaml";
+
+/**
+ * Wrap the original fetch with a router that always 404s the
+ * suggestion-sidecar URL so App's pending-suggestion poll doesn't
+ * consume one of the test's mocked-doc responses. Each test still
+ * controls the main /architecture.archik.yaml call via its own
+ * mockResolvedValueOnce on globalThis.fetch.
+ */
+function mockFetchWithSuggestionDisabled(...mainResponses: Response[]) {
+  let mainCalls = 0;
+  const impl = async (
+    input: URL | RequestInfo,
+    _init?: RequestInit,
+  ): Promise<Response> => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : (input as Request).url;
+    if (url.includes(SUGGESTION_URL)) {
+      return { ok: false, status: 404, statusText: "Not Found" } as Response;
+    }
+    const next = mainResponses[mainCalls++];
+    if (next === undefined) {
+      throw new Error(`unexpected fetch to ${url} (no more mocked responses)`);
+    }
+    return next;
+  };
+  return vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(impl as typeof globalThis.fetch);
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("App", () => {
   it("renders the project name and the document name once loaded", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    mockFetchWithSuggestionDisabled({
       ok: true,
       text: async () => stringifyYaml(ordersDocument),
     } as Response);
@@ -24,7 +59,7 @@ describe("App", () => {
   });
 
   it("shows an error if the document fails to load", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    mockFetchWithSuggestionDisabled({
       ok: false,
       status: 404,
       statusText: "Not Found",
@@ -38,16 +73,16 @@ describe("App", () => {
 
   it("refetches the document when emitDocumentChanged fires", async () => {
     const renamed = { ...ordersDocument, name: "Live-reloaded" };
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
+    const fetchSpy = mockFetchWithSuggestionDisabled(
+      {
         ok: true,
         text: async () => stringifyYaml(ordersDocument),
-      } as Response)
-      .mockResolvedValueOnce({
+      } as Response,
+      {
         ok: true,
         text: async () => stringifyYaml(renamed),
-      } as Response);
+      } as Response,
+    );
 
     render(<App />);
     await waitFor(() => {
@@ -59,6 +94,12 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText(renamed.name)).toBeInTheDocument();
     });
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    // Two main-doc fetches plus any number of suggestion 404s — only
+    // assert the doc fetches landed.
+    const mainCalls = fetchSpy.mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return !url.includes(SUGGESTION_URL);
+    });
+    expect(mainCalls).toHaveLength(2);
   });
 });

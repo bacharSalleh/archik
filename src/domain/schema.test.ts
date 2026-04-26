@@ -240,13 +240,28 @@ describe("DocumentSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects metadata missing one of createdAt/updatedAt", () => {
+  it("accepts metadata with only one of createdAt/updatedAt (both optional)", () => {
     expect(
       DocumentSchema.safeParse({
         ...minimal,
         metadata: { createdAt: "2026-04-25T00:00:00Z" },
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("accepts metadata.suggestion as a sidecar marker", () => {
+    expect(
+      DocumentSchema.safeParse({
+        ...minimal,
+        metadata: {
+          suggestion: {
+            from: "architecture.archik.yaml",
+            at: "2026-04-26T17:00:00Z",
+            note: "add Stripe",
+          },
+        },
+      }).success,
+    ).toBe(true);
   });
 
   describe("cross-reference rules", () => {

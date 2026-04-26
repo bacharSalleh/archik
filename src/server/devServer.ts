@@ -7,9 +7,16 @@
  */
 import { promises as fs, createReadStream } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { basename, extname, join, normalize, resolve, sep } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import chokidar from "chokidar";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
+import { suggestionPath, stripSuggestionMarker } from "../domain/suggestion.ts";
+import { parseYaml, stringifyYaml } from "../io/yaml.ts";
+import { layout } from "../layout/index.ts";
+import { DiffSvg } from "../render/DiffSvg.tsx";
 
 export type DevServerOptions = {
   /** Absolute path to the project's architecture YAML. */
@@ -31,7 +38,10 @@ export type DevServerHandle = {
 
 const YAML_URL = "/architecture.archik.yaml";
 const EVENTS_URL = "/__archik/events";
+const ACCEPT_URL = "/__archik/accept-suggestion";
+const DIFF_SVG_URL = "/__archik/diff.svg";
 const SSE_KEEPALIVE_MS = 25_000;
+
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -140,6 +150,137 @@ function isWriteAllowed(req: IncomingMessage): boolean {
     }
   }
   return true;
+}
+
+/**
+ * GET / HEAD / PUT / DELETE for the suggestion sidecar. Same
+ * loopback + same-origin write protection as the main YAML.
+ */
+async function handleSidecar(
+  sidecarPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (req.method === "GET" || req.method === "HEAD") {
+    try {
+      const text = await fs.readFile(sidecarPath, "utf-8");
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/yaml; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      if (req.method === "HEAD") res.end();
+      else res.end(text);
+    } catch {
+      res.statusCode = 404;
+      res.setHeader("content-type", "text/plain; charset=utf-8");
+      res.end("No suggestion pending.");
+    }
+    return;
+  }
+  if (req.method === "PUT") {
+    if (!isWriteAllowed(req)) {
+      res.statusCode = 403;
+      res.end("Forbidden");
+      return;
+    }
+    try {
+      const body = await readBody(req);
+      await fs.writeFile(sidecarPath, body, "utf-8");
+      res.statusCode = 204;
+      res.end();
+    } catch (err) {
+      res.statusCode = 500;
+      res.end(err instanceof Error ? err.message : String(err));
+    }
+    return;
+  }
+  if (req.method === "DELETE") {
+    if (!isWriteAllowed(req)) {
+      res.statusCode = 403;
+      res.end("Forbidden");
+      return;
+    }
+    try {
+      await fs.unlink(sidecarPath);
+    } catch {
+      // already gone — treat as success (idempotent reject).
+    }
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+  res.statusCode = 405;
+  res.setHeader("allow", "GET, HEAD, PUT, DELETE");
+  res.end();
+}
+
+/**
+ * POST endpoint that accepts the suggestion: read sidecar, validate,
+ * strip the suggestion marker, write to main, delete sidecar.
+ */
+async function handleAccept(
+  mainPath: string,
+  sidecarPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (req.method !== "POST") {
+    res.statusCode = 405;
+    res.setHeader("allow", "POST");
+    res.end();
+    return;
+  }
+  if (!isWriteAllowed(req)) {
+    res.statusCode = 403;
+    res.end("Forbidden");
+    return;
+  }
+  try {
+    const text = await fs.readFile(sidecarPath, "utf-8");
+    const doc = parseYaml(text); // Zod-validates incl. cross-refs
+    const cleaned = stripSuggestionMarker(doc);
+    await fs.writeFile(mainPath, stringifyYaml(cleaned), "utf-8");
+    await fs.unlink(sidecarPath);
+    res.statusCode = 204;
+    res.end();
+  } catch (err) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Server-side render the diff between main YAML and the suggestion
+ * sidecar, returning a self-contained SVG. The canvas opens this in
+ * a new tab when the user clicks "Review" on the suggestion banner.
+ */
+async function handleDiffSvg(
+  mainPath: string,
+  sidecarPath: string,
+  res: ServerResponse,
+): Promise<void> {
+  try {
+    const [mainText, sidecarText] = await Promise.all([
+      fs.readFile(mainPath, "utf-8"),
+      fs.readFile(sidecarPath, "utf-8"),
+    ]);
+    const mainDoc = parseYaml(mainText);
+    const sidecarDoc = parseYaml(sidecarText);
+    const merged = mergeForDiff(mainDoc, sidecarDoc);
+    const positioned = await layout(merged);
+    const diff = diffDocuments(mainDoc, sidecarDoc);
+    const svg = renderToStaticMarkup(
+      createElement(DiffSvg, { positioned, statuses: statusMap(diff) }),
+    );
+    res.statusCode = 200;
+    res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+    res.setHeader("cache-control", "no-store");
+    res.end(`<?xml version="1.0" encoding="UTF-8"?>\n${svg}\n`);
+  } catch (err) {
+    res.statusCode = 404;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(err instanceof Error ? err.message : String(err));
+  }
 }
 
 async function handleYaml(
@@ -260,12 +401,32 @@ export async function startDevServer(
 
   const port = await findFreePort(host, requestedPort);
   const clients = new Set<SseClient>();
+  const sidecarPath = suggestionPath(docPath);
+  // The on-disk file lives next to the YAML (`<stem>.suggested<ext>`);
+  // expose it on the same URL stem so the canvas can fetch / save it.
+  const sidecarFilename = basename(sidecarPath);
+  const SIDECAR_URL = `/${sidecarFilename}`;
 
   const server = createServer((req, res) => {
     const url = req.url ?? "/";
 
     if (url === YAML_URL || url.startsWith(YAML_URL + "?")) {
       void handleYaml(docPath, req, res);
+      return;
+    }
+
+    if (url === SIDECAR_URL || url.startsWith(SIDECAR_URL + "?")) {
+      void handleSidecar(sidecarPath, req, res);
+      return;
+    }
+
+    if (url === ACCEPT_URL) {
+      void handleAccept(docPath, sidecarPath, req, res);
+      return;
+    }
+
+    if (url === DIFF_SVG_URL || url.startsWith(DIFF_SVG_URL + "?")) {
+      void handleDiffSvg(docPath, sidecarPath, res);
       return;
     }
 
@@ -292,14 +453,22 @@ export async function startDevServer(
     });
   });
 
-  // Watch the YAML and notify connected browsers.
-  const watcher = chokidar.watch(docPath, {
+  // Watch the YAML and the sidecar; broadcast a change event for either
+  // so the canvas knows to reload the doc / banner.
+  const watcher = chokidar.watch([docPath, sidecarPath], {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 50, pollInterval: 10 },
   });
-  const onChange = (): void => broadcast(clients, "archik:doc-changed");
+  const onChange = (changedPath: string): void => {
+    const event =
+      changedPath === sidecarPath
+        ? "archik:suggestion-changed"
+        : "archik:doc-changed";
+    broadcast(clients, event);
+  };
   watcher.on("change", onChange);
   watcher.on("add", onChange);
+  watcher.on("unlink", onChange);
 
   const url = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}/`;
 

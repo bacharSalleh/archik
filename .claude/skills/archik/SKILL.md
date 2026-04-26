@@ -20,15 +20,70 @@ can talk about the system without re-explaining it every time.
 1. **Before** answering structural questions — *"what does X do?",
    "what depends on Y?", "where does data flow when …?"* — read
    `architecture.archik.yaml`. Don't guess from filenames or memory.
-2. **When** work introduces, removes, or rewires components, propose
-   an update to the YAML alongside the implementation. The user owns
-   the file — suggest, don't silently apply.
-3. **After** every edit to the YAML, run `archik validate`. Fix any
+2. **When** work introduces, removes, or rewires components, write
+   the proposed end-state to `architecture.archik.suggested.yaml`
+   (same schema, plus a `metadata.suggestion` block — see "Suggesting
+   changes" below). Don't edit `architecture.archik.yaml` directly;
+   the user reviews and accepts in the canvas or via
+   `archik suggest accept`.
+3. **After** every edit to a YAML, run `archik validate`. Fix any
    reported errors before declaring the change done.
 
 The sections below are the detailed reference behind these three
 rules — *when* to consult, *when* to propose, schema, taxonomy,
 relationship vocabulary, and CLI.
+
+## Suggesting changes (the sidecar workflow)
+
+The `archik.yaml` is the user's source of truth. You don't get to
+mutate it directly. Instead, write your proposed end-state to a
+sidecar file:
+
+```
+architecture.archik.yaml             ← truth — user owns it
+architecture.archik.suggested.yaml   ← your draft proposal
+```
+
+The sidecar is a complete, valid Archik document — same schema as the
+main file, plus a `metadata.suggestion` block that marks it as a
+proposal:
+
+```yaml
+version: "1.0"
+name: My Architecture
+metadata:
+  suggestion:
+    from: architecture.archik.yaml
+    at: 2026-04-26T17:00:00Z
+    note: add Stripe payment flow         # optional one-liner
+nodes:
+  # ... entire proposed end-state, not just the delta
+edges:
+  # ...
+```
+
+Once you've written the sidecar:
+
+* The canvas shows a **📝 Suggestion pending** banner with `Review`,
+  `Accept`, `Reject` buttons. Review opens a colour-coded SVG diff in
+  a new tab; Accept renames the sidecar over the main file; Reject
+  deletes the sidecar.
+* From the terminal: `archik suggest show | accept | reject`.
+
+If the user has no canvas open and asks "apply it", run
+`archik suggest accept` for them (only after they've explicitly
+asked).
+
+**Key rules:**
+
+* Write the *full proposed document*, not a patch. The diff is
+  computed by archik between the main file and the sidecar.
+* Run `archik validate architecture.archik.suggested.yaml` after
+  writing. The schema enforces cross-references (no dangling edges,
+  no parent cycles, no duplicate ids); silent failures are not OK.
+* If a suggestion sidecar already exists, treat it as your previous
+  proposal — extend or replace it. Don't write a new sidecar with a
+  different name.
 
 ## When to consult the YAML
 
@@ -296,6 +351,11 @@ archik validate                    # schema check (run after every edit)
 archik validate path/to/file.yaml
 archik render --out diagram.svg    # headless layout → SVG
 archik render --theme light --out diagram-light.svg
+archik diff a.yaml b.yaml          # text + colour-coded SVG diff
+archik diff a.yaml b.yaml --out diff.svg
+archik suggest show                # summary of pending sidecar (default)
+archik suggest accept              # apply the sidecar over the main file
+archik suggest reject              # discard the sidecar
 archik watch                       # re-render SVG on save
 archik check                       # drift: nodes vs source dirs
 archik dev                         # open the live editor in the browser (foreground)
