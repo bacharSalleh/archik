@@ -22,6 +22,12 @@ function Shape({
   if (viewMode === "compact") {
     return <CompactNode node={node} selected={selected} depth={depth} />;
   }
+  // Any node with children is a container — the kind decides the icon
+  // and accent color, but the structure has to be container-style or
+  // the children render *on top of* the leaf card's body text.
+  if (node.children.length > 0) {
+    return <CustomNode node={node} selected={selected} depth={depth} />;
+  }
   switch (node.kind) {
     case "queue":
       return <QueueNode node={node} selected={selected} />;
@@ -83,9 +89,7 @@ export function NodeRenderer({
   depth = 0,
 }: Props): React.ReactElement {
   const isSelected = selectedNodeIds?.has(node.id) ?? false;
-  const isContainer =
-    (node.kind === "module" || node.kind === "custom") &&
-    node.children.length > 0;
+  const isContainer = node.children.length > 0;
   const childDepth = isContainer ? depth + 1 : depth;
 
   const handleClick = onSelectNode
@@ -107,7 +111,7 @@ export function NodeRenderer({
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
-      {viewMode === "detailed" && node.kind !== "custom" && node.kind !== "module" && (() => {
+      {viewMode === "detailed" && !isContainer && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
         const trayItems: Array<"info" | "notes"> = [];

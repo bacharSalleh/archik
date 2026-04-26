@@ -171,18 +171,16 @@ function toElkNode(
   };
   if (children.length > 0) {
     elk.children = children;
-    // Containers reserve top space for the CustomNode/ContainerChip
-    // header. Compact mode's header is shorter (24px) than detailed's
-    // (32px), so the padding differs to match.
-    if (node.kind === "module" || node.kind === "custom") {
-      const pad =
-        viewMode === "compact"
-          ? { top: 30, left: 12, bottom: 12, right: 12 }
-          : CONTAINER_PADDING;
-      elk.layoutOptions = {
-        "elk.padding": `[top=${pad.top}, left=${pad.left}, bottom=${pad.bottom}, right=${pad.right}]`,
-      };
-    }
+    // Any node with children is a container. Reserve top space for the
+    // CustomNode / ContainerChip header. Compact mode's header is
+    // shorter (24px) than detailed's (32px), so the padding differs.
+    const pad =
+      viewMode === "compact"
+        ? { top: 30, left: 12, bottom: 12, right: 12 }
+        : CONTAINER_PADDING;
+    elk.layoutOptions = {
+      "elk.padding": `[top=${pad.top}, left=${pad.left}, bottom=${pad.bottom}, right=${pad.right}]`,
+    };
   }
   return elk;
 }

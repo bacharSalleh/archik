@@ -36,14 +36,16 @@ export function CompactNode({
   const meta = KIND_META[node.kind];
   const Icon = meta.icon;
 
-  const isContainer = node.kind === "module" || node.kind === "custom";
   const isExternal = node.kind === "external";
 
-  if (isContainer) {
-    if (node.children.length === 0) {
-      return <PlaceholderChip node={node} selected={!!selected} />;
-    }
+  // Any node with children renders as a container chip — leaf chip
+  // shapes have no body to fit children inside.
+  if (node.children.length > 0) {
     return <ContainerChip node={node} selected={!!selected} depth={depth} />;
+  }
+  // Empty module/custom is a placeholder reminder.
+  if (node.kind === "module" || node.kind === "custom") {
+    return <PlaceholderChip node={node} selected={!!selected} />;
   }
 
   const stroke = selected
