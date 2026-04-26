@@ -85,7 +85,11 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   if (!ready) {
     if (isAlive(groupPid)) {
       try {
-        process.kill(-groupPid, "SIGTERM");
+        // Kill the spawned bin process — that's the group leader because
+        // we created it with detached:true. Its blocking spawnSync of the
+        // inner dev means killing bin (or its child) brings the whole
+        // chain down.
+        process.kill(groupPid, "SIGTERM");
       } catch {
         // best effort
       }

@@ -5,13 +5,20 @@ import type { ParsedOptions } from "../options.ts";
 
 const SIGTERM_GRACE_MS = 5_000;
 
-function killGroup(pid: number, signal: NodeJS.Signals): void {
+/**
+ * Send `signal` to `pid`, swallowing ESRCH (process already dead).
+ *
+ * We do NOT use process.kill(-pid, …) here. The state file stores the
+ * dev process's own PID, which is not a process group leader (the
+ * group leader is the outer `bin/archik.js` that start() spawned with
+ * detached:true). Targeting -pid would silently fail with ESRCH and
+ * leave the dev orphaned. Killing the dev PID directly is enough:
+ * dev's SIGTERM handler shuts the server down cleanly, and the outer
+ * bin's blocking spawnSync returns + exits as soon as its child does.
+ */
+function killProcess(pid: number, signal: NodeJS.Signals): void {
   try {
-    if (process.platform === "win32") {
-      process.kill(pid, signal);
-    } else {
-      process.kill(-pid, signal);
-    }
+    process.kill(pid, signal);
   } catch {
     // already dead — fine
   }
@@ -34,7 +41,7 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
     return 0;
   }
 
-  killGroup(state.pid, "SIGTERM");
+  killProcess(state.pid, "SIGTERM");
 
   const deadline = Date.now() + SIGTERM_GRACE_MS;
   while (Date.now() < deadline) {
@@ -43,7 +50,7 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
   }
 
   if (isAlive(state.pid)) {
-    killGroup(state.pid, "SIGKILL");
+    killProcess(state.pid, "SIGKILL");
     await sleep(200);
   }
 

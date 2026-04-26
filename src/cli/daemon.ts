@@ -5,6 +5,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   unlinkSync,
   writeFileSync,
   writeSync,
@@ -40,8 +41,29 @@ export function ensureDaemonDir(): string {
   return dir;
 }
 
+/**
+ * Canonicalise the doc path so two callers that name the same file
+ * via different paths (e.g. /tmp/x and /private/tmp/x on macOS, or
+ * a relative vs absolute form, or via a symlinked dir) end up with
+ * the same hash and therefore the same state file.
+ *
+ * realpathSync requires the file to exist; if it doesn't (e.g. stop
+ * after the YAML was deleted), fall back to plain path.resolve so we
+ * still produce a consistent string.
+ */
+function canonical(docPath: string): string {
+  try {
+    return realpathSync(docPath);
+  } catch {
+    return path.resolve(docPath);
+  }
+}
+
 function key(docPath: string): string {
-  return createHash("sha256").update(docPath).digest("hex").slice(0, 12);
+  return createHash("sha256")
+    .update(canonical(docPath))
+    .digest("hex")
+    .slice(0, 12);
 }
 
 export function daemonPaths(docPath: string): DaemonPaths {
