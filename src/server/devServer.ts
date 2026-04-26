@@ -7,7 +7,7 @@
  */
 import { promises as fs, createReadStream } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { basename, extname, join, normalize, resolve, sep } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import chokidar from "chokidar";
 import { createElement } from "react";
@@ -36,7 +36,13 @@ export type DevServerHandle = {
   close(): Promise<void>;
 };
 
+// These URLs are stable, hardcoded entry points the canvas knows
+// about. They do NOT have to mirror the on-disk filename — the
+// server reads/writes the actual `docPath` / `sidecarPath` behind
+// the scenes. Keeping them stable means a `.yml` (vs `.yaml`)
+// extension on the user's file doesn't break the canvas.
 const YAML_URL = "/architecture.archik.yaml";
+const SIDECAR_URL = "/architecture.archik.suggested.yaml";
 const EVENTS_URL = "/__archik/events";
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
@@ -90,7 +96,18 @@ async function serveStatic(
     const stat = await fs.stat(filePath);
     if (stat.isDirectory()) filePath = join(filePath, "index.html");
   } catch {
-    // SPA fallback — any unknown route serves index.html so client routing works.
+    // SPA fallback — unknown routes serve index.html so client
+    // routing works. But never fall back for data-file extensions:
+    // returning HTML where the client expects YAML/JSON silently
+    // corrupts state (the parser sees a string at the root and
+    // emits a baffling "expected object" error).
+    const ext = extname(filePath).toLowerCase();
+    if (ext === ".yaml" || ext === ".yml" || ext === ".json") {
+      res.statusCode = 404;
+      res.setHeader("content-type", "text/plain; charset=utf-8");
+      res.end("Not found");
+      return;
+    }
     filePath = join(uiDir, "index.html");
   }
 
@@ -431,11 +448,10 @@ export async function startDevServer(
 
   const port = await findFreePort(host, requestedPort);
   const clients = new Set<SseClient>();
+  // On-disk sidecar lives next to the YAML (`<stem>.suggested<ext>`),
+  // matching the user's real extension. The client always asks at
+  // the stable SIDECAR_URL above.
   const sidecarPath = suggestionPath(docPath);
-  // The on-disk file lives next to the YAML (`<stem>.suggested<ext>`);
-  // expose it on the same URL stem so the canvas can fetch / save it.
-  const sidecarFilename = basename(sidecarPath);
-  const SIDECAR_URL = `/${sidecarFilename}`;
 
   const server = createServer((req, res) => {
     const url = req.url ?? "/";
