@@ -1,7 +1,6 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { startDevServer } from "../../server/devServer.ts";
 import {
   acquireLock,
   daemonPaths,
@@ -11,13 +10,7 @@ import {
 } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 import { getString } from "../options.ts";
-
-/** Walk up from this file to the Archik package root. */
-function archikRoot(): string {
-  // src/cli/commands/dev.ts → src/cli/commands → src/cli → src → root
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(here, "..", "..", "..");
-}
+import { pkgRoot } from "../paths.ts";
 
 export async function devCommand(opts: ParsedOptions): Promise<number> {
   const file = opts._[0] ?? "architecture.archik.yaml";
@@ -51,7 +44,6 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
     return 1;
   }
 
-  // Release the lock no matter how we exit.
   let released = false;
   const release = (): void => {
     if (released) return;
@@ -60,47 +52,41 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   };
   process.on("exit", release);
 
-  // Tell the Vite plugin to serve / watch this YAML instead of the one
-  // in Archik's own install directory.
-  process.env["ARCHIK_DOC_PATH"] = docPath;
-
-  const root = archikRoot();
   const portArg = getString(opts, "port");
   const port = portArg !== undefined ? Number.parseInt(portArg, 10) : undefined;
   const host = getString(opts, "host");
+  const uiDir = path.join(pkgRoot(), "dist", "ui");
 
-  let server;
+  let handle;
   try {
-    server = await createServer({
-      root,
-      configFile: path.join(root, "vite.config.ts"),
-      server: {
-        open: !opts["no-open"],
-        ...(port !== undefined && Number.isFinite(port) ? { port } : {}),
-        ...(host !== undefined ? { host } : {}),
-      },
+    handle = await startDevServer({
+      docPath,
+      uiDir,
+      ...(host !== undefined ? { host } : {}),
+      ...(port !== undefined && Number.isFinite(port) ? { port } : {}),
     });
-    await server.listen();
   } catch (err) {
     release();
     throw err;
   }
 
-  // Now that we have a real URL, publish it so `archik status` and
-  // `archik start` (the parent process) can discover it.
   updateState(paths.stateFile, {
-    urls: server.resolvedUrls ?? { local: [], network: [] },
+    urls: { local: [handle.url], network: [] },
   });
 
+  const shouldOpen = !opts["no-open"];
+  if (shouldOpen) {
+    void openInBrowser(handle.url);
+  }
+
   console.log(`\narchik dev — editing ${docPath}`);
-  server.printUrls();
+  console.log(`  Local:  ${handle.url}`);
   console.log("\nPress Ctrl+C to stop.\n");
 
-  // Keep the process alive until interrupted.
   return new Promise<number>((resolve) => {
     const shutdown = async (): Promise<void> => {
       try {
-        await server.close();
+        await handle.close();
       } finally {
         release();
         resolve(0);
@@ -109,4 +95,31 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
     process.on("SIGINT", () => void shutdown());
     process.on("SIGTERM", () => void shutdown());
   });
+}
+
+/**
+ * Best-effort browser launcher. Falls back silently — the URL is
+ * always printed so the user can copy it manually.
+ */
+function openInBrowser(url: string): void {
+  const platform = process.platform;
+  const cmd =
+    platform === "darwin"
+      ? "open"
+      : platform === "win32"
+        ? "cmd"
+        : "xdg-open";
+  const args = platform === "win32" ? ["/c", "start", "", url] : [url];
+  try {
+    // Lazy import keeps the open path off the hot path of CLI startup.
+    void import("node:child_process").then(({ spawn }) => {
+      const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+      child.unref();
+      child.on("error", () => {
+        // launcher missing — ignore
+      });
+    });
+  } catch {
+    // ignore
+  }
 }

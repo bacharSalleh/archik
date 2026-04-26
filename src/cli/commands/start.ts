@@ -1,9 +1,7 @@
 import { spawn } from "node:child_process";
-import { realpathSync } from "node:fs";
 import { access, open } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
 import {
   daemonPaths,
   ensureDaemonDir,
@@ -12,15 +10,9 @@ import {
   removeState,
 } from "../daemon.ts";
 import { getString, type ParsedOptions } from "../options.ts";
+import { pkgRoot } from "../paths.ts";
 
 const READY_TIMEOUT_MS = 10_000;
-
-function pkgRoot(): string {
-  // Resolve through symlinks so this works under `npm link`.
-  // src/cli/commands/start.ts → src/cli/commands → src/cli → src → root
-  const here = path.dirname(realpathSync(fileURLToPath(import.meta.url)));
-  return path.resolve(here, "..", "..", "..");
-}
 
 export async function startCommand(opts: ParsedOptions): Promise<number> {
   const file = opts._[0] ?? "architecture.archik.yaml";
@@ -50,31 +42,18 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
 
   ensureDaemonDir();
 
-  const root = pkgRoot();
-  const tsxBin = path.resolve(
-    root,
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "tsx.cmd" : "tsx",
-  );
-  const cliEntry = path.resolve(root, "src", "cli", "index.ts");
-  const tsconfig = path.resolve(root, "tsconfig.app.json");
-
-  const childArgs = [
-    "--tsconfig",
-    tsconfig,
-    cliEntry,
-    "dev",
-    docPath,
-    "--no-open",
-  ];
+  // Spawn through `bin/archik.js` so the dist/tsx switch lives in
+  // exactly one place. The bin sets ARCHIK_PKG_ROOT for us; we just
+  // pass ARCHIK_LOG_FILE so dev records its log path in the state file.
+  const binEntry = path.resolve(pkgRoot(), "bin", "archik.js");
+  const childArgs = [binEntry, "dev", docPath, "--no-open"];
   const port = getString(opts, "port");
   if (port !== undefined) childArgs.push("--port", port);
   const host = getString(opts, "host");
   if (host !== undefined) childArgs.push("--host", host);
 
   const log = await open(paths.logFile, "a");
-  const child = spawn(tsxBin, childArgs, {
+  const child = spawn(process.execPath, childArgs, {
     detached: true,
     stdio: ["ignore", log.fd, log.fd],
     env: { ...process.env, ARCHIK_LOG_FILE: paths.logFile },

@@ -6,6 +6,10 @@ import { archikWatch } from "./vite/archikWatch.ts";
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), archikWatch()],
+  build: {
+    outDir: "dist/ui",
+    emptyOutDir: true,
+  },
   test: {
     environment: "jsdom",
     globals: true,
