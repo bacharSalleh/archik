@@ -1,9 +1,8 @@
 import { copyFile, mkdir, stat } from "node:fs/promises";
-import { realpathSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
 import { getString, type ParsedOptions } from "../options.ts";
+import { pkgRoot } from "../paths.ts";
 
 export type SkillScope = "project" | "user";
 
@@ -16,11 +15,10 @@ export async function installSkill(args: {
   scope: SkillScope;
   force: boolean;
 }): Promise<InstallSkillResult> {
-  // Follow symlinks so this works under `npm link`. From src/cli/commands
-  // walk up three levels to the package root.
-  const here = path.dirname(realpathSync(fileURLToPath(import.meta.url)));
-  const pkgRoot = path.resolve(here, "..", "..", "..");
-  const source = path.join(pkgRoot, ".claude", "skills", "archik.md");
+  // pkgRoot() handles both dev (src/) and bundled (dist/cli/archik.mjs)
+  // entry points; the previous walk-up-3-levels trick worked in dev but
+  // overshot to `node_modules/` in the bundled install.
+  const source = path.join(pkgRoot(), ".claude", "skills", "archik.md");
 
   try {
     await stat(source);
