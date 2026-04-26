@@ -78,7 +78,8 @@ So conversations like *"add a payments worker that subscribes to the orders queu
 
 ```
 archik init [path]       Scaffold a starter architecture.archik.yaml
-                         --skill          also install the Claude skill into ./.claude/skills
+                         (also installs the Claude skill by default)
+                         --no-skill       skip installing the Claude skill
 
 archik dev [path]        Open the canvas in your browser (foreground, Ctrl+C to stop)
 archik start [path]      Same as dev, but detached — prompt returns immediately

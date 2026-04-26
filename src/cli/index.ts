@@ -35,7 +35,8 @@ USAGE
 
 COMMANDS
   init              Scaffold a starter architecture.archik.yaml
-                    --skill          also install the Claude skill into ./.claude/skills
+                                     (also installs the Claude skill by default)
+                    --no-skill       skip installing the Claude skill
   dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
