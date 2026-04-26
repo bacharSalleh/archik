@@ -520,6 +520,53 @@ export function App(): React.ReactElement {
             }
           : {})}
       />
+      {reloadError !== undefined && (
+        <div
+          role="alert"
+          style={{
+            background: "rgba(225, 29, 72, 0.12)",
+            borderBottom: "1px solid rgba(225, 29, 72, 0.45)",
+            color: "var(--archik-danger)",
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+            fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        >
+          <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>
+            FILE INVALID —
+          </span>
+          <pre
+            style={{
+              margin: 0,
+              flex: 1,
+              whiteSpace: "pre-wrap",
+              fontFamily: "inherit",
+              color: "var(--archik-fg)",
+            }}
+          >
+            {reloadError}
+          </pre>
+          <button
+            type="button"
+            onClick={() => setReloadError(undefined)}
+            aria-label="Dismiss error"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--archik-fg-dim)",
+              cursor: "pointer",
+              padding: "0 4px",
+              fontSize: 16,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <main
         className="flex min-h-0 flex-1 p-4"
         style={{ gap: 0 }}

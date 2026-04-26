@@ -20,7 +20,7 @@ function Shape({
   depth,
 }: ShapeProps): React.ReactElement {
   if (viewMode === "compact") {
-    return <CompactNode node={node} selected={selected} />;
+    return <CompactNode node={node} selected={selected} depth={depth} />;
   }
   switch (node.kind) {
     case "queue":

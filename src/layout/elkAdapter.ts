@@ -171,14 +171,16 @@ function toElkNode(
   };
   if (children.length > 0) {
     elk.children = children;
-    // Containers in detailed mode grow their inner area to fit children
-    // *plus* the header zone we reserve at the top.
-    if (
-      viewMode === "detailed" &&
-      (node.kind === "module" || node.kind === "custom")
-    ) {
+    // Containers reserve top space for the CustomNode/ContainerChip
+    // header. Compact mode's header is shorter (24px) than detailed's
+    // (32px), so the padding differs to match.
+    if (node.kind === "module" || node.kind === "custom") {
+      const pad =
+        viewMode === "compact"
+          ? { top: 30, left: 12, bottom: 12, right: 12 }
+          : CONTAINER_PADDING;
       elk.layoutOptions = {
-        "elk.padding": `[top=${CONTAINER_PADDING.top}, left=${CONTAINER_PADDING.left}, bottom=${CONTAINER_PADDING.bottom}, right=${CONTAINER_PADDING.right}]`,
+        "elk.padding": `[top=${pad.top}, left=${pad.left}, bottom=${pad.bottom}, right=${pad.right}]`,
       };
     }
   }
@@ -239,10 +241,6 @@ function num(x: number | undefined): number {
   return x ?? 0;
 }
 
-function toPoint(p: { x?: number; y?: number }): Point {
-  return { x: num(p.x), y: num(p.y) };
-}
-
 function elkToPositionedNode(
   elk: ElkNode,
   source: Map<string, Node>,
@@ -268,20 +266,56 @@ function elkToPositionedEdges(
   elkRoot: ElkNode,
   doc: Document,
 ): PositionedEdge[] {
+  // Build absolute positions and ancestor chains for every node so we
+  // can compute the lowest common ancestor (LCA) per edge. ELK stores
+  // each edge's section coordinates RELATIVE TO ITS LCA, not relative
+  // to whichever container the edge happens to be listed under in the
+  // result tree — and the LCA can be deeper than __root__ even when
+  // the edge was declared at the root. Without this offset, edges
+  // between nodes inside containers render in the wrong place
+  // entirely (right on top of unrelated nodes).
+  const absolute = new Map<string, { x: number; y: number }>();
+  const ancestors = new Map<string, string[]>();
+  const walk = (n: ElkNode, ax: number, ay: number, chain: string[]) => {
+    const x = ax + num(n.x);
+    const y = ay + num(n.y);
+    absolute.set(n.id, { x, y });
+    ancestors.set(n.id, chain);
+    const nextChain = [...chain, n.id];
+    for (const c of n.children ?? []) walk(c, x, y, nextChain);
+  };
+  walk(elkRoot, 0, 0, []);
+
+  const lcaOffset = (sourceId: string, targetId: string): { x: number; y: number } => {
+    const a = ancestors.get(sourceId) ?? [];
+    const b = ancestors.get(targetId) ?? [];
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    const lcaId = i === 0 ? elkRoot.id : a[i - 1]!;
+    return absolute.get(lcaId) ?? { x: 0, y: 0 };
+  };
+
   const sectionsById = new Map<string, EdgeSection[]>();
   const labelsById = new Map<string, PositionedEdgeLabel[]>();
   const collect = (n: ElkNode) => {
     for (const e of n.edges ?? []) {
+      const sourceId = e.sources?.[0] ?? "";
+      const targetId = e.targets?.[0] ?? "";
+      const off = lcaOffset(sourceId, targetId);
+      const shift = (p: { x?: number; y?: number }): Point => ({
+        x: num(p.x) + off.x,
+        y: num(p.y) + off.y,
+      });
       const sections: EdgeSection[] = (e.sections ?? []).map((s) => ({
-        startPoint: toPoint(s.startPoint),
-        endPoint: toPoint(s.endPoint),
-        bendPoints: (s.bendPoints ?? []).map(toPoint),
+        startPoint: shift(s.startPoint),
+        endPoint: shift(s.endPoint),
+        bendPoints: (s.bendPoints ?? []).map(shift),
       }));
       sectionsById.set(e.id, sections);
       const labels: PositionedEdgeLabel[] = (e.labels ?? []).map((l) => ({
         text: typeof l.text === "string" ? l.text : "",
-        x: num(l.x),
-        y: num(l.y),
+        x: num(l.x) + off.x,
+        y: num(l.y) + off.y,
         width: num(l.width),
         height: num(l.height),
       }));
