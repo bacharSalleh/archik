@@ -114,36 +114,126 @@ function NodeDiffFrame({
   const y = node.absY + FRAME_INSET;
   const w = node.width - FRAME_INSET * 2;
   const h = node.height - FRAME_INSET * 2;
+  const dash = status === "removed" ? "5 4" : undefined;
+  // Outer halo a hair larger than the inner stroke for the glow.
+  const halo = framePath(node.kind, x - 1, y - 1, w + 2, h + 2);
+  const inner = framePath(node.kind, x, y, w, h);
   return (
     <g>
-      <rect
-        x={x - 1}
-        y={y - 1}
-        width={w + 2}
-        height={h + 2}
-        rx={11}
-        ry={11}
+      <path
+        d={halo}
         fill="none"
         stroke={color}
         strokeOpacity={0.25}
         strokeWidth={6}
+        strokeLinejoin="round"
       />
-      <rect
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        rx={10}
-        ry={10}
+      <path
+        d={inner}
         fill="none"
         stroke={color}
         strokeWidth={2.2}
-        strokeDasharray={status === "removed" ? "5 4" : undefined}
+        strokeLinejoin="round"
+        {...(dash !== undefined ? { strokeDasharray: dash } : {})}
         opacity={0.95}
       />
       <DiffBadge x={x + w - 6} y={y - 6} status={status} />
     </g>
   );
+}
+
+/**
+ * Build the SVG path for a diff-overlay frame that matches the
+ * underlying node's silhouette. A rounded rect for the standard
+ * card shape, a pill for queues, a cylinder for databases, a cloud
+ * for cloud nodes — so the green / amber / red highlight reads as
+ * "this exact node" instead of "rectangle near that node".
+ */
+function framePath(
+  kind: PositionedNode["kind"],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): string {
+  switch (kind) {
+    case "queue": {
+      // Pill / capsule — same rx the QueueNode uses.
+      const r = Math.min(h / 2, 28);
+      return roundedRect(x, y, w, h, r);
+    }
+    case "database":
+      return cylinderPath(x, y, w, h, 12);
+    case "cloud":
+      return cloudPath(x, y, w, h);
+    default:
+      return roundedRect(x, y, w, h, 10);
+  }
+}
+
+function roundedRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): string {
+  const rx = Math.min(r, w / 2);
+  const ry = Math.min(r, h / 2);
+  return [
+    `M ${x + rx} ${y}`,
+    `H ${x + w - rx}`,
+    `A ${rx} ${ry} 0 0 1 ${x + w} ${y + ry}`,
+    `V ${y + h - ry}`,
+    `A ${rx} ${ry} 0 0 1 ${x + w - rx} ${y + h}`,
+    `H ${x + rx}`,
+    `A ${rx} ${ry} 0 0 1 ${x} ${y + h - ry}`,
+    `V ${y + ry}`,
+    `A ${rx} ${ry} 0 0 1 ${x + rx} ${y}`,
+    `Z`,
+  ].join(" ");
+}
+
+/** Mirrors DatabaseNode's cylinderPath, offset to (x, y). */
+function cylinderPath(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  ry: number,
+): string {
+  return [
+    `M ${x} ${y + ry}`,
+    `L ${x} ${y + h - ry}`,
+    `A ${w / 2} ${ry} 0 0 0 ${x + w} ${y + h - ry}`,
+    `L ${x + w} ${y + ry}`,
+    `A ${w / 2} ${ry} 0 0 0 ${x} ${y + ry}`,
+    `Z`,
+  ].join(" ");
+}
+
+/** Mirrors CloudNode's cloudPath, offset to (x, y). */
+function cloudPath(x: number, y: number, w: number, h: number): string {
+  const top = h * 0.18;
+  const bottom = h - 4;
+  const leftBump = w * 0.22;
+  const midBumpL = w * 0.42;
+  const midBumpR = w * 0.62;
+  const rightBump = w * 0.82;
+  const sideRadius = h * 0.45;
+  return [
+    `M ${x + sideRadius} ${y + bottom}`,
+    `L ${x + w - sideRadius} ${y + bottom}`,
+    `Q ${x + w - 4} ${y + bottom} ${x + w - 4} ${y + bottom - sideRadius * 0.6}`,
+    `Q ${x + w - 2} ${y + h * 0.48} ${x + rightBump + h * 0.18} ${y + h * 0.34}`,
+    `Q ${x + rightBump + h * 0.18} ${y + top * 0.4} ${x + rightBump} ${y + top}`,
+    `Q ${x + midBumpR + h * 0.05} ${y + top + h * 0.1} ${x + midBumpR} ${y + top - h * 0.04}`,
+    `Q ${x + (midBumpR + midBumpL) / 2} ${y - h * 0.06} ${x + midBumpL} ${y + top - h * 0.04}`,
+    `Q ${x + midBumpL - h * 0.05} ${y + top + h * 0.12} ${x + leftBump} ${y + top + h * 0.04}`,
+    `Q ${x + leftBump - h * 0.22} ${y + top * 0.5} ${x + 4} ${y + h * 0.42}`,
+    `Q ${x + 4} ${y + bottom - sideRadius * 0.6} ${x + sideRadius} ${y + bottom}`,
+    `Z`,
+  ].join(" ");
 }
 
 function DiffBadge({
