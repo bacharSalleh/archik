@@ -623,13 +623,17 @@ export function App(): React.ReactElement {
       ? statusMap(diffDocuments(doc, suggestion.doc))
       : null;
   const renderDoc = reviewMerged ?? doc;
+  // Look up the focused entity in renderDoc (not doc) so that nodes /
+  // edges that only exist in the suggestion sidecar still resolve when
+  // reviewing — otherwise the inspector shows the empty state for any
+  // newly-added entity and the user can't see its description / fields.
   const selectedNode =
     focused?.type === "node"
-      ? doc.nodes.find((n) => n.id === focused.id)
+      ? renderDoc.nodes.find((n) => n.id === focused.id)
       : undefined;
   const selectedEdge =
     focused?.type === "edge"
-      ? doc.edges.find((e) => e.id === focused.id)
+      ? renderDoc.edges.find((e) => e.id === focused.id)
       : undefined;
   const connectFromNode =
     connectFrom !== null
@@ -812,13 +816,18 @@ export function App(): React.ReactElement {
                 onClear={clearSelection}
               />
             ) : focused?.type === "edge" ? (
-              <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
+              <EdgeInspector
+                edge={selectedEdge}
+                dispatch={dispatch}
+                readOnly={reviewing}
+              />
             ) : focused?.type === "node" ? (
               <NodeInspector
                 node={selectedNode}
                 dispatch={dispatch}
                 onStartConnect={startConnect}
-                allNodes={doc.nodes}
+                allNodes={renderDoc.nodes}
+                readOnly={reviewing}
               />
             ) : null}
           </div>

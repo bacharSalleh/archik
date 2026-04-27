@@ -5,9 +5,17 @@ import type { Edge, Relationship } from "../domain/types.ts";
 type Props = {
   edge: Edge | undefined;
   dispatch: (cmd: Command) => void;
+  /** When true, every field is locked and the destructive actions are
+   *  hidden — used while reviewing a suggestion sidecar so the user
+   *  doesn't accidentally write edits to the wrong document. */
+  readOnly?: boolean;
 };
 
-export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
+export function EdgeInspector({
+  edge,
+  dispatch,
+  readOnly = false,
+}: Props): React.ReactElement {
   if (!edge) {
     return (
       <div
@@ -47,6 +55,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           onChange={(e) =>
             update({ relationship: e.target.value as Relationship })
           }
+          disabled={readOnly}
           className="archik-input w-full"
         >
           {RELATIONSHIPS.map((r) => (
@@ -63,6 +72,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           type="text"
           value={edge.label ?? ""}
           onChange={(e) => update({ label: e.target.value })}
+          disabled={readOnly}
           placeholder="optional"
           className="archik-input w-full"
         />
@@ -73,6 +83,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           id="ei-desc"
           value={edge.description ?? ""}
           onChange={(e) => update({ description: e.target.value })}
+          disabled={readOnly}
           rows={2}
           className="archik-input w-full"
         />
@@ -84,6 +95,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           type="text"
           value={edge.protocol ?? ""}
           onChange={(e) => update({ protocol: e.target.value })}
+          disabled={readOnly}
           placeholder="e.g. http, kafka"
           className="archik-input w-full"
         />
@@ -96,6 +108,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
             type="color"
             value={normalizeHex(edge.color) ?? "#cbd5e1"}
             onChange={(e) => update({ color: e.target.value })}
+            disabled={readOnly}
             aria-label="Pick edge color"
             style={{
               width: 28,
@@ -104,7 +117,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
               border: "1px solid var(--archik-border)",
               borderRadius: 4,
               background: "transparent",
-              cursor: "pointer",
+              cursor: readOnly ? "not-allowed" : "pointer",
               flexShrink: 0,
             }}
           />
@@ -115,6 +128,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
               const v = e.target.value.trim();
               update({ color: v.length > 0 ? v : undefined });
             }}
+            disabled={readOnly}
             placeholder="default (whitish)"
             className="archik-input"
             style={{ flex: 1, fontFamily: "ui-monospace, monospace" }}
@@ -122,7 +136,7 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
           <button
             type="button"
             onClick={() => update({ color: undefined })}
-            disabled={edge.color === undefined}
+            disabled={readOnly || edge.color === undefined}
             className="archik-btn"
             title="Reset to default color"
           >
@@ -131,16 +145,18 @@ export function EdgeInspector({ edge, dispatch }: Props): React.ReactElement {
         </div>
       </Field>
 
-      <div className="mt-auto pt-4 archik-divider">
-        <button
-          type="button"
-          onClick={() => dispatch({ type: "disconnect", id: edge.id })}
-          className="archik-btn archik-btn-danger"
-          style={{ width: "100%", justifyContent: "center", padding: "8px 12px" }}
-        >
-          Delete connection
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="mt-auto pt-4 archik-divider">
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "disconnect", id: edge.id })}
+            className="archik-btn archik-btn-danger"
+            style={{ width: "100%", justifyContent: "center", padding: "8px 12px" }}
+          >
+            Delete connection
+          </button>
+        </div>
+      )}
     </div>
   );
 }

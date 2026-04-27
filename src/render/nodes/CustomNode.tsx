@@ -59,7 +59,9 @@ export function CustomNode({
 
   return (
     <g className={`archik-node archik-node--${node.kind} archik-node--container`}>
-      {/* Body — subtle tint behind the children. */}
+      {/* Body — subtle tint behind the children. pointer-events:none so
+          edges routed through the container stay clickable; the header
+          strip below still catches clicks for selecting the container. */}
       <rect
         className={selected ? "archik-selected-glow" : undefined}
         width={w}
@@ -70,6 +72,7 @@ export function CustomNode({
         fillOpacity={tintOpacity}
         stroke={stroke}
         strokeWidth={strokeWidth}
+        pointerEvents="none"
       />
 
       {/* Header strip — opaque so the title sits above the tinted body. */}

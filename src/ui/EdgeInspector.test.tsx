@@ -64,4 +64,15 @@ describe("EdgeInspector", () => {
       id: "api-db",
     });
   });
+
+  it("disables every field and hides delete in readOnly mode", () => {
+    render(<EdgeInspector edge={edge} dispatch={vi.fn()} readOnly />);
+    expect(screen.getByLabelText(/relationship/i)).toBeDisabled();
+    expect(screen.getByLabelText(/label/i)).toBeDisabled();
+    expect(screen.getByLabelText(/description/i)).toBeDisabled();
+    expect(screen.getByLabelText(/protocol/i)).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /delete/i }),
+    ).not.toBeInTheDocument();
+  });
 });

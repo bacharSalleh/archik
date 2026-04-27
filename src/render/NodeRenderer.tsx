@@ -55,6 +55,7 @@ function Shape({
     case "stream":
     case "gateway":
     case "cdn":
+    case "route":
     case "interface":
     case "adapter":
     case "port":

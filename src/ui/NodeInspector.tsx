@@ -7,6 +7,10 @@ type Props = {
   dispatch: (cmd: Command) => void;
   onStartConnect?: ((fromId: string) => void) | undefined;
   allNodes?: ReadonlyArray<Node>;
+  /** When true, every field is locked and the destructive actions are
+   *  hidden — used while reviewing a suggestion sidecar so the user
+   *  doesn't accidentally write edits to the wrong document. */
+  readOnly?: boolean;
 };
 
 export function NodeInspector({
@@ -14,6 +18,7 @@ export function NodeInspector({
   dispatch,
   onStartConnect,
   allNodes = [],
+  readOnly = false,
 }: Props): React.ReactElement {
   if (!node) {
     return (
@@ -42,6 +47,7 @@ export function NodeInspector({
           type="text"
           value={node.name}
           onChange={(e) => update({ name: e.target.value })}
+          disabled={readOnly}
           className="archik-input w-full"
         />
       </Field>
@@ -51,6 +57,7 @@ export function NodeInspector({
           id="ni-kind"
           value={node.kind}
           onChange={(kind: NodeKind) => update({ kind })}
+          disabled={readOnly}
         />
       </Field>
 
@@ -60,6 +67,7 @@ export function NodeInspector({
           type="text"
           value={node.stack ?? ""}
           onChange={(e) => update({ stack: e.target.value })}
+          disabled={readOnly}
           placeholder="e.g. Go, Postgres 16"
           className="archik-input w-full"
         />
@@ -70,6 +78,7 @@ export function NodeInspector({
           id="ni-desc"
           value={node.description ?? ""}
           onChange={(e) => update({ description: e.target.value })}
+          disabled={readOnly}
           rows={3}
           className="archik-input w-full"
         />
@@ -83,6 +92,7 @@ export function NodeInspector({
             const v = e.target.value;
             update(v === "" ? { parentId: undefined } : { parentId: v });
           }}
+          disabled={readOnly}
           className="archik-input w-full"
         >
           <option value="">(none)</option>
@@ -99,28 +109,31 @@ export function NodeInspector({
       <NotesField
         notes={node.notes ?? []}
         onChange={(next) => update({ notes: next.length > 0 ? next : undefined })}
+        readOnly={readOnly}
       />
 
-      <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
-        {onStartConnect !== undefined && (
+      {!readOnly && (
+        <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
+          {onStartConnect !== undefined && (
+            <button
+              type="button"
+              onClick={() => onStartConnect(node.id)}
+              className="archik-btn archik-btn-primary"
+              style={{ justifyContent: "center", padding: "8px 12px" }}
+            >
+              Connect to…
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => onStartConnect(node.id)}
-            className="archik-btn archik-btn-primary"
+            onClick={() => dispatch({ type: "remove_node", id: node.id })}
+            className="archik-btn archik-btn-danger"
             style={{ justifyContent: "center", padding: "8px 12px" }}
           >
-            Connect to…
+            Delete node
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => dispatch({ type: "remove_node", id: node.id })}
-          className="archik-btn archik-btn-danger"
-          style={{ justifyContent: "center", padding: "8px 12px" }}
-        >
-          Delete node
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -147,9 +160,11 @@ function Field({
 function NotesField({
   notes,
   onChange,
+  readOnly = false,
 }: {
   notes: ReadonlyArray<string>;
   onChange: (next: string[]) => void;
+  readOnly?: boolean;
 }): React.ReactElement {
   const updateAt = (i: number, value: string): void => {
     const next = notes.slice();
@@ -210,31 +225,36 @@ function NotesField({
           <textarea
             value={note}
             onChange={(e) => updateAt(i, e.target.value)}
+            disabled={readOnly}
             placeholder={`Note ${i + 1}`}
             rows={2}
             className="archik-input"
             style={{ flex: 1, resize: "vertical", fontSize: 12 }}
           />
-          <button
-            type="button"
-            onClick={() => removeAt(i)}
-            title="Remove note"
-            aria-label="Remove note"
-            className="archik-btn"
-            style={{ padding: "4px 8px", color: "var(--archik-danger)" }}
-          >
-            ×
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              title="Remove note"
+              aria-label="Remove note"
+              className="archik-btn"
+              style={{ padding: "4px 8px", color: "var(--archik-danger)" }}
+            >
+              ×
+            </button>
+          )}
         </div>
       ))}
-      <button
-        type="button"
-        onClick={add}
-        className="archik-btn"
-        style={{ width: "100%", justifyContent: "center" }}
-      >
-        + Add note
-      </button>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={add}
+          className="archik-btn"
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          + Add note
+        </button>
+      )}
     </div>
   );
 }

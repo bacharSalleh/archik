@@ -18,6 +18,7 @@ export const NODE_KINDS = [
   // edge / networking
   "gateway",
   "cdn",
+  "route",
   // architecture (hexagonal)
   "interface",
   "adapter",

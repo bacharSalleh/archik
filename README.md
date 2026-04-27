@@ -52,7 +52,7 @@ No `x` / `y` / `width` — layout is computed by [ELK](https://eclipse.dev/elk/)
 ## What it gives you
 
 - **Live canvas** — `archik dev` (foreground) or `archik start` / `stop` (detached, multi-project).
-- **26 node kinds** across compute, data, messaging, hexagonal, AI/ML, identity, observability, cloud, UI, and external.
+- **27 node kinds** across compute, data, messaging, networking, hexagonal, AI/ML, identity, observability, cloud, UI, and external.
 - **12 relationships** with distinct visual styling — `http_call`, `invokes`, `reads`, `writes`, `publishes`, `subscribes`, `streams_to`, `routes_to`, `implements`, `depends_on`, `has_a`, `uses`.
 - **Drag-to-connect, multi-select, undo/redo, compact view, themed (dark / light), notes per node, color overrides on edges.**
 - **CI-ready CLI** — `validate`, `render` (headless SVG), `watch`, `check` (drift between YAML and source dirs).

@@ -123,6 +123,18 @@ describe("NodeInspector", () => {
     });
   });
 
+  it("disables every field and hides delete in readOnly mode", () => {
+    render(<NodeInspector node={apiNode} dispatch={vi.fn()} readOnly />);
+    expect(screen.getByLabelText(/name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/stack/i)).toBeDisabled();
+    expect(screen.getByLabelText(/description/i)).toBeDisabled();
+    expect(screen.getByLabelText(/parent/i)).toBeDisabled();
+    expect(screen.getByLabelText(/kind/i)).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /delete/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("dispatches update_node clearing parentId when '(none)' is chosen", () => {
     const dispatch = vi.fn();
     const child: Node = { ...apiNode, parentId: "platform" };
