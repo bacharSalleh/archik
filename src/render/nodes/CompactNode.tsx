@@ -17,14 +17,14 @@ const TEXT_INSET = 28;
  * Compact "chip" rendering for the canvas's compact view mode.
  *
  *   * Leaf node       → small rounded rect, kind icon (in kind colour)
- *                       on the left, name in the middle.
+ *                       on the left, name in the middle. An empty
+ *                       `module` / `custom` is treated as a leaf and
+ *                       gets the same chip — same as detailed mode.
  *   * Container with  → header strip (icon + name) plus a solid-bordered
  *     children          body that ELK fills with the children. Depth
  *                       tinting matches the detailed-mode CustomNode so
  *                       Notifications-inside-Backend still reads as
  *                       nested at a glance.
- *   * Empty container → dashed placeholder card (rare, but a `module`
- *                       with no children is just a stub).
  */
 export function CompactNode({
   node,
@@ -39,13 +39,12 @@ export function CompactNode({
   const isExternal = node.kind === "external";
 
   // Any node with children renders as a container chip — leaf chip
-  // shapes have no body to fit children inside.
+  // shapes have no body to fit children inside. An empty
+  // `module` / `custom` falls through to the standard leaf chip,
+  // matching detailed mode (where the same node would render as a
+  // ServiceNode-style card with a MODULE kind tag).
   if (node.children.length > 0) {
     return <ContainerChip node={node} selected={!!selected} depth={depth} />;
-  }
-  // Empty module/custom is a placeholder reminder.
-  if (node.kind === "module" || node.kind === "custom") {
-    return <PlaceholderChip node={node} selected={!!selected} />;
   }
 
   const stroke = selected
@@ -157,61 +156,6 @@ function ContainerChip({
         fill="var(--archik-node-text)"
       >
         {displayName}
-      </text>
-    </g>
-  );
-}
-
-function PlaceholderChip({
-  node,
-  selected,
-}: {
-  node: PositionedNode;
-  selected: boolean;
-}): React.ReactElement {
-  // Empty `module` / `custom` chips. Previously rendered with a
-  // transparent fill + dim caption colour, which nearly vanished
-  // against a dark canvas. Now uses the real node fill + text
-  // colour so it's actually legible; the dashed border still
-  // signals "stub container, has no diagram children" without
-  // sacrificing contrast.
-  const w = node.width;
-  const h = node.height;
-  const meta = KIND_META[node.kind];
-  const Icon = meta.icon;
-  const stroke = selected
-    ? "var(--archik-selected)"
-    : "var(--archik-node-stroke)";
-  return (
-    <g
-      className={`archik-node archik-node--${node.kind} archik-node--compact`}
-    >
-      <rect
-        className={selected ? "archik-selected-glow" : undefined}
-        width={w}
-        height={h}
-        rx={6}
-        ry={6}
-        fill="var(--archik-node-fill)"
-        stroke={stroke}
-        strokeWidth={selected ? 1.8 : 1.4}
-        strokeDasharray={selected ? undefined : "5 4"}
-      />
-      <g
-        transform={`translate(${ICON_INSET}, ${h / 2 - 7})`}
-        pointerEvents="none"
-        aria-hidden="true"
-      >
-        <Icon size={13} color={meta.color} strokeWidth={1.9} />
-      </g>
-      <text
-        x={TEXT_INSET}
-        y={h / 2 + 4}
-        fontSize={12}
-        fontWeight={600}
-        fill="var(--archik-node-text)"
-      >
-        {fitText(node.name, Math.max(0, w - TEXT_INSET - 8), STACK_CHAR_PX)}
       </text>
     </g>
   );

@@ -46,11 +46,16 @@ function Shape({
       return <DatabaseNode node={node} selected={selected} />;
     case "cloud":
       return <CloudNode node={node} selected={selected} />;
+    // `module` / `custom` without diagram children — render as the
+    // standard card with a MODULE / CUSTOM kind tag, same as every
+    // other leaf kind. (When they DO have children they're caught
+    // by the `node.children.length > 0` branch above and become a
+    // proper container with header bar + tinted body.)
     case "module":
     case "custom":
-      return <CustomNode node={node} selected={selected} depth={depth} />;
-    // Every other kind renders as the standard card; the kind icon
-    // and KIND label inside the header carry the visual identity.
+    // Every other leaf kind also renders as the standard card; the
+    // kind icon and KIND label inside the header carry the visual
+    // identity.
     case "service":
     case "function":
     case "worker":
