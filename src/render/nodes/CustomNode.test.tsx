@@ -67,6 +67,23 @@ describe("CustomNode", () => {
         container.querySelector("rect")?.getAttribute("fill-opacity") ?? "0",
       );
     };
+    // Step between consecutive levels must be large enough that two
+    // same-kind containers nested in each other read as distinct.
+    expect(opacityAt(1) - opacityAt(0)).toBeGreaterThanOrEqual(0.05);
     expect(opacityAt(2)).toBeGreaterThan(opacityAt(0));
+  });
+
+  it("draws an elevation stroke at depth >= 1 and skips it at depth 0", () => {
+    const insetAt = (depth: number): SVGRectElement | null => {
+      const { container } = render(
+        <svg>
+          <CustomNode node={populated} depth={depth} />
+        </svg>,
+      );
+      return container.querySelector('rect[x="3"][y="3"][fill="none"]');
+    };
+    expect(insetAt(0)).toBeNull();
+    expect(insetAt(1)).not.toBeNull();
+    expect(insetAt(2)).not.toBeNull();
   });
 });
