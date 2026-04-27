@@ -8,14 +8,13 @@
   <em>The shared vocabulary between you and Claude Code, at the engineering level.</em>
 </p>
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/archik"><img alt="npm version" src="https://img.shields.io/npm/v/archik?color=cb3837&logo=npm&label=archik"></a>
-  <a href="https://www.npmjs.com/package/archik"><img alt="npm downloads" src="https://img.shields.io/npm/dm/archik?color=cb3837&logo=npm"></a>
-  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/npm/l/archik?color=blue"></a>
-  <a href="https://nodejs.org"><img alt="Node ≥ 20" src="https://img.shields.io/node/v/archik?color=339933&logo=node.js&logoColor=white"></a>
-  <a href="https://github.com/bacharSalleh/archik/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/bacharSalleh/archik/ci.yml?branch=main&label=CI&logo=github"></a>
-  <a href="https://x.com/bach__92"><img alt="Follow @bach__92 on X" src="https://img.shields.io/badge/follow-%40bach__92-black?logo=x&logoColor=white"></a>
-</p>
+[![npm version](https://badge.fury.io/js/archik.svg)](https://www.npmjs.com/package/archik)
+[![CI](https://github.com/bacharSalleh/archik/actions/workflows/ci.yml/badge.svg)](https://github.com/bacharSalleh/archik/actions/workflows/ci.yml)
+[![GitHub Repo stars](https://img.shields.io/github/stars/bacharSalleh/archik)](https://github.com/bacharSalleh/archik/stargazers)
+[![NPM Downloads](https://img.shields.io/npm/dm/archik)](https://www.npmjs.com/package/archik)
+[![License](https://img.shields.io/npm/l/archik?color=blue)](./LICENSE)
+[![Node](https://img.shields.io/node/v/archik?color=339933&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Twitter Follow](https://img.shields.io/twitter/follow/bach__92?style=social)](https://x.com/bach__92)
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
