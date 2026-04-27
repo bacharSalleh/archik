@@ -39,6 +39,14 @@ function buildElkOptions(options: LayoutOptions): Record<string, string> {
     "elk.spacing.edgeLabel": "8",
     "elk.spacing.labelLabel": "6",
     "elk.spacing.edgeNode": "20",
+    // Anti-clumping: when several edges converge on the same node
+    // (e.g. five CLI commands all "uses" resolveDocPath), ELK's
+    // default is to stack the arrowheads on the same port and the
+    // result reads as a single chevron pile. These two knobs ask
+    // ELK to keep parallel edges and their endpoints visually
+    // separated so each arrow lands at its own spot on the target.
+    "elk.spacing.edgeEdge": "12",
+    "elk.layered.spacing.edgeEdgeBetweenLayers": "12",
   };
 }
 

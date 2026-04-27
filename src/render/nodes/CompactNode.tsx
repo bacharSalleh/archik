@@ -169,13 +169,19 @@ function PlaceholderChip({
   node: PositionedNode;
   selected: boolean;
 }): React.ReactElement {
+  // Empty `module` / `custom` chips. Previously rendered with a
+  // transparent fill + dim caption colour, which nearly vanished
+  // against a dark canvas. Now uses the real node fill + text
+  // colour so it's actually legible; the dashed border still
+  // signals "stub container, has no diagram children" without
+  // sacrificing contrast.
   const w = node.width;
   const h = node.height;
   const meta = KIND_META[node.kind];
   const Icon = meta.icon;
   const stroke = selected
     ? "var(--archik-selected)"
-    : "var(--archik-node-stroke-soft)";
+    : "var(--archik-node-stroke)";
   return (
     <g
       className={`archik-node archik-node--${node.kind} archik-node--compact`}
@@ -186,25 +192,24 @@ function PlaceholderChip({
         height={h}
         rx={6}
         ry={6}
-        fill="transparent"
+        fill="var(--archik-node-fill)"
         stroke={stroke}
-        strokeOpacity={selected ? 1 : 0.55}
-        strokeWidth={selected ? 1.8 : 1.2}
-        strokeDasharray={selected ? undefined : "4 4"}
+        strokeWidth={selected ? 1.8 : 1.4}
+        strokeDasharray={selected ? undefined : "5 4"}
       />
       <g
         transform={`translate(${ICON_INSET}, ${h / 2 - 7})`}
         pointerEvents="none"
         aria-hidden="true"
       >
-        <Icon size={13} color={meta.color} strokeWidth={1.8} />
+        <Icon size={13} color={meta.color} strokeWidth={1.9} />
       </g>
       <text
         x={TEXT_INSET}
         y={h / 2 + 4}
-        fontSize={11}
+        fontSize={12}
         fontWeight={600}
-        fill="var(--archik-node-caption)"
+        fill="var(--archik-node-text)"
       >
         {fitText(node.name, Math.max(0, w - TEXT_INSET - 8), STACK_CHAR_PX)}
       </text>
