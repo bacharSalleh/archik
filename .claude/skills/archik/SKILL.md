@@ -82,9 +82,14 @@ edges:
 Once you've written the sidecar:
 
 * The canvas shows a **📝 Suggestion pending** banner with `Review`,
-  `Accept`, `Reject` buttons. Review opens a colour-coded SVG diff in
-  a new tab; Accept renames the sidecar over the main file; Reject
-  deletes the sidecar.
+  `Accept`, `Reject` buttons. Review **toggles an in-canvas overlay
+  on the same page** — added nodes/edges get green frames, removed
+  ones get red dashed frames and dim out, changed ones get amber
+  frames, and each gets a `+` / `−` / `~` badge. The button label
+  flips to "Hide diff" while the overlay is on; click again to drop
+  back to the regular view. Accept renames the sidecar over the main
+  file; Reject deletes the sidecar. Both also clear review mode so
+  the canvas snaps back to the new truth.
 * From the terminal: `archik suggest show | accept | reject`.
 
 If the user has no canvas open and asks "apply it", run
@@ -555,7 +560,7 @@ archik dev                         # open the live editor in the browser (foregr
 archik start                       # same as dev, detached — returns the prompt
 archik stop                        # stop the background server
 archik status                      # list running archik instances
-archik init                        # scaffold a starter file
+archik init                        # scaffold a starter file (also installs this skill into ./.claude/skills/archik/ unless --no-skill)
 archik skill                       # install/refresh this skill in cwd
 ```
 
