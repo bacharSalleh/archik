@@ -122,7 +122,7 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
     description: "Content delivery network / static edge.",
   },
   route: {
-    color: "#3b82f6",
+    color: "#f59e0b",
     icon: Route,
     description: "HTTP / URL route — path + method mapped to a handler.",
   },
