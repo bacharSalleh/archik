@@ -44,6 +44,41 @@ The sections below are the detailed reference behind these three
 rules — *when* to consult, *when* to propose, schema, taxonomy,
 relationship vocabulary, and CLI.
 
+## Grounding (do this once per session, before structural work)
+
+The archik file tells you *what* exists. The source tree tells you
+*where* it lives. The mapping between the two is the whole reason
+the file is valuable — without it you just know there's "an Orders
+service" but not where to go to read or edit it. So:
+
+1. **Read the archik file in full.** Use `archik validate` first to
+   find the canonical path (it prefers `.archik/main.archik.yaml`,
+   falls back to `architecture.archik.yaml`). Then `cat` it —
+   don't grep, you want the whole shape in your head.
+2. **List the source tree.** A single `ls` of the top-level project
+   directory plus the most likely source roots is usually enough:
+   `ls -F . src/ services/ packages/ apps/ 2>/dev/null`. If the
+   project has sub-architectures under `.archik/`, list those too
+   (`ls .archik/`) — they're how the user breaks the diagram up by
+   component.
+3. **Build the mapping in your head.** Most projects follow one of
+   two patterns: each top-level archik node id matches a folder
+   under `src/` (or `services/` / `packages/`), or the `stack` /
+   `description` field hints at the location. Note the mismatches
+   — those are the places where moving a folder will outgrow the
+   diagram, and where new code is most likely to need a YAML
+   update too.
+4. **Run `archik check`** if it's available — it walks `src/`,
+   `services/`, `packages/`, and `apps/` and flags nodes that
+   don't have a matching folder (and folders that look like
+   services but aren't in the diagram). Cheap drift detector;
+   worth running before any non-trivial edit.
+
+When the user asks "where would I add X?" or "what's the right
+place for Y?", you should already have the answer because step 3
+gave it to you. When they ask "what would `archik render` show?",
+the answer is in step 1.
+
 ## Suggesting changes (the sidecar workflow)
 
 The archik file is the user's source of truth. You don't get to
