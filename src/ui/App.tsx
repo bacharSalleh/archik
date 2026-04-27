@@ -140,11 +140,14 @@ export function App(): React.ReactElement {
     [availableFiles],
   );
   // What FileEntry.path corresponds to the file currently loaded.
-  // For the root frame we look it up from the file list (the
-  // canonical doc could be at root or under .archik/); for any
-  // drilled-down frame the archikFile *is* the path.
+  // ROOT_FRAME (archikFile=null) maps to the canonical root path
+  // looked up from the file list; every other frame's archikFile
+  // already IS the FileEntry.path. Distinguishing on the discriminator
+  // matters: a single-frame stack of a peer file is NOT the root,
+  // so we mustn't fall back to rootFile here (would highlight the
+  // wrong row in the file switcher).
   const currentFilePath: string | null =
-    fileStack.length === 1
+    currentFile.archikFile === null
       ? rootFile?.path ?? null
       : currentFile.archikFile;
   const [commandError, setCommandError] = useState<string | undefined>(
@@ -515,38 +518,71 @@ export function App(): React.ReactElement {
     }
   }, [currentFile.docUrl]);
 
-  // Drill into a node's sub-architecture. If the target file is
-  // already in the stack (typical case: tools → main → tools via
-  // cross-file edges), rewind to that depth so the breadcrumb
-  // stays linear instead of growing unboundedly. The canonical
-  // root file matches ROOT_FRAME (which carries archikFile=null
-  // but uses the canonical /architecture.archik.yaml URL) — without
-  // this special case a back-link to main would push a new peer
-  // frame for the same file.
+  // Three navigation actions, distinct semantics:
+  //
+  //   1. openSubFile(file)  — DRILL INTO a child architecture (the
+  //      "↓ open" badge on a node carrying `archikFile`). PUSHES
+  //      onto the stack. Round-trips rewind via findIndex below
+  //      so `tools → main → tools → main` stays linear instead of
+  //      growing unboundedly.
+  //
+  //   2. navigateToFile(file) — LATERAL move to a peer file (a
+  //      cross-file edge badge, ↗). RESETS the stack to a single
+  //      frame for that file. Cross-file edges aren't drill-downs;
+  //      treating them as such piled the breadcrumb up with old
+  //      files the user wasn't actually navigating *into*.
+  //
+  //   3. switchToFile(file) — file-switcher dropdown click. Same
+  //      as navigateToFile but plumbed via a different call site.
+  //
+  // The canonical root file (rootFile.path) needs a special case
+  // throughout: ROOT_FRAME carries archikFile=null and uses the
+  // stable /architecture.archik.yaml URL, so any time the *target*
+  // matches the canonical root we collapse to ROOT_FRAME instead
+  // of a peer frame for the same on-disk file.
   const rootFilePath = rootFile?.path ?? null;
+
+  const frameFor = useCallback(
+    (archikFile: string, label: string): FileFrame => {
+      return rootFilePath === archikFile
+        ? ROOT_FRAME
+        : frameForArchikFile(archikFile, label);
+    },
+    [rootFilePath],
+  );
+
+  const matchesFile = useCallback(
+    (frame: FileFrame, archikFile: string): boolean => {
+      if (frame.archikFile === archikFile) return true;
+      return frame.archikFile === null && rootFilePath === archikFile;
+    },
+    [rootFilePath],
+  );
+
   const openSubFile = useCallback(
     (archikFile: string, label: string): void => {
       setFileStack((s) => {
-        const existing = s.findIndex((f) => {
-          if (f.archikFile === archikFile) return true;
-          // Canonical root match: target is the root file's path AND
-          // this frame is ROOT_FRAME.
-          return f.archikFile === null && rootFilePath === archikFile;
-        });
+        const existing = s.findIndex((f) => matchesFile(f, archikFile));
         if (existing >= 0) {
           return existing === s.length - 1 ? s : s.slice(0, existing + 1);
         }
-        // New file. Use ROOT_FRAME if this happens to be the
-        // canonical root (avoids creating a peer frame that uses
-        // the per-file endpoint when the stable URL would do).
-        const frame =
-          rootFilePath === archikFile
-            ? ROOT_FRAME
-            : frameForArchikFile(archikFile, label);
-        return [...s, frame];
+        return [...s, frameFor(archikFile, label)];
       });
     },
-    [rootFilePath],
+    [frameFor, matchesFile],
+  );
+
+  const navigateToFile = useCallback(
+    (archikFile: string, label: string): void => {
+      setFileStack((s) => {
+        // No-op when already on the target — avoids a needless
+        // remount + URL replaceState round-trip.
+        const top = s[s.length - 1]!;
+        if (matchesFile(top, archikFile)) return s;
+        return [frameFor(archikFile, label)];
+      });
+    },
+    [frameFor, matchesFile],
   );
 
   // Pop the navigation stack to a specific depth (0 = root only).
@@ -558,19 +594,19 @@ export function App(): React.ReactElement {
     });
   }, []);
 
-  // Jump directly to a peer file via the file-switcher dropdown.
-  // Resets the navigation stack — the user picks the file they want
-  // as the new root, and the breadcrumb trail starts fresh from there.
-  const switchToFile = useCallback((file: FileEntry): void => {
-    if (file.isRoot) {
-      // Canonical root: use the stable URLs we always served.
-      setFileStack([ROOT_FRAME]);
-    } else {
-      // Treat the chosen peer as the new root frame for navigation
-      // purposes. Drill-downs from here push onto this stack.
-      setFileStack([frameForArchikFile(file.path, file.name)]);
-    }
-  }, []);
+  // File-switcher dropdown: same lateral semantics as a cross-file
+  // edge — pick the file you want as the new root, breadcrumb starts
+  // fresh from there.
+  const switchToFile = useCallback(
+    (file: FileEntry): void => {
+      if (file.isRoot) {
+        setFileStack([ROOT_FRAME]);
+      } else {
+        navigateToFile(file.path, file.name);
+      }
+    },
+    [navigateToFile],
+  );
 
   const handleSelectNode = useCallback(
     (id: string, event?: React.MouseEvent) => {
@@ -1059,6 +1095,7 @@ export function App(): React.ReactElement {
               }
               onConnectDrag={handleConnectDrag}
               onOpenSubFile={openSubFile}
+              onCrossFileNavigate={navigateToFile}
               viewKey={currentFile.docUrl}
               svgRef={canvasSvgRef}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}

@@ -200,6 +200,7 @@ type Props = {
     | undefined;
   onSelectNothing?: (() => void) | undefined;
   onOpenSubFile?: (archikFile: string, label: string) => void;
+  onCrossFileNavigate?: (archikFile: string, label: string) => void;
   /** When set, layer per-status diff frames + edge tints over the diagram. */
   diffStatuses?: StatusMap;
 };
@@ -216,6 +217,7 @@ type InnerProps = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   onOpenSubFile?: (archikFile: string, label: string) => void;
+  onCrossFileNavigate?: (archikFile: string, label: string) => void;
 };
 
 /**
@@ -231,6 +233,7 @@ export function DiagramInner({
   onSelectNode,
   onSelectEdge,
   onOpenSubFile,
+  onCrossFileNavigate,
 }: InnerProps): React.ReactElement {
   // For each local node id, the *unique* set of cross-file paths
   // referenced by edges touching it. Built once here so we don't
@@ -280,6 +283,9 @@ export function DiagramInner({
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
             {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
+            {...(onCrossFileNavigate !== undefined
+              ? { onCrossFileNavigate }
+              : {})}
           />
         ))}
       </g>
@@ -324,6 +330,7 @@ export function DiagramSvg({
   onSelectEdge,
   onSelectNothing,
   onOpenSubFile,
+  onCrossFileNavigate,
   diffStatuses,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
@@ -360,6 +367,9 @@ export function DiagramSvg({
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
+          {...(onCrossFileNavigate !== undefined
+            ? { onCrossFileNavigate }
+            : {})}
         />
       </g>
       {diffStatuses && (

@@ -35,6 +35,12 @@ type Props = {
    *  the per-node "↓ open" affordance; only nodes with `archikFile`
    *  expose it. */
   onOpenSubFile?: (archikFile: string, label: string) => void;
+  /** Lateral navigation callback for cross-file edge badges. When
+   *  omitted the canvas falls back to onOpenSubFile so older callers
+   *  still get *something* on click — but the breadcrumb behaviour
+   *  is then "drill-down" semantics, which isn't what cross-file
+   *  edges want. Pass both. */
+  onCrossFileNavigate?: (archikFile: string, label: string) => void;
   /** Identity for the currently-loaded file. When this changes the
    *  canvas saves the current zoom + scroll for the OLD key into an
    *  in-memory map, then restores whatever state was last saved for
@@ -81,6 +87,7 @@ export function Canvas({
   onSelectNothing,
   onConnectDrag,
   onOpenSubFile,
+  onCrossFileNavigate,
   viewKey,
   diffStatuses,
   svgRef: externalSvgRef,
@@ -330,6 +337,9 @@ export function Canvas({
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
+          {...(onCrossFileNavigate !== undefined
+            ? { onCrossFileNavigate }
+            : {})}
           {...(diffStatuses !== undefined ? { diffStatuses } : {})}
         />
       </div>

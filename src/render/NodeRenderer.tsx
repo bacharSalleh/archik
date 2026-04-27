@@ -94,11 +94,17 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   /** Drill into a node's sub-architecture. Only fired when the node
-   *  has `archikFile` and the user clicks the SubArchIcon badge. */
+   *  has `archikFile` and the user clicks the SubArchIcon badge.
+   *  Push semantics — adds the target onto the navigation stack. */
   onOpenSubFile?: (archikFile: string, label: string) => void;
+  /** Lateral navigation to a peer file referenced by a cross-file
+   *  edge (the ↗ badge). Replace semantics — resets the stack to
+   *  the target file as the new root. Falls back to onOpenSubFile
+   *  when not provided so older callers keep working. */
+  onCrossFileNavigate?: (archikFile: string, label: string) => void;
   /** Map of node id → set of cross-file paths the node has edges to.
    *  Used to render one CrossFileIcon badge per unique referenced
-   *  file, with click-to-navigate via `onOpenSubFile`. */
+   *  file, with click-to-navigate via `onCrossFileNavigate`. */
   crossFileByNode?: ReadonlyMap<string, ReadonlySet<string>>;
   viewMode?: ViewMode;
   /** Container nesting depth — 0 for roots, +1 per container ancestor. */
@@ -110,6 +116,7 @@ export function NodeRenderer({
   selectedNodeIds,
   onSelectNode,
   onOpenSubFile,
+  onCrossFileNavigate,
   crossFileByNode,
   viewMode = "detailed",
   depth = 0,
@@ -167,10 +174,16 @@ export function NodeRenderer({
                   .split("/")
                   .pop()!
                   .replace(/\.archik\.yaml$/, "");
-                const handleOpen = onOpenSubFile
+                // Cross-file navigation = lateral move, not drill-
+                // down. Prefer the dedicated callback; fall back to
+                // onOpenSubFile only when callers haven't wired the
+                // cross-file path explicitly (keeps older embeds
+                // working with degraded breadcrumb behaviour).
+                const handler = onCrossFileNavigate ?? onOpenSubFile;
+                const handleOpen = handler
                   ? (e: React.MouseEvent) => {
                       e.stopPropagation();
-                      onOpenSubFile(filePath, fileLabel);
+                      handler(filePath, fileLabel);
                     }
                   : undefined;
                 return (
@@ -246,6 +259,7 @@ export function NodeRenderer({
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
+          {...(onCrossFileNavigate !== undefined ? { onCrossFileNavigate } : {})}
           {...(crossFileByNode !== undefined ? { crossFileByNode } : {})}
         />
       ))}
