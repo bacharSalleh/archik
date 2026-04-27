@@ -194,7 +194,11 @@ function roundedRect(
   ].join(" ");
 }
 
-/** Mirrors DatabaseNode's cylinderPath, offset to (x, y). */
+/**
+ * Mirrors DatabaseNode's cylinderPath: top ellipse cap, straight
+ * sides, rounded bottom corners (r=10), flat floor — all offset to
+ * (x, y).
+ */
 function cylinderPath(
   x: number,
   y: number,
@@ -202,10 +206,13 @@ function cylinderPath(
   h: number,
   ry: number,
 ): string {
+  const r = 10;
   return [
     `M ${x} ${y + ry}`,
-    `L ${x} ${y + h - ry}`,
-    `A ${w / 2} ${ry} 0 0 0 ${x + w} ${y + h - ry}`,
+    `L ${x} ${y + h - r}`,
+    `A ${r} ${r} 0 0 0 ${x + r} ${y + h}`,
+    `L ${x + w - r} ${y + h}`,
+    `A ${r} ${r} 0 0 0 ${x + w} ${y + h - r}`,
     `L ${x + w} ${y + ry}`,
     `A ${w / 2} ${ry} 0 0 0 ${x} ${y + ry}`,
     `Z`,

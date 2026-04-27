@@ -159,6 +159,11 @@ export function iconAnchorsFor(
       const r = Math.min(height / 2, 28);
       return { right: { x: width - r - 4, y: HEADER_MID } };
     }
+    case "database":
+      // The database renders its KIND tag in a footer strip at the
+      // bottom; the top ellipse stays clean. Anchor the badges in
+      // that footer strip, mirroring the ServiceNode header tray.
+      return { right: { x: width - 14, y: height - 11 } };
     default:
       return { right: { x: width - 14, y: HEADER_MID } };
   }

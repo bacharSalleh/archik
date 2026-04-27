@@ -3,19 +3,26 @@ import { fitText, NAME_CHAR_PX, STACK_CHAR_PX } from "../../layout/text.ts";
 import { KIND_META } from "../kindPalette.ts";
 
 const TEXT_PADDING = 28;
-// ry sets how "tall" the elliptical caps look. 12 gives a visible
-// cylinder profile without dominating a 96-tall node; below ~10 the
-// shape reads as a rounded rect instead of a cylinder.
-const TOP_ELLIPSE_RY = 12;
-const HEADER_GAP = 6; // breathing room between the top ellipse and the KIND tag
+// Vertical radius of the top ellipse cap. ~10 reads as a cylinder
+// without dominating the body.
+const TOP_ELLIPSE_RY = 10;
+// Footer strip — where the kind icon + KIND tag sit, like a label
+// band on a real bottle. Slim so the body keeps most of the room
+// for the name + stack.
+const FOOTER_STRIP = 22;
 
 type Props = { node: PositionedNode; selected?: boolean };
 
 /**
- * Classic UML / sysadmin cylinder. Top ellipse + two side lines +
- * bottom curve. The KIND tag, name, and optional stack sit inside
- * the cylinder body. The kind icon overlaps the top ellipse so the
- * shape reads as "database, with the data on top."
+ * UML cylinder, top-only variant: top ellipse rim + straight sides
+ * + flat bottom. Layout (top → bottom):
+ *
+ *   - top ellipse rim (the "lid") — kept clean, nothing overlaps it
+ *   - body: NAME + optional stack, vertically centred
+ *   - divider line
+ *   - footer strip: kind icon at left, KIND tag centred (the
+ *     description "info" badge from NodeRenderer also lands in this
+ *     strip — see iconAnchorsFor in render/icons.tsx)
  */
 export function DatabaseNode({
   node,
@@ -40,19 +47,22 @@ export function DatabaseNode({
     ? fitText(node.stack as string, innerW, STACK_CHAR_PX)
     : "";
 
-  // Body extends from y = ry (top of cylinder) to y = h - ry (where the
-  // bottom curve starts). Text sits centered in that body region.
-  const bodyTop = ry + HEADER_GAP;
-  const bodyBottom = h - ry;
+  // Geometry. Sides run from y=ry (under the top ellipse) all the
+  // way down to y=h (the flat floor). Footer strip carves the
+  // bottom FOOTER_STRIP px out of that for the kind icon + tag.
+  const sideFloor = h;
+  const footerTop = sideFloor - FOOTER_STRIP;
+  const footerMid = (footerTop + sideFloor) / 2;
+  const bodyTop = ry + 8;
+  const bodyBottom = footerTop;
   const bodyMid = (bodyTop + bodyBottom) / 2;
   const nameY = hasStack ? bodyMid - 4 : bodyMid + 4;
   const stackY = bodyMid + 14;
-  const kindY = ry + 4;
 
   return (
     <g className={`archik-node archik-node--database`}>
-      {/* Body fill — a single path that traces the cylinder outline:
-          top ellipse + two sides + bottom curve. */}
+      {/* Body fill — single path tracing the cylinder outline:
+          top arc, right side, flat bottom, left side. */}
       <path
         className={selected ? "archik-selected-glow" : undefined}
         d={cylinderPath(w, h, ry)}
@@ -61,8 +71,7 @@ export function DatabaseNode({
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
-      {/* The top ellipse rim — drawn ON TOP so the cylinder's top
-          edge reads clearly. */}
+      {/* Top ellipse rim — drawn ON TOP so the lid reads clearly. */}
       <ellipse
         cx={cx}
         cy={ry}
@@ -73,33 +82,12 @@ export function DatabaseNode({
         strokeWidth={strokeWidth}
       />
 
-      {/* Kind icon at top-left, overlapping the top ellipse. */}
-      <g
-        transform={`translate(14, ${ry - 7})`}
-        pointerEvents="none"
-        aria-hidden="true"
-      >
-        <Icon size={14} color={meta.color} strokeWidth={1.9} />
-      </g>
-
-      {/* KIND tag, centered just under the top ellipse. */}
-      <text
-        x={cx}
-        y={kindY + 18}
-        textAnchor="middle"
-        fontSize={9.5}
-        fontWeight={600}
-        letterSpacing="0.12em"
-        fill="var(--archik-node-caption)"
-      >
-        {node.kind.toUpperCase()}
-      </text>
-
+      {/* Body: name + optional stack. */}
       <text
         x={cx}
         y={nameY}
         textAnchor="middle"
-        fontSize={13}
+        fontSize={14}
         fontWeight={600}
         fill="var(--archik-node-text)"
       >
@@ -116,24 +104,60 @@ export function DatabaseNode({
           {displayStack}
         </text>
       )}
+
+      {/* Divider between body and footer strip. */}
+      <line
+        x1={4}
+        y1={footerTop}
+        x2={w - 4}
+        y2={footerTop}
+        stroke={stroke}
+        strokeOpacity={0.45}
+        strokeWidth={1}
+      />
+
+      {/* Footer strip: kind icon (left) + KIND tag (centred). The
+          info / notes badges from NodeRenderer land at the right end
+          of this strip — see iconAnchorsFor for the y placement. */}
+      <g
+        transform={`translate(14, ${footerMid - 7})`}
+        pointerEvents="none"
+        aria-hidden="true"
+      >
+        <Icon size={14} color={meta.color} strokeWidth={1.9} />
+      </g>
+      <text
+        x={cx}
+        y={footerMid + 4}
+        textAnchor="middle"
+        fontSize={9.5}
+        fontWeight={600}
+        letterSpacing="0.12em"
+        fill="var(--archik-node-caption)"
+      >
+        {node.kind.toUpperCase()}
+      </text>
     </g>
   );
 }
 
 /**
- * SVG path for a cylinder of width `w`, height `h`, with top/bottom
- * ellipse vertical radius `ry`. We draw: down-left side, bottom
- * ellipse curve (front half only), up-right side, top ellipse curve
- * (front half only) closing back to start.
+ * SVG path for a flat-bottom cylinder of width `w`, height `h`, with
+ * a top ellipse cap of vertical radius `ry`. The bottom corners get
+ * the same `r` corner radius as a standard card so the cylinder
+ * lines up visually with its neighbours instead of having sharp
+ * 90° corners that draw the eye.
  */
+const CORNER_R = 10;
+
 function cylinderPath(w: number, h: number, ry: number): string {
-  // Use the long-form arc command: A rx ry x-rotation large-arc sweep x y
-  // sweep=0 for the top arc gives us the front half (the part the eye
-  // expects to see).
+  const r = CORNER_R;
   return [
     `M 0 ${ry}`,
-    `L 0 ${h - ry}`,
-    `A ${w / 2} ${ry} 0 0 0 ${w} ${h - ry}`,
+    `L 0 ${h - r}`,
+    `A ${r} ${r} 0 0 0 ${r} ${h}`,
+    `L ${w - r} ${h}`,
+    `A ${r} ${r} 0 0 0 ${w} ${h - r}`,
     `L ${w} ${ry}`,
     `A ${w / 2} ${ry} 0 0 0 0 ${ry}`,
     `Z`,

@@ -63,7 +63,7 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   worker: CARD,
   agent: CARD,
   // Data
-  database: { width: 180, height: 96 },  // cylinder — height is body + top/bottom ellipse pair
+  database: { width: 184, height: 100 }, // flat-bottom cylinder — top ellipse + body + footer label band
   cache: CARD_SUBTITLE,
   vectordb: CARD,
   storage: CARD,

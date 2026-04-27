@@ -101,3 +101,26 @@ export function inlineThemeVars(
     (match, name: string) => tokens[`--archik-${name}`] ?? match,
   );
 }
+
+/**
+ * Inject a full-bleed background <rect> as the first child of the
+ * root <svg>. The in-canvas rendering doesn't need this — the page
+ * has its own dark background — but a standalone exported SVG
+ * opened in a browser, image viewer, or pasted into a Notion doc
+ * needs the canvas color baked in or every dark-themed node floats
+ * on whatever the host's body color happens to be.
+ */
+export function injectBackground(
+  svgMarkup: string,
+  theme: ThemeName = "dark",
+): string {
+  const tokens = theme === "light" ? LIGHT_THEME_TOKENS : DARK_THEME_TOKENS;
+  const bg = tokens["--archik-canvas"] ?? "#050912";
+  // Use the viewBox so the rect covers the negative-origin padding
+  // region too (DiagramSvg's viewBox starts at -24,-24). 100% would
+  // only cover the positive quadrant.
+  const viewBox = svgMarkup.match(/<svg\b[^>]*viewBox="([^"]+)"/);
+  const [vx, vy, vw, vh] = (viewBox?.[1] ?? "0 0 0 0").split(/\s+/);
+  const rect = `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${bg}"/>`;
+  return svgMarkup.replace(/(<svg\b[^>]*>)/, `$1${rect}`);
+}

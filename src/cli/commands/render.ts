@@ -7,7 +7,11 @@ import { layout } from "../../layout/index.ts";
 import { DiagramSvg } from "../../render/DiagramSvg.tsx";
 import { getString, type ParsedOptions } from "../options.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
-import { inlineThemeVars, type ThemeName } from "../themeTokens.ts";
+import {
+  injectBackground,
+  inlineThemeVars,
+  type ThemeName,
+} from "../themeTokens.ts";
 
 export async function renderCommand(opts: ParsedOptions): Promise<number> {
   let inputAbs: string;
@@ -48,7 +52,7 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   const inner = renderToStaticMarkup(
     createElement(DiagramSvg, { positioned }),
   );
-  const themed = inlineThemeVars(inner, theme);
+  const themed = injectBackground(inlineThemeVars(inner, theme), theme);
   // Wrap in xml header for safety when opened standalone.
   const finalSvg = `<?xml version="1.0" encoding="UTF-8"?>\n${themed}\n`;
   const outAbs = path.resolve(out);

@@ -12,7 +12,11 @@ import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
 import { DiffSvg } from "../../render/DiffSvg.tsx";
 import { getString, type ParsedOptions } from "../options.ts";
-import { inlineThemeVars, type ThemeName } from "../themeTokens.ts";
+import {
+  injectBackground,
+  inlineThemeVars,
+  type ThemeName,
+} from "../themeTokens.ts";
 
 export async function diffCommand(opts: ParsedOptions): Promise<number> {
   const beforePath = opts._[0];
@@ -49,7 +53,7 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
     const inner = renderToStaticMarkup(
       createElement(DiffSvg, { positioned, statuses: statusMap(diff) }),
     );
-    const themed = inlineThemeVars(inner, theme);
+    const themed = injectBackground(inlineThemeVars(inner, theme), theme);
     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n${themed}\n`;
     const outAbs = path.resolve(out);
     await mkdir(path.dirname(outAbs), { recursive: true });
