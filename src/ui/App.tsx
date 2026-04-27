@@ -21,6 +21,7 @@ import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
 import { Breadcrumbs } from "./Breadcrumbs.tsx";
+import { FileSwitcher, type FileEntry } from "./FileSwitcher.tsx";
 import {
   densityToLayoutOptions,
   loadDensity,
@@ -89,6 +90,28 @@ export function App(): React.ReactElement {
   // popped by breadcrumb / back. Root is always present at index 0.
   const [fileStack, setFileStack] = useState<FileFrame[]>([ROOT_FRAME]);
   const currentFile = fileStack[fileStack.length - 1]!;
+  // All archik files in the project. Refetched on doc / suggestion
+  // change so the file-switcher dropdown reflects new files appearing
+  // and the suggestion-pending dots stay current.
+  const [availableFiles, setAvailableFiles] = useState<ReadonlyArray<FileEntry>>(
+    [],
+  );
+  const suggestionsByPath = useMemo(
+    () => new Set(availableFiles.filter((f) => f.hasSuggestion).map((f) => f.path)),
+    [availableFiles],
+  );
+  const rootFile = useMemo(
+    () => availableFiles.find((f) => f.isRoot) ?? null,
+    [availableFiles],
+  );
+  // What FileEntry.path corresponds to the file currently loaded.
+  // For the root frame we look it up from the file list (the
+  // canonical doc could be at root or under .archik/); for any
+  // drilled-down frame the archikFile *is* the path.
+  const currentFilePath: string | null =
+    fileStack.length === 1
+      ? rootFile?.path ?? null
+      : currentFile.archikFile;
   const [commandError, setCommandError] = useState<string | undefined>(
     undefined,
   );
@@ -231,6 +254,34 @@ export function App(): React.ReactElement {
       if (savedIndicatorTimerRef.current) {
         clearTimeout(savedIndicatorTimerRef.current);
       }
+    };
+  }, []);
+
+  // File-list fetch. Drives the file-switcher dropdown plus the
+  // pending-suggestion dots in the breadcrumb. Refetches on every
+  // doc-change AND suggestion-change SSE event so new files show up
+  // and pending-suggestion flags stay current.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async (): Promise<void> => {
+      try {
+        const res = await fetch("/__archik/files", { cache: "no-store" });
+        if (cancelled) return;
+        if (!res.ok) return;
+        const body: { files?: FileEntry[] } = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(body.files)) setAvailableFiles(body.files);
+      } catch {
+        // Endpoint may be missing in older servers — silently skip.
+      }
+    };
+    void refresh();
+    const offDoc = subscribeToDocumentChanges(() => void refresh());
+    const offSuggestion = subscribeToSuggestionChanges(() => void refresh());
+    return () => {
+      cancelled = true;
+      offDoc();
+      offSuggestion();
     };
   }, []);
 
@@ -400,6 +451,20 @@ export function App(): React.ReactElement {
       if (index < 0 || index >= s.length - 1) return s;
       return s.slice(0, index + 1);
     });
+  }, []);
+
+  // Jump directly to a peer file via the file-switcher dropdown.
+  // Resets the navigation stack — the user picks the file they want
+  // as the new root, and the breadcrumb trail starts fresh from there.
+  const switchToFile = useCallback((file: FileEntry): void => {
+    if (file.isRoot) {
+      // Canonical root: use the stable URLs we always served.
+      setFileStack([ROOT_FRAME]);
+    } else {
+      // Treat the chosen peer as the new root frame for navigation
+      // purposes. Drill-downs from here push onto this stack.
+      setFileStack([frameForArchikFile(file.path, file.name)]);
+    }
   }, []);
 
   const handleSelectNode = useCallback(
@@ -851,7 +916,29 @@ export function App(): React.ReactElement {
               width: "100%",
             }}
           >
-            <Breadcrumbs stack={fileStack} onGoToFrame={goToFrame} />
+            {(availableFiles.length > 1 || fileStack.length > 1) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px",
+                  background: "var(--archik-surface)",
+                  borderBottom: "1px solid var(--archik-border)",
+                }}
+              >
+                <FileSwitcher
+                  files={availableFiles}
+                  currentPath={currentFilePath}
+                  onSwitchFile={switchToFile}
+                />
+                <Breadcrumbs
+                  stack={fileStack}
+                  onGoToFrame={goToFrame}
+                  suggestionsByPath={suggestionsByPath}
+                />
+              </div>
+            )}
             <Canvas
               document={renderDoc}
               className="flex-1 archik-grid"
@@ -866,6 +953,7 @@ export function App(): React.ReactElement {
               }
               onConnectDrag={handleConnectDrag}
               onOpenSubFile={openSubFile}
+              viewKey={currentFile.docUrl}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
             />
           </div>

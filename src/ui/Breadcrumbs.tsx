@@ -1,4 +1,5 @@
 import type { FileFrame } from "./App.tsx";
+import { SuggestionDot } from "./FileSwitcher.tsx";
 
 type Props = {
   /** The full navigation stack. The last frame is "current" — shown
@@ -7,6 +8,10 @@ type Props = {
   /** Jump back to the frame at `index`. The component never invokes
    *  this for the last entry (already current). */
   onGoToFrame: (index: number) => void;
+  /** Set of paths (matching `FileEntry.path`) that have pending
+   *  suggestion sidecars. Used to render an accent dot next to the
+   *  matching crumb. */
+  suggestionsByPath?: ReadonlySet<string>;
 };
 
 /**
@@ -18,6 +23,7 @@ type Props = {
 export function Breadcrumbs({
   stack,
   onGoToFrame,
+  suggestionsByPath,
 }: Props): React.ReactElement | null {
   if (stack.length <= 1) return null;
   return (
@@ -27,15 +33,16 @@ export function Breadcrumbs({
         display: "flex",
         alignItems: "center",
         gap: 6,
-        padding: "8px 14px",
         fontSize: 12,
-        background: "var(--archik-surface)",
-        borderBottom: "1px solid var(--archik-border)",
         color: "var(--archik-fg-muted)",
       }}
     >
       {stack.map((frame, i) => {
         const isLast = i === stack.length - 1;
+        const hasSuggestion =
+          frame.archikFile !== null &&
+          suggestionsByPath !== undefined &&
+          suggestionsByPath.has(frame.archikFile);
         return (
           <span
             key={`${i}-${frame.archikFile ?? "root"}`}
@@ -50,10 +57,14 @@ export function Breadcrumbs({
                 style={{
                   color: "var(--archik-fg)",
                   fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
                 }}
                 aria-current="page"
               >
                 {frame.label}
+                {hasSuggestion && <SuggestionDot />}
               </span>
             ) : (
               <button
@@ -65,10 +76,14 @@ export function Breadcrumbs({
                   fontSize: 12,
                   color: "var(--archik-fg-muted)",
                   background: "transparent",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
                 }}
                 title={`Back to ${frame.label}`}
               >
                 {frame.label}
+                {hasSuggestion && <SuggestionDot />}
               </button>
             )}
             {!isLast && (

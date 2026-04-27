@@ -17,6 +17,7 @@ import {
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
+  handleListFiles,
   handleSidecar,
   handleYaml,
 } from "./handlers.ts";
@@ -53,6 +54,9 @@ const DIFF_SVG_URL = "/__archik/diff.svg";
  *  a node's `archikFile`. The relative path comes in via `?path=`. */
 const FILE_URL = "/__archik/file";
 const FILE_ACCEPT_URL = "/__archik/file-accept";
+/** List every archik file under the project root, with a
+ *  has-suggestion flag — drives the file-switcher dropdown. */
+const FILES_URL = "/__archik/files";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -255,6 +259,11 @@ export async function startDevServer(
     if (url === FILE_ACCEPT_URL || url.startsWith(FILE_ACCEPT_URL + "?")) {
       const rel = parsePathParam(url);
       void handleArchikAccept(root, rel, req, res);
+      return;
+    }
+
+    if (url === FILES_URL || url.startsWith(FILES_URL + "?")) {
+      void handleListFiles(root, docPath, req, res);
       return;
     }
 

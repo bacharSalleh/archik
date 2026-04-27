@@ -268,6 +268,142 @@ export function safeResolveProjectFile(
 }
 
 /**
+ * Walk the project root and enumerate every archik file, with a
+ * `hasSuggestion` flag if a `<stem>.suggested.yaml` is sitting
+ * next to it. Used by the file-switcher dropdown so the canvas
+ * can show peer files and pending-suggestion badges.
+ */
+export async function listArchikFiles(
+  projectRoot: string,
+  /** Absolute path of the canonical root file (whichever
+   *  `resolveDocPath` picked). The matching entry in the result is
+   *  flagged `isRoot: true` so the canvas knows to use the stable
+   *  `/architecture.archik.yaml` URL for it instead of the
+   *  per-file endpoint. */
+  rootDocPath?: string,
+): Promise<
+  Array<{
+    path: string;
+    name: string;
+    hasSuggestion: boolean;
+    isRoot: boolean;
+  }>
+> {
+  const root = path.resolve(projectRoot);
+  const canonicalRoot =
+    rootDocPath !== undefined ? path.resolve(rootDocPath) : null;
+  // Limit how deep we walk — prevents runaway traversal in odd
+  // monorepos. Architecture files almost always live at the root
+  // or under .archik/, neither of which is more than a few levels.
+  const MAX_DEPTH = 6;
+  // Ignore directories we're never going to find archik files in
+  // and which would be expensive to walk.
+  const SKIP_DIRS = new Set([
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    "coverage",
+    ".next",
+    ".turbo",
+    ".cache",
+  ]);
+  const found = new Set<string>();
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    if (depth > MAX_DEPTH) return;
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        // Always descend into .archik/, hidden or not. Skip other
+        // hidden directories — they aren't where users keep arch files.
+        if (entry.name.startsWith(".") && entry.name !== ".archik") continue;
+        await walk(full, depth + 1);
+      } else if (entry.isFile()) {
+        if (
+          entry.name.endsWith(".archik.yaml") &&
+          !entry.name.endsWith(".archik.suggested.yaml")
+        ) {
+          found.add(full);
+        }
+      }
+    }
+  };
+  await walk(root, 0);
+
+  const out: Array<{
+    path: string;
+    name: string;
+    hasSuggestion: boolean;
+    isRoot: boolean;
+  }> = [];
+  for (const abs of found) {
+    const rel = path.relative(root, abs).split(path.sep).join("/");
+    const sidecar = suggestionPath(abs);
+    let hasSuggestion = false;
+    try {
+      await fs.access(sidecar);
+      hasSuggestion = true;
+    } catch {
+      // no sidecar — fine
+    }
+    // Friendly label: the basename without extensions, with the
+    // canonical legacy file getting "main" instead of "architecture".
+    const base = path.basename(rel).replace(/\.archik\.yaml$/, "");
+    const name = base === "architecture" ? "main" : base;
+    const isRoot = canonicalRoot !== null && abs === canonicalRoot;
+    out.push({ path: rel, name, hasSuggestion, isRoot });
+  }
+  // Stable order: legacy root file first (if any), then alphabetical.
+  out.sort((a, b) => {
+    const aRoot = !a.path.includes("/");
+    const bRoot = !b.path.includes("/");
+    if (aRoot !== bRoot) return aRoot ? -1 : 1;
+    return a.path.localeCompare(b.path);
+  });
+  return out;
+}
+
+/**
+ * GET handler for `/__archik/files`. Returns the JSON list above.
+ * Read-only; no PUT / DELETE.
+ */
+export async function handleListFiles(
+  projectRoot: string,
+  rootDocPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.statusCode = 405;
+    res.setHeader("allow", "GET, HEAD");
+    res.end();
+    return;
+  }
+  try {
+    const files = await listArchikFiles(projectRoot, rootDocPath);
+    res.statusCode = 200;
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.setHeader("cache-control", "no-store");
+    if (req.method === "HEAD") {
+      res.end();
+    } else {
+      res.end(JSON.stringify({ files }));
+    }
+  } catch (err) {
+    res.statusCode = 500;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
  * Generic file handler: GET / PUT a project archik file at any
  * relative path under the project root. Used by the canvas when
  * navigating into a sub-architecture pointed at by a node's
