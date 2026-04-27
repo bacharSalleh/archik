@@ -24,12 +24,23 @@ describe("detectFormat", () => {
     ["nested/foo.JSON", "json"],
     ["http://example.com/doc.yaml?ts=123", "yaml"],
     ["http://example.com/doc.json#anchor", "json"],
+    // Per-file dev-server endpoint puts the filename in `?path=…`.
+    // Without the query-aware fallback every sub-file load throws.
+    ["/__archik/file?path=.archik/foo.archik.yaml", "yaml"],
+    ["/__archik/file?path=.archik%2Ffoo.archik.yaml", "yaml"],
+    ["/__archik/file?path=foo.archik.suggested.yaml", "yaml"],
+    ["/__archik/file?path=nested/bar.json", "json"],
   ] as const)("infers format from %s as %s", (path, expected) => {
     expect(detectFormat(path)).toBe(expected);
   });
 
   it("throws when the format is unknown", () => {
     expect(() => detectFormat("foo.txt")).toThrow(/format/i);
+  });
+
+  it("throws when the query has no usable path param either", () => {
+    expect(() => detectFormat("/__archik/file?path=foo.txt")).toThrow(/format/i);
+    expect(() => detectFormat("/__archik/file")).toThrow(/format/i);
   });
 });
 

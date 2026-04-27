@@ -5,13 +5,34 @@ import { parseJson, stringifyJson } from "./json.ts";
 export type DocumentFormat = "yaml" | "json";
 
 export function detectFormat(pathOrUrl: string): DocumentFormat {
+  // Try the path itself first — covers normal URLs like
+  // /architecture.archik.yaml and absolute file paths.
   const withoutQueryOrHash = pathOrUrl.split(/[?#]/, 1)[0] ?? pathOrUrl;
-  const lower = withoutQueryOrHash.toLowerCase();
-  if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "yaml";
-  if (lower.endsWith(".json")) return "json";
+  const fromPath = matchExtension(withoutQueryOrHash);
+  if (fromPath !== null) return fromPath;
+  // Fallback: the per-file dev-server endpoint puts the actual
+  // filename in `?path=…` (e.g. `/__archik/file?path=.archik/foo.yaml`).
+  // Without this branch every sub-file load throws "Unknown document
+  // format" because the path itself is just `/__archik/file`.
+  const queryStart = pathOrUrl.indexOf("?");
+  if (queryStart >= 0) {
+    const params = new URLSearchParams(pathOrUrl.slice(queryStart + 1));
+    const filePath = params.get("path");
+    if (filePath !== null && filePath !== "") {
+      const fromQuery = matchExtension(filePath);
+      if (fromQuery !== null) return fromQuery;
+    }
+  }
   throw new Error(
     `Unknown document format for "${pathOrUrl}" (expected .yaml/.yml/.json)`,
   );
+}
+
+function matchExtension(p: string): DocumentFormat | null {
+  const lower = p.toLowerCase();
+  if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "yaml";
+  if (lower.endsWith(".json")) return "json";
+  return null;
 }
 
 export function parseDocument(text: string, format: DocumentFormat): Document {
