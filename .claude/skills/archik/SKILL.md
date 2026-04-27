@@ -203,6 +203,31 @@ metadata:               # optional
     team: fulfillment
 ```
 
+### Cross-file edges (`fromFile` / `toFile`)
+
+Edges can also point at a node that lives in a peer file. Set
+`toFile` (or `fromFile`) to that file's relative path; the canvas
+won't draw the edge itself but will hang an "↗" badge on the local
+endpoint, with the target file in the tooltip. Click → navigate.
+
+```yaml
+edges:
+  - id: api-pays
+    from: api                              # local node
+    to: charge-handler
+    toFile: .archik/payments.archik.yaml   # peer file
+    relationship: http_call
+    label: charge
+```
+
+Constraints (the schema enforces them):
+
+- The cross-file path follows the same rules as `archikFile` (relative,
+  forward slashes, no `..`, ends in `.archik.yaml`).
+- The *local* endpoint id must still match a node in this file.
+- An edge with **both** `fromFile` and `toFile` is rejected — author
+  it inside one of the two referenced files instead.
+
 ### Drilling into a sub-architecture (`archikFile`)
 
 A node can point at *its own* archik file via `archikFile`. The

@@ -69,6 +69,16 @@ export const EdgeSchema = z.strictObject({
   protocol: z.string().optional(),
   /** Optional per-edge stroke color override (any CSS color). */
   color: z.string().optional(),
+  /** Cross-file reference: when set, `from` is a node id in another
+   *  archik file (the path is here). The local renderer treats the
+   *  edge as outbound — only the endpoint that's local to *this*
+   *  file gets laid out. */
+  fromFile: ArchikFilePathSchema.optional(),
+  /** Cross-file reference: when set, `to` is a node id in another
+   *  archik file (the path is here). The local renderer treats the
+   *  edge as inbound — only the endpoint that's local to *this*
+   *  file gets laid out. */
+  toFile: ArchikFilePathSchema.optional(),
 });
 
 /**
@@ -133,21 +143,40 @@ export const DocumentSchema = z
       }
       edgeIds.add(edge.id);
 
-      if (!nodeIds.has(edge.from)) {
+      // Cross-file endpoints (fromFile / toFile) are exempt from the
+      // "must be a known node" check — that node lives in another
+      // file and we don't load it here. The id format check from
+      // IdSchema still applies.
+      if (edge.fromFile === undefined && !nodeIds.has(edge.from)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["edges", i, "from"],
           message: `edge "${edge.id}" references unknown node "${edge.from}"`,
         });
       }
-      if (!nodeIds.has(edge.to)) {
+      if (edge.toFile === undefined && !nodeIds.has(edge.to)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["edges", i, "to"],
           message: `edge "${edge.id}" references unknown node "${edge.to}"`,
         });
       }
-      if (edge.from === edge.to) {
+      // A fully cross-file edge (both endpoints elsewhere) doesn't
+      // belong in any single file — author it in one of the two
+      // referenced files instead.
+      if (edge.fromFile !== undefined && edge.toFile !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i],
+          message:
+            `edge "${edge.id}" has both fromFile and toFile — at least one endpoint must be local to this file`,
+        });
+      }
+      if (
+        edge.from === edge.to &&
+        edge.fromFile === undefined &&
+        edge.toFile === undefined
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["edges", i],

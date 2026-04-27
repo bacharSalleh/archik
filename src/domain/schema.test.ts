@@ -204,6 +204,41 @@ describe("EdgeSchema", () => {
       EdgeSchema.safeParse({ ...minimal, points: [{ x: 0, y: 0 }] }).success,
     ).toBe(false);
   });
+
+  describe("cross-file (fromFile / toFile)", () => {
+    it("accepts an edge with toFile pointing at a peer file", () => {
+      expect(
+        EdgeSchema.safeParse({
+          ...minimal,
+          toFile: ".archik/payments.archik.yaml",
+        }).success,
+      ).toBe(true);
+    });
+
+    it("accepts an edge with fromFile pointing at a peer file", () => {
+      expect(
+        EdgeSchema.safeParse({
+          ...minimal,
+          fromFile: ".archik/upstream.archik.yaml",
+        }).success,
+      ).toBe(true);
+    });
+
+    it("rejects toFile with an absolute path", () => {
+      expect(
+        EdgeSchema.safeParse({
+          ...minimal,
+          toFile: "/etc/passwd.archik.yaml",
+        }).success,
+      ).toBe(false);
+    });
+
+    it("rejects toFile without the .archik.yaml extension", () => {
+      expect(
+        EdgeSchema.safeParse({ ...minimal, toFile: "foo.yaml" }).success,
+      ).toBe(false);
+    });
+  });
 });
 
 describe("DocumentSchema", () => {
@@ -335,6 +370,69 @@ describe("DocumentSchema", () => {
         nodes: baseNodes,
         edges: [
           { id: "e1", from: "api", to: "api", relationship: "depends_on" },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("accepts a cross-file edge where `to` is unknown locally because toFile is set", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          {
+            id: "api-pays",
+            from: "api",
+            to: "payments-api",
+            toFile: ".archik/payments.archik.yaml",
+            relationship: "http_call",
+          },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("accepts a cross-file edge where `from` is unknown locally because fromFile is set", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          {
+            id: "upstream-api",
+            from: "auth",
+            fromFile: ".archik/auth.archik.yaml",
+            to: "api",
+            relationship: "invokes",
+          },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("rejects an edge that's cross-file at BOTH ends — author it elsewhere", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          {
+            id: "x-y",
+            from: "x",
+            fromFile: ".archik/x.archik.yaml",
+            to: "y",
+            toFile: ".archik/y.archik.yaml",
+            relationship: "http_call",
+          },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("still rejects a dangling edge when no fromFile/toFile is set", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "e1", from: "api", to: "ghost", relationship: "writes" },
         ],
       });
       expect(r.success).toBe(false);

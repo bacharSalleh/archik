@@ -1,4 +1,9 @@
-import { ChevronDown, Info, StickyNote } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Info,
+  StickyNote,
+} from "lucide-react";
 import type { NodeKind } from "../domain/types.ts";
 
 const TRAY_ICON_SIZE = 12;
@@ -41,6 +46,56 @@ export function InfoIcon(props: CenterProps): React.ReactElement {
 
 export function NotesIcon(props: CenterProps): React.ReactElement {
   return <PositionedIcon Icon={StickyNote} {...props} />;
+}
+
+/**
+ * Clickable badge shown on a node that has cross-file edges
+ * pointing at another archik file. Tooltip carries the file path;
+ * click navigates the canvas to it. One per *unique* referenced
+ * file — multiple cross-file edges to the same target collapse
+ * into a single icon.
+ */
+export function CrossFileIcon({
+  cx,
+  cy,
+  filePath,
+  fileLabel,
+  onClick,
+  size = 13,
+}: {
+  cx: number;
+  cy: number;
+  filePath: string;
+  fileLabel: string;
+  onClick?: (e: React.MouseEvent) => void;
+  size?: number;
+}): React.ReactElement {
+  return (
+    <g
+      transform={`translate(${cx - size / 2}, ${cy - size / 2})`}
+      style={{ cursor: onClick ? "pointer" : "default" }}
+      onClick={onClick}
+    >
+      <title>{`Cross-file edge → ${fileLabel} (${filePath})`}</title>
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={size / 2 + 0.5}
+        fill="var(--archik-fg-dim)"
+        fillOpacity={0.12}
+        stroke="var(--archik-fg-dim)"
+        strokeOpacity={0.4}
+        strokeWidth={1}
+      />
+      <g transform={`translate(1, 1)`} pointerEvents="none">
+        <ArrowUpRight
+          size={size - 2}
+          color="var(--archik-fg-muted)"
+          strokeWidth={2.2}
+        />
+      </g>
+    </g>
+  );
 }
 
 /**

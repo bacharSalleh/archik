@@ -214,8 +214,16 @@ function buildHierarchy(
   return { roots: rootNodes.map(build), byId };
 }
 
+/** Cross-file edges (`fromFile` / `toFile` set) reference a node
+ *  that lives in another archik file. ELK can't lay them out — the
+ *  endpoint isn't in the graph — so we omit them entirely. The
+ *  renderer surfaces them as a small badge on the local node. */
+function isLocalEdge(e: Document["edges"][number]): boolean {
+  return e.fromFile === undefined && e.toFile === undefined;
+}
+
 function toElkEdges(doc: Document): ElkExtendedEdge[] {
-  return doc.edges.map((e) => {
+  return doc.edges.filter(isLocalEdge).map((e) => {
     const elk: ElkExtendedEdge = {
       id: e.id,
       sources: [e.from],
@@ -325,6 +333,10 @@ function elkToPositionedEdges(
   };
   collect(elkRoot);
 
+  // Cross-file edges weren't sent to ELK and have no laid-out
+  // sections — surface them in the result with empty geometry. The
+  // EdgeRenderer skips drawing them; the per-node badge in
+  // NodeRenderer handles their UI.
   return doc.edges.map((e) => ({
     ...e,
     sections: sectionsById.get(e.id) ?? [],

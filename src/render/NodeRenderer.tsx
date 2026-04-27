@@ -7,6 +7,7 @@ import { CloudNode } from "./nodes/CloudNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { CompactNode } from "./nodes/CompactNode.tsx";
 import {
+  CrossFileIcon,
   InfoIcon,
   NotesIcon,
   SubArchIcon,
@@ -90,6 +91,10 @@ type Props = {
   /** Drill into a node's sub-architecture. Only fired when the node
    *  has `archikFile` and the user clicks the SubArchIcon badge. */
   onOpenSubFile?: (archikFile: string, label: string) => void;
+  /** Map of node id → set of cross-file paths the node has edges to.
+   *  Used to render one CrossFileIcon badge per unique referenced
+   *  file, with click-to-navigate via `onOpenSubFile`. */
+  crossFileByNode?: ReadonlyMap<string, ReadonlySet<string>>;
   viewMode?: ViewMode;
   /** Container nesting depth — 0 for roots, +1 per container ancestor. */
   depth?: number;
@@ -100,6 +105,7 @@ export function NodeRenderer({
   selectedNodeIds,
   onSelectNode,
   onOpenSubFile,
+  crossFileByNode,
   viewMode = "detailed",
   depth = 0,
 }: Props): React.ReactElement {
@@ -131,10 +137,16 @@ export function NodeRenderer({
           node.notes !== undefined && node.notes.length > 0;
         const hasArchikFile =
           node.archikFile !== undefined && node.archikFile.length > 0;
-        type TrayKind = "info" | "notes" | "subarch";
+        const crossFilePaths = crossFileByNode?.get(node.id);
+        const crossFileList: string[] = crossFilePaths
+          ? Array.from(crossFilePaths).sort()
+          : [];
+        type TrayKind = "info" | "notes" | "subarch" | { type: "crossfile"; path: string };
         const trayItems: TrayKind[] = [];
         // Sub-arch first so it's the rightmost — most actionable, easiest to find.
         if (hasArchikFile) trayItems.push("subarch");
+        // Then one cross-file icon per unique referenced file.
+        for (const p of crossFileList) trayItems.push({ type: "crossfile", path: p });
         if (hasDescription) trayItems.push("info");
         if (hasNotes) trayItems.push("notes");
         if (trayItems.length === 0) return null;
@@ -144,6 +156,29 @@ export function NodeRenderer({
           <>
             {trayItems.map((kind, i) => {
               const slot = slots[i]!;
+              if (typeof kind === "object" && kind.type === "crossfile") {
+                const filePath = kind.path;
+                const fileLabel = filePath
+                  .split("/")
+                  .pop()!
+                  .replace(/\.archik\.yaml$/, "");
+                const handleOpen = onOpenSubFile
+                  ? (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      onOpenSubFile(filePath, fileLabel);
+                    }
+                  : undefined;
+                return (
+                  <CrossFileIcon
+                    key={`xf-${filePath}`}
+                    cx={slot.x}
+                    cy={slot.y}
+                    filePath={filePath}
+                    fileLabel={fileLabel}
+                    {...(handleOpen ? { onClick: handleOpen } : {})}
+                  />
+                );
+              }
               if (kind === "subarch") {
                 const archikFile = node.archikFile!;
                 const handleOpen = onOpenSubFile
@@ -206,6 +241,7 @@ export function NodeRenderer({
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
+          {...(crossFileByNode !== undefined ? { crossFileByNode } : {})}
         />
       ))}
     </g>

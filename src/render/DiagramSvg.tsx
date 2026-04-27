@@ -232,6 +232,23 @@ export function DiagramInner({
   onSelectEdge,
   onOpenSubFile,
 }: InnerProps): React.ReactElement {
+  // For each local node id, the *unique* set of cross-file paths
+  // referenced by edges touching it. Built once here so we don't
+  // walk the edge list inside every NodeRenderer.
+  const crossFileByNode = new Map<string, Set<string>>();
+  for (const edge of positioned.edges) {
+    if (edge.toFile !== undefined) {
+      const set = crossFileByNode.get(edge.from) ?? new Set<string>();
+      set.add(edge.toFile);
+      crossFileByNode.set(edge.from, set);
+    }
+    if (edge.fromFile !== undefined) {
+      const set = crossFileByNode.get(edge.to) ?? new Set<string>();
+      set.add(edge.fromFile);
+      crossFileByNode.set(edge.to, set);
+    }
+  }
+
   return (
     <>
       <defs>
@@ -259,6 +276,7 @@ export function DiagramInner({
             key={node.id}
             node={node}
             viewMode={viewMode}
+            crossFileByNode={crossFileByNode}
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
             {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
