@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/logo.svg" alt="archik" width="120">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/logo.svg" alt="archik" width="120">
 </p>
 
 <h1 align="center">archik</h1>
@@ -17,7 +17,7 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/bach__92?style=social)](https://x.com/bach__92)
 
 <p align="center">
-  <img src="./docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
 </p>
 
 archik gives your project — and the AI editing it — *one file* that
