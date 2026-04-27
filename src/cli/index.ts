@@ -36,7 +36,7 @@ USAGE
   archik --help             Show this message
 
 COMMANDS
-  init              Scaffold a starter architecture.archik.yaml
+  init              Scaffold a starter .archik/main.archik.yaml
                                      (also installs the Claude skill by default)
                     --no-skill       skip installing the Claude skill
   dev [path]        Open the canvas in your browser (live editor, foreground)
@@ -65,7 +65,9 @@ COMMANDS
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
 
-The default path is architecture.archik.yaml in the current directory.
+Default file resolution (when no [path] is given):
+  1. .archik/main.archik.yaml      (preferred new convention)
+  2. architecture.archik.yaml      (legacy root location, still supported)
 `);
 }
 

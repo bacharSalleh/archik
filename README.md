@@ -11,7 +11,7 @@ You write a small YAML file describing your nodes (services, databases, queues, 
 ## Quickstart
 
 ```bash
-npx archik init       # scaffold architecture.archik.yaml in cwd
+npx archik init       # scaffold .archik/main.archik.yaml in cwd
 npx archik start      # canvas at http://localhost:5173 (background)
 npx archik stop       # done
 ```
@@ -77,7 +77,7 @@ So conversations like *"add a payments worker that subscribes to the orders queu
 ## Commands
 
 ```
-archik init [path]       Scaffold a starter architecture.archik.yaml
+archik init [path]       Scaffold a starter .archik/main.archik.yaml
                          (also installs the Claude skill by default)
                          --no-skill       skip installing the Claude skill
 
@@ -102,7 +102,14 @@ archik skill             Install the Claude skill for AI editing
                          --force          overwrite an existing skill
 ```
 
-Default path is `architecture.archik.yaml` in the current directory. Single instance per file is enforced via a lock file in `$TMPDIR/archik-cli/`, so parallel `dev` and `start` against the same YAML are rejected with a friendly error.
+Without a `[path]` argument, archik resolves the file in this order:
+
+1. `.archik/main.archik.yaml` (preferred new convention — keeps the project root tidy)
+2. `architecture.archik.yaml` (legacy root location — still fully supported)
+
+If both exist the command errors out and asks you to pick one. New projects get the `.archik/` layout from `archik init`; existing projects keep working without any migration.
+
+Single instance per file is enforced via a lock file in `$TMPDIR/archik-cli/`, so parallel `dev` and `start` against the same YAML are rejected with a friendly error.
 
 ## Use it in CI
 

@@ -1,30 +1,41 @@
 ---
 name: archik
-description: Use whenever architecture.archik.yaml exists in the project, or the user asks about the system's architecture, services, dependencies, or data flow. The YAML is the shared map of the project between the user and Claude — read it before answering structural questions, and propose updates when work introduces or changes nodes/edges. Also covers the archik CLI for validation and rendering.
+description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml exists in the project, or the user asks about the system's architecture, services, dependencies, or data flow. The YAML is the shared map of the project between the user and Claude — read it before answering structural questions, and propose updates when work introduces or changes nodes/edges. Also covers the archik CLI for validation and rendering.
 ---
 
 # Archik — the project's shared map
 
-`architecture.archik.yaml` at the project root is **the user's source of
-truth for what the system looks like**. It lists every meaningful node
-(services, databases, queues, frontends, external APIs, …) and the
-edges between them. The canvas in the browser is a stateless projection
-of this file — when the user says "the orders service" or "the events
-queue", they mean the entity with that `id` in the YAML.
+The archik file is **the user's source of truth for what the system
+looks like**. It lists every meaningful node (services, databases,
+queues, frontends, external APIs, …) and the edges between them.
+The canvas in the browser is a stateless projection of this file —
+when the user says "the orders service" or "the events queue", they
+mean the entity with that `id` in the YAML.
 
-Treat this file as a shared vocabulary. It exists so the user and you
-can talk about the system without re-explaining it every time.
+The file lives in one of two places, in this order of preference:
+
+1. `.archik/main.archik.yaml` — the new convention. Keeps the
+   project root tidy and leaves room for sub-architectures (other
+   `.archik/*.archik.yaml` files for individual components).
+2. `architecture.archik.yaml` — the legacy root location, still
+   fully supported.
+
+Run `archik validate` (or check both paths) to find which one the
+project uses. Don't assume — small differences here matter.
+
+Treat the file as a shared vocabulary. It exists so the user and
+you can talk about the system without re-explaining it every time.
 
 ## Protocol
 
 1. **Before** answering structural questions — *"what does X do?",
    "what depends on Y?", "where does data flow when …?"* — read
-   `architecture.archik.yaml`. Don't guess from filenames or memory.
+   the archik file. Don't guess from filenames or memory.
 2. **When** work introduces, removes, or rewires components, write
-   the proposed end-state to `architecture.archik.suggested.yaml`
-   (same schema, plus a `metadata.suggestion` block — see "Suggesting
-   changes" below). Don't edit `architecture.archik.yaml` directly;
-   the user reviews and accepts in the canvas or via
+   the proposed end-state to a sibling `*.suggested.yaml` next to
+   the main file (same schema, plus a `metadata.suggestion` block —
+   see "Suggesting changes" below). Don't edit the main file
+   directly; the user reviews and accepts in the canvas or via
    `archik suggest accept`.
 3. **After** every edit to a YAML, run `archik validate`. Fix any
    reported errors before declaring the change done.
@@ -35,13 +46,19 @@ relationship vocabulary, and CLI.
 
 ## Suggesting changes (the sidecar workflow)
 
-The `archik.yaml` is the user's source of truth. You don't get to
+The archik file is the user's source of truth. You don't get to
 mutate it directly. Instead, write your proposed end-state to a
-sidecar file:
+sidecar file in the same directory, with the same stem plus
+`.suggested`:
 
 ```
-architecture.archik.yaml             ← truth — user owns it
-architecture.archik.suggested.yaml   ← your draft proposal
+# new convention
+.archik/main.archik.yaml             ← truth — user owns it
+.archik/main.archik.suggested.yaml   ← your draft proposal
+
+# legacy layout — same naming rule, just at the root
+architecture.archik.yaml
+architecture.archik.suggested.yaml
 ```
 
 The sidecar is a complete, valid Archik document — same schema as the
@@ -53,7 +70,7 @@ version: "1.0"
 name: My Architecture
 metadata:
   suggestion:
-    from: architecture.archik.yaml
+    from: .archik/main.archik.yaml
     at: 2026-04-26T17:00:00Z
     note: add Stripe payment flow         # optional one-liner
 nodes:
@@ -112,7 +129,7 @@ this file) when the work you're doing changes the structure:
 
 Frame it as: *"This adds a `payments-worker` that reads from the
 `order-events` queue and writes to `payments-db`. Want me to update
-`architecture.archik.yaml` to capture that?"*
+the archik file to capture that?"*
 
 ## When to defer
 
@@ -464,8 +481,10 @@ edges:
 ## CLI
 
 These commands are available globally if archik was installed via
-`npm link`. Each defaults to `architecture.archik.yaml` in the current
-directory unless given a positional path.
+`npm link`. Without a positional path, each command resolves the
+archik file in this order: `.archik/main.archik.yaml` (preferred),
+then `architecture.archik.yaml` (legacy). If both exist the
+command errors and asks the user to pick one.
 
 ```
 archik validate                    # schema check (run after every edit)
@@ -493,7 +512,7 @@ archik checkout.
 
 ## Verification workflow
 
-After **every** edit you make to `architecture.archik.yaml`:
+After **every** edit you make to the archik file:
 
 1. Run `archik validate` — fix any reported errors before declaring
    the change done. Schema errors include the path of the offending

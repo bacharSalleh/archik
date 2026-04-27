@@ -1,7 +1,7 @@
-import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { daemonPaths, isAlive, readState, removeState } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
+import { resolveDocPath } from "../resolveDocPath.ts";
 
 const SIGTERM_GRACE_MS = 5_000;
 
@@ -25,8 +25,13 @@ function killProcess(pid: number, signal: NodeJS.Signals): void {
 }
 
 export async function stopCommand(opts: ParsedOptions): Promise<number> {
-  const file = opts._[0] ?? "architecture.archik.yaml";
-  const docPath = path.resolve(file);
+  let docPath: string;
+  try {
+    docPath = await resolveDocPath(opts._[0]);
+  } catch (err) {
+    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
+  }
   const paths = daemonPaths(docPath);
   const state = readState(paths.stateFile);
 

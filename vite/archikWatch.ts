@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import { suggestionPath } from "../src/domain/suggestion.ts";
+import { resolveDocPath } from "../src/cli/resolveDocPath.ts";
 import {
   handleAccept,
   handleDiffSvg,
@@ -8,10 +9,9 @@ import {
   handleYaml,
 } from "../src/server/handlers.ts";
 
-const FILE_NAME = "architecture.archik.yaml";
-const YAML_URL = `/${FILE_NAME}`;
-// Stable client URL — the on-disk sidecar respects the user's actual
-// extension (.yaml or .yml), but the canvas always asks here.
+// Stable client URLs — the canvas always asks at these paths, no
+// matter where the doc actually lives on disk (root or .archik/).
+const YAML_URL = `/architecture.archik.yaml`;
 const SIDECAR_URL = `/architecture.archik.suggested.yaml`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
@@ -24,15 +24,19 @@ export function archikWatch(): Plugin {
 
   return {
     name: "archik-watch",
-    configureServer(server: ViteDevServer) {
+    async configureServer(server: ViteDevServer) {
       // ARCHIK_DOC_PATH lets the `archik dev` CLI point the dev server at
       // any project's YAML (the canvas runs from Archik's install dir,
-      // but the document lives wherever the user is working). Falls back
-      // to the file inside the project root for plain `npm run dev`.
+      // but the document lives wherever the user is working). Without
+      // it, fall back to the resolver — which prefers the legacy
+      // architecture.archik.yaml in root, else the new
+      // .archik/main.archik.yaml convention. Plain `npm run dev` from
+      // the archik checkout therefore picks up whichever layout the
+      // repo currently uses.
       const explicit = process.env["ARCHIK_DOC_PATH"];
       docPath = explicit
         ? path.resolve(explicit)
-        : path.resolve(server.config.root, FILE_NAME);
+        : await resolveDocPath(undefined, server.config.root);
       sidecarPath = suggestionPath(docPath);
 
       server.middlewares.use(YAML_URL, (req, res, next) => {

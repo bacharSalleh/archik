@@ -6,10 +6,18 @@ import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
 import { DiagramSvg } from "../../render/DiagramSvg.tsx";
 import { getString, type ParsedOptions } from "../options.ts";
+import { resolveDocPath } from "../resolveDocPath.ts";
 import { inlineThemeVars, type ThemeName } from "../themeTokens.ts";
 
 export async function renderCommand(opts: ParsedOptions): Promise<number> {
-  const file = opts._[0] ?? "architecture.archik.yaml";
+  let inputAbs: string;
+  try {
+    inputAbs = await resolveDocPath(opts._[0]);
+  } catch (err) {
+    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
+  }
+  const file = path.relative(process.cwd(), inputAbs) || inputAbs;
   const out = getString(opts, "out") ?? "diagram.svg";
   const themeRaw = getString(opts, "theme") ?? "dark";
   if (themeRaw !== "dark" && themeRaw !== "light") {
@@ -18,7 +26,6 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   }
   const theme: ThemeName = themeRaw;
 
-  const inputAbs = path.resolve(file);
   let text: string;
   try {
     text = await readFile(inputAbs, "utf-8");
