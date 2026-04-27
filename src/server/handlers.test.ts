@@ -163,4 +163,20 @@ describe("listArchikFiles", () => {
     const files = await listArchikFiles(root);
     expect(files.map((f) => f.path)).toEqual([".archik/main.archik.yaml"]);
   });
+
+  it("ignores .archik.yaml files outside the legacy root + .archik/", async () => {
+    // Sample / fixture / example files anywhere else aren't the
+    // project's own architecture and shouldn't pollute the switcher.
+    await mkdir(path.join(root, ".archik"));
+    await writeFile(path.join(root, ".archik", "main.archik.yaml"), "");
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs", "sample.archik.yaml"), "");
+    await mkdir(path.join(root, "examples", "tutorial"), { recursive: true });
+    await writeFile(
+      path.join(root, "examples", "tutorial", "demo.archik.yaml"),
+      "",
+    );
+    const files = await listArchikFiles(root);
+    expect(files.map((f) => f.path)).toEqual([".archik/main.archik.yaml"]);
+  });
 });

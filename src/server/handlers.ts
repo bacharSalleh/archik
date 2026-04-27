@@ -292,23 +292,32 @@ export async function listArchikFiles(
   const root = path.resolve(projectRoot);
   const canonicalRoot =
     rootDocPath !== undefined ? path.resolve(rootDocPath) : null;
-  // Limit how deep we walk — prevents runaway traversal in odd
-  // monorepos. Architecture files almost always live at the root
-  // or under .archik/, neither of which is more than a few levels.
-  const MAX_DEPTH = 6;
-  // Ignore directories we're never going to find archik files in
-  // and which would be expensive to walk.
-  const SKIP_DIRS = new Set([
-    "node_modules",
-    "dist",
-    "build",
-    ".git",
-    "coverage",
-    ".next",
-    ".turbo",
-    ".cache",
-  ]);
   const found = new Set<string>();
+
+  // The convention is: the canonical root file lives either at the
+  // project root (legacy `architecture.archik.yaml`) or under
+  // `.archik/main.archik.yaml`. Sub-architectures live under
+  // `.archik/`. We deliberately do NOT walk the rest of the tree —
+  // a `*.archik.yaml` under `docs/`, `examples/`, fixtures, etc. is
+  // sample / documentation material, not part of the project's own
+  // architecture, and showing it in the file switcher just confuses
+  // the user about what their actual map is.
+  const isArchikYaml = (name: string): boolean =>
+    name.endsWith(".archik.yaml") &&
+    !name.endsWith(".archik.suggested.yaml");
+
+  // 1. Legacy root file, if present.
+  try {
+    const legacy = path.join(root, "architecture.archik.yaml");
+    await fs.access(legacy);
+    found.add(legacy);
+  } catch {
+    // not present — fine
+  }
+
+  // 2. Everything under `.archik/`, recursive (depth-limited so a
+  // pathological symlink tree can't trap us).
+  const MAX_DEPTH = 6;
   const walk = async (dir: string, depth: number): Promise<void> => {
     if (depth > MAX_DEPTH) return;
     let entries;
@@ -320,22 +329,13 @@ export async function listArchikFiles(
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (SKIP_DIRS.has(entry.name)) continue;
-        // Always descend into .archik/, hidden or not. Skip other
-        // hidden directories — they aren't where users keep arch files.
-        if (entry.name.startsWith(".") && entry.name !== ".archik") continue;
         await walk(full, depth + 1);
-      } else if (entry.isFile()) {
-        if (
-          entry.name.endsWith(".archik.yaml") &&
-          !entry.name.endsWith(".archik.suggested.yaml")
-        ) {
-          found.add(full);
-        }
+      } else if (entry.isFile() && isArchikYaml(entry.name)) {
+        found.add(full);
       }
     }
   };
-  await walk(root, 0);
+  await walk(path.join(root, ".archik"), 0);
 
   const out: Array<{
     path: string;
