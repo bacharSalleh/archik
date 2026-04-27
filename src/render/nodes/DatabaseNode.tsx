@@ -3,8 +3,11 @@ import { fitText, NAME_CHAR_PX, STACK_CHAR_PX } from "../../layout/text.ts";
 import { KIND_META } from "../kindPalette.ts";
 
 const TEXT_PADDING = 28;
-const TOP_ELLIPSE_RY = 9;
-const HEADER_GAP = 12; // visual breathing room below the top ellipse
+// ry sets how "tall" the elliptical caps look. 12 gives a visible
+// cylinder profile without dominating a 96-tall node; below ~10 the
+// shape reads as a rounded rect instead of a cylinder.
+const TOP_ELLIPSE_RY = 12;
+const HEADER_GAP = 6; // breathing room between the top ellipse and the KIND tag
 
 type Props = { node: PositionedNode; selected?: boolean };
 
