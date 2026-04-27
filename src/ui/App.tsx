@@ -352,6 +352,21 @@ export function App(): React.ReactElement {
     const currentDoc = state.document;
     let cancelled = false;
     const loadSuggestion = async (): Promise<void> => {
+      // Short-circuit when the file list (which the dev server
+      // already enumerates with hasSuggestion flags) says there
+      // is no sidecar for the current file. Saves a network round
+      // trip AND avoids browsers logging a 404 on every navigation.
+      // Falls through to the GET when the file list is empty (not
+      // loaded yet) or doesn't include the current file.
+      if (
+        currentFilePath !== null &&
+        availableFiles.length > 0 &&
+        availableFiles.some((f) => f.path === currentFilePath) &&
+        !suggestionsByPath.has(currentFilePath)
+      ) {
+        setSuggestion({ status: "none" });
+        return;
+      }
       try {
         const res = await fetch(currentFile.sidecarUrl, { cache: "no-store" });
         if (cancelled) return;
@@ -402,7 +417,13 @@ export function App(): React.ReactElement {
       cancelled = true;
       unsubscribe();
     };
-  }, [state, currentFile.sidecarUrl]);
+  }, [
+    state,
+    currentFile.sidecarUrl,
+    currentFilePath,
+    availableFiles,
+    suggestionsByPath,
+  ]);
 
   const acceptSuggestion = useCallback(async (): Promise<void> => {
     try {
@@ -494,13 +515,38 @@ export function App(): React.ReactElement {
     }
   }, [currentFile.docUrl]);
 
-  // Drill into a node's sub-architecture. Pushes a new frame onto
-  // the stack; the load effect picks up the URL change and refetches.
+  // Drill into a node's sub-architecture. If the target file is
+  // already in the stack (typical case: tools → main → tools via
+  // cross-file edges), rewind to that depth so the breadcrumb
+  // stays linear instead of growing unboundedly. The canonical
+  // root file matches ROOT_FRAME (which carries archikFile=null
+  // but uses the canonical /architecture.archik.yaml URL) — without
+  // this special case a back-link to main would push a new peer
+  // frame for the same file.
+  const rootFilePath = rootFile?.path ?? null;
   const openSubFile = useCallback(
     (archikFile: string, label: string): void => {
-      setFileStack((s) => [...s, frameForArchikFile(archikFile, label)]);
+      setFileStack((s) => {
+        const existing = s.findIndex((f) => {
+          if (f.archikFile === archikFile) return true;
+          // Canonical root match: target is the root file's path AND
+          // this frame is ROOT_FRAME.
+          return f.archikFile === null && rootFilePath === archikFile;
+        });
+        if (existing >= 0) {
+          return existing === s.length - 1 ? s : s.slice(0, existing + 1);
+        }
+        // New file. Use ROOT_FRAME if this happens to be the
+        // canonical root (avoids creating a peer frame that uses
+        // the per-file endpoint when the stable URL would do).
+        const frame =
+          rootFilePath === archikFile
+            ? ROOT_FRAME
+            : frameForArchikFile(archikFile, label);
+        return [...s, frame];
+      });
     },
-    [],
+    [rootFilePath],
   );
 
   // Pop the navigation stack to a specific depth (0 = root only).
