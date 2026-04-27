@@ -1,4 +1,10 @@
 import type { Document } from "../domain/types.ts";
+import {
+  downloadBlob,
+  exportFilename,
+  snapshotPngBlob,
+  snapshotSvgBlob,
+} from "../io/canvasExport.ts";
 import { exporters } from "../io/exporters.ts";
 import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
 import { Popover } from "./Popover.tsx";
@@ -6,17 +12,39 @@ import { Popover } from "./Popover.tsx";
 type Props = {
   document: Document;
   filename: string;
+  /** Returns the live canvas <svg> element, or null when the canvas
+   *  hasn't mounted / laid out yet. SVG and PNG downloads are
+   *  hidden until this returns something. */
+  getSvg?: () => SVGSVGElement | null;
 };
 
 export function ExportMenu({
   document,
   filename,
+  getSvg,
 }: Props): React.ReactElement {
   const copy = async (text: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
       // ignore — clipboard may be blocked on http://
+    }
+  };
+
+  const downloadSvg = (): void => {
+    const svg = getSvg?.();
+    if (!svg) return;
+    downloadBlob(exportFilename(filename, "svg"), snapshotSvgBlob(svg));
+  };
+
+  const downloadPng = async (): Promise<void> => {
+    const svg = getSvg?.();
+    if (!svg) return;
+    try {
+      const blob = await snapshotPngBlob(svg);
+      downloadBlob(exportFilename(filename, "png"), blob);
+    } catch (err) {
+      console.error("PNG export failed:", err);
     }
   };
 
@@ -67,6 +95,36 @@ export function ExportMenu({
             </span>
             <span>YAML</span>
           </button>
+          {getSvg && (
+            <>
+              <button
+                type="button"
+                className="archik-menu-item"
+                onClick={() => {
+                  downloadSvg();
+                  close();
+                }}
+              >
+                <span style={{ minWidth: 60, color: "var(--archik-fg-dim)" }}>
+                  Download
+                </span>
+                <span>SVG</span>
+              </button>
+              <button
+                type="button"
+                className="archik-menu-item"
+                onClick={() => {
+                  void downloadPng();
+                  close();
+                }}
+              >
+                <span style={{ minWidth: 60, color: "var(--archik-fg-dim)" }}>
+                  Download
+                </span>
+                <span>PNG</span>
+              </button>
+            </>
+          )}
         </>
       )}
     </Popover>

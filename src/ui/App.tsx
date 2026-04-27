@@ -83,12 +83,47 @@ function frameForArchikFile(archikFile: string, label: string): FileFrame {
   };
 }
 
+/**
+ * URL persistence — `?file=.archik/foo.archik.yaml` so refreshing
+ * stays on the same file, and the back/forward buttons walk through
+ * file switches. Drill-down breadcrumbs aren't preserved (the URL
+ * carries the *deepest* file only); refreshing inside a drill-down
+ * lands you at that file as a fresh root frame.
+ */
+function readFileFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("file");
+  return value !== null && value.length > 0 ? value : null;
+}
+
+function writeFileToUrl(archikFile: string | null): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (archikFile === null || archikFile.length === 0) {
+    url.searchParams.delete("file");
+  } else {
+    url.searchParams.set("file", archikFile);
+  }
+  // replaceState — keeps the back/forward stack uncluttered; we only
+  // push entries for explicit user navigations (switcher, drill-down,
+  // breadcrumb pop) below in the syncing effect.
+  window.history.replaceState(null, "", url.toString());
+}
+
+function initialFileStack(): FileFrame[] {
+  const file = readFileFromUrl();
+  if (file === null) return [ROOT_FRAME];
+  const base = file.split("/").pop() ?? file;
+  const label = base.replace(/\.archik\.yaml$/i, "") || "main";
+  return [frameForArchikFile(file, label)];
+}
+
 export function App(): React.ReactElement {
   const [state, setState] = useState<State>({ status: "loading" });
   // Navigation stack — the last element is the file currently loaded
   // in the canvas. Pushed by drill-down (a node's `archikFile`),
   // popped by breadcrumb / back. Root is always present at index 0.
-  const [fileStack, setFileStack] = useState<FileFrame[]>([ROOT_FRAME]);
+  const [fileStack, setFileStack] = useState<FileFrame[]>(initialFileStack);
   const currentFile = fileStack[fileStack.length - 1]!;
   // All archik files in the project. Refetched on doc / suggestion
   // change so the file-switcher dropdown reflects new files appearing
@@ -160,6 +195,10 @@ export function App(): React.ReactElement {
   );
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
+  // Live <svg> handle for SVG / PNG export. Canvas writes into this
+  // ref when the diagram mounts; ExportMenu reads it via getSvg.
+  const canvasSvgRef = useRef<SVGSVGElement | null>(null);
+  const getSvg = useCallback(() => canvasSvgRef.current, []);
   const savedIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -190,11 +229,31 @@ export function App(): React.ReactElement {
     [selection],
   );
 
+  // Mirror the deepest file in the URL so refresh / back / forward
+  // restore the user's place. Drops the param when we're at the
+  // canonical root frame (clean URL).
+  useEffect(() => {
+    const top = fileStack[fileStack.length - 1]!;
+    writeFileToUrl(top.archikFile);
+  }, [fileStack]);
+
+  // Browser back / forward navigation rebuilds the stack from the URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = (): void => setFileStack(initialFileStack());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     // Each frame gets a fresh self-write-echo guard — the previous
-    // file's last text isn't relevant for this one.
+    // file's last text isn't relevant for this one. Also reset the
+    // "have we ever loaded *this* frame" flag so a 404 on a sub-file
+    // shows up in the canvas (error screen) instead of stranding
+    // the user on a "Loading…" splash.
     lastTextRef.current = "";
+    loadedOnceRef.current = false;
     const load = (): void => {
       loadDocumentFromUrlWithText(currentFile.docUrl).then(
         ({ document, text }) => {
@@ -798,6 +857,7 @@ export function App(): React.ReactElement {
         canRedo={future.length > 0}
         onUndo={undo}
         onRedo={redo}
+        getSvg={getSvg}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {
@@ -954,6 +1014,7 @@ export function App(): React.ReactElement {
               onConnectDrag={handleConnectDrag}
               onOpenSubFile={openSubFile}
               viewKey={currentFile.docUrl}
+              svgRef={canvasSvgRef}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
             />
           </div>
@@ -1169,15 +1230,18 @@ function SuggestionBanner({
         <button
           type="button"
           onClick={onAccept}
-          disabled={total === 0}
           className="archik-btn"
+          title={
+            total === 0
+              ? "Suggestion already matches the current file — Accept just clears the sidecar."
+              : "Apply the suggestion to the main file."
+          }
           style={{
             padding: "5px 12px",
             fontSize: 12,
             background: "var(--archik-success)",
             color: "white",
             borderColor: "var(--archik-success)",
-            opacity: total === 0 ? 0.5 : 1,
           }}
         >
           Accept

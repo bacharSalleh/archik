@@ -29,6 +29,8 @@ type Props = {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  /** Returns the live canvas <svg> for SVG / PNG export. */
+  getSvg?: () => SVGSVGElement | null;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -64,6 +66,7 @@ export function Toolbar({
   canRedo = false,
   onUndo,
   onRedo,
+  getSvg,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -175,7 +178,11 @@ export function Toolbar({
           <LayoutControls density={density} onChange={onDensityChange} />
         )}
         <Legend />
-        <ExportMenu document={document} filename={filename} />
+        <ExportMenu
+          document={document}
+          filename={filename}
+          {...(getSvg !== undefined ? { getSvg } : {})}
+        />
         <button
           type="button"
           onClick={onSave}

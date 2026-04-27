@@ -43,6 +43,10 @@ type Props = {
   viewKey?: string;
   /** When set, layer diff frames + edge tints over the diagram (review mode). */
   diffStatuses?: StatusMap;
+  /** Optional external ref so callers (App, ExportMenu) can reach the
+   *  rendered <svg> for snapshot / export. When omitted, Canvas keeps
+   *  its own internal ref and nothing changes. */
+  svgRef?: React.RefObject<SVGSVGElement | null>;
 };
 
 const DRAG_THRESHOLD_PX = 5;
@@ -79,6 +83,7 @@ export function Canvas({
   onOpenSubFile,
   viewKey,
   diffStatuses,
+  svgRef: externalSvgRef,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
     () => layout(document, layoutOptions),
@@ -88,7 +93,11 @@ export function Canvas({
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<DragState>({ type: "idle" });
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const internalSvgRef = useRef<SVGSVGElement | null>(null);
+  // Caller-provided refs take precedence; the internal one is kept as
+  // a fallback so the rest of Canvas (drag math, getScreenCTM, etc.)
+  // doesn't have to special-case its absence.
+  const svgRef = externalSvgRef ?? internalSvgRef;
   // Per-file view state. The cleanup of the viewKey effect captures
   // the *previous* key, so we save the old file's pose just as the
   // user navigates away. zoomRef keeps the cleanup reading the latest
