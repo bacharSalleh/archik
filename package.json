@@ -1,6 +1,6 @@
 {
   "name": "archik",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Architecture diagrams as YAML. Live canvas in the browser, headless SVG render in CI, and an installable Claude skill so the model edits the same file you do.",
   "keywords": [
     "architecture",
