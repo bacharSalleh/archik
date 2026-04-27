@@ -816,13 +816,18 @@ export function App(): React.ReactElement {
                 onClear={clearSelection}
               />
             ) : focused?.type === "edge" ? (
-              <EdgeInspector edge={selectedEdge} dispatch={dispatch} />
+              <EdgeInspector
+                edge={selectedEdge}
+                dispatch={dispatch}
+                readOnly={reviewing}
+              />
             ) : focused?.type === "node" ? (
               <NodeInspector
                 node={selectedNode}
                 dispatch={dispatch}
                 onStartConnect={startConnect}
-                allNodes={doc.nodes}
+                allNodes={renderDoc.nodes}
+                readOnly={reviewing}
               />
             ) : null}
           </div>

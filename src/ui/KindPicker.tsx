@@ -8,6 +8,7 @@ type Props = {
   onChange: (kind: NodeKind) => void;
   id?: string;
   ariaLabel?: string;
+  disabled?: boolean;
 };
 
 export function KindPicker({
@@ -15,6 +16,7 @@ export function KindPicker({
   onChange,
   id,
   ariaLabel,
+  disabled,
 }: Props): React.ReactElement {
   const current = KIND_META[value];
   const CurrentIcon = current.icon;
@@ -27,13 +29,14 @@ export function KindPicker({
           type="button"
           aria-label={ariaLabel}
           aria-expanded={open}
+          disabled={disabled}
           className="archik-input"
           style={{
             width: "100%",
             display: "flex",
             alignItems: "center",
             gap: 8,
-            cursor: "pointer",
+            cursor: disabled ? "not-allowed" : "pointer",
             textAlign: "left",
           }}
         >
