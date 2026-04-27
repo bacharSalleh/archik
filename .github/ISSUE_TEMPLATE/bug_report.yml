@@ -1,0 +1,68 @@
+name: Bug report
+description: Something is broken — the canvas, the CLI, or `archik validate`.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Before submitting, please search existing issues — your problem may already be tracked.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect, and what did you see instead?
+      placeholder: I ran `archik dev` and …
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that reliably trigger the bug. Include the YAML if relevant.
+      placeholder: |
+        1. Run `archik init`
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: archik-version
+    attributes:
+      label: archik version
+      description: Run `archik --version`.
+      placeholder: 0.6.8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did the bug surface?
+      options:
+        - Canvas (browser)
+        - CLI (`archik <command>`)
+        - Schema / validation
+        - Render / SVG output
+        - Suggest workflow (sidecar)
+        - Multi-file (drill-down, file switcher)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: OS + Node version
+      description: Output of `node --version` and your OS / version.
+      placeholder: macOS 14.5, Node 22.11.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: extras
+    attributes:
+      label: Logs / screenshots
+      description: Anything else that helps — terminal output, browser console errors, screenshots.

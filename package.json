@@ -15,6 +15,14 @@
   ],
   "license": "MIT",
   "author": "Bashar <welcomebachar@gmail.com>",
+  "homepage": "https://github.com/bacharSalleh/archik#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bacharSalleh/archik.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bacharSalleh/archik/issues"
+  },
   "type": "module",
   "bin": {
     "archik": "bin/archik.js"

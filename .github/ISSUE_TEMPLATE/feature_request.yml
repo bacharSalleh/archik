@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest a new node kind, relationship, render style, CLI command, or workflow.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Concrete proposals (with examples) are easier to act on than open-ended ideas.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What's frustrating or missing today? Skip the proposed solution for now — describe the pain.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: |
+        How would this look? For schema additions, sketch the YAML. For render
+        changes, describe the visual or attach a mock. For CLI commands, give
+        the invocation and the expected output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you think about? Why is the proposal above better?
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I've checked existing issues and discussions for similar requests.
+          required: true
+        - label: This is additive — it doesn't break existing schemas or YAML files.

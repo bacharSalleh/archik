@@ -2,6 +2,15 @@
 
 > An architecture diagram tool where the file is the source of truth — and Claude can edit it alongside you.
 
+<p align="left">
+  <a href="https://www.npmjs.com/package/archik"><img alt="npm version" src="https://img.shields.io/npm/v/archik?color=cb3837&logo=npm&label=archik"></a>
+  <a href="https://www.npmjs.com/package/archik"><img alt="npm downloads" src="https://img.shields.io/npm/dm/archik?color=cb3837&logo=npm"></a>
+  <a href="./LICENSE"><img alt="license" src="https://img.shields.io/npm/l/archik?color=blue"></a>
+  <a href="https://nodejs.org"><img alt="Node ≥ 20" src="https://img.shields.io/node/v/archik?color=339933&logo=node.js&logoColor=white"></a>
+  <a href="https://github.com/bacharSalleh/archik/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/bacharSalleh/archik/ci.yml?branch=main&label=CI&logo=github"></a>
+  <a href="https://x.com/bach__92"><img alt="Follow @bach__92 on X" src="https://img.shields.io/badge/follow-%40bach__92-black?logo=x&logoColor=white"></a>
+</p>
+
 <p align="center">
   <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
 </p>

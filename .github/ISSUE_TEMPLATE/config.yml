@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/bacharSalleh/archik#readme
+    about: Quickstart, schema reference, CLI commands.
+  - name: Security vulnerability
+    url: https://github.com/bacharSalleh/archik/security/advisories/new
+    about: Report privately via GitHub Security Advisories. Do NOT open a public issue.
