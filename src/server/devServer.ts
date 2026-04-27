@@ -11,9 +11,13 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import chokidar from "chokidar";
 import { suggestionPath } from "../domain/suggestion.ts";
+import { projectRoot as deriveProjectRoot } from "../cli/resolveDocPath.ts";
 import {
   handleAccept,
+  handleArchikAccept,
+  handleArchikFile,
   handleDiffSvg,
+  handleListFiles,
   handleSidecar,
   handleYaml,
 } from "./handlers.ts";
@@ -46,6 +50,13 @@ const SIDECAR_URL = "/architecture.archik.suggested.yaml";
 const EVENTS_URL = "/__archik/events";
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
+/** Generic per-file endpoints — for sub-architectures linked via
+ *  a node's `archikFile`. The relative path comes in via `?path=`. */
+const FILE_URL = "/__archik/file";
+const FILE_ACCEPT_URL = "/__archik/file-accept";
+/** List every archik file under the project root, with a
+ *  has-suggestion flag — drives the file-switcher dropdown. */
+const FILES_URL = "/__archik/files";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -69,6 +80,15 @@ const MIME: Record<string, string> = {
 
 function mimeFor(file: string): string {
   return MIME[extname(file).toLowerCase()] ?? "application/octet-stream";
+}
+
+/** Pull the `path` query param out of a `/__archik/file?path=…` URL.
+ *  Returns "" when missing — the handler then rejects with a 400. */
+function parsePathParam(url: string): string {
+  const q = url.indexOf("?");
+  if (q < 0) return "";
+  const params = new URLSearchParams(url.slice(q + 1));
+  return params.get("path") ?? "";
 }
 
 /** Refuse paths that try to escape the UI directory. */
@@ -200,6 +220,9 @@ export async function startDevServer(
   // matching the user's real extension. The client always asks at
   // the stable SIDECAR_URL above.
   const sidecarPath = suggestionPath(docPath);
+  // Project root for sub-file resolution: parent of `.archik/` if
+  // the doc is under there, else the doc's own directory.
+  const root = deriveProjectRoot(docPath);
 
   const server = createServer((req, res) => {
     const url = req.url ?? "/";
@@ -221,6 +244,26 @@ export async function startDevServer(
 
     if (url === DIFF_SVG_URL || url.startsWith(DIFF_SVG_URL + "?")) {
       void handleDiffSvg(docPath, sidecarPath, res);
+      return;
+    }
+
+    // Generic per-file endpoint. Used when the canvas drills into a
+    // sub-architecture via a node's `archikFile`. The `path` query
+    // param is the relative path of the file to read/write.
+    if (url === FILE_URL || url.startsWith(FILE_URL + "?")) {
+      const rel = parsePathParam(url);
+      void handleArchikFile(root, rel, req, res);
+      return;
+    }
+
+    if (url === FILE_ACCEPT_URL || url.startsWith(FILE_ACCEPT_URL + "?")) {
+      const rel = parsePathParam(url);
+      void handleArchikAccept(root, rel, req, res);
+      return;
+    }
+
+    if (url === FILES_URL || url.startsWith(FILES_URL + "?")) {
+      void handleListFiles(root, docPath, req, res);
       return;
     }
 
@@ -254,17 +297,22 @@ export async function startDevServer(
     });
   });
 
-  // Watch the YAML and the sidecar; broadcast a change event for either
-  // so the canvas knows to reload the doc / banner.
-  const watcher = chokidar.watch([docPath, sidecarPath], {
+  // Watch the YAML, its sidecar, AND the project's .archik/ folder
+  // (if any). Sub-files live under .archik/ — touching one of them
+  // should also fire an SSE so the canvas can refetch when it's
+  // currently looking at it.
+  const watchTargets = [docPath, sidecarPath, join(root, ".archik")];
+  const watcher = chokidar.watch(watchTargets, {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 50, pollInterval: 10 },
   });
   const onChange = (changedPath: string): void => {
-    const event =
-      changedPath === sidecarPath
-        ? "archik:suggestion-changed"
-        : "archik:doc-changed";
+    // Anything ending in .archik.suggested.yaml is a sidecar — the
+    // banner pickup logic listens for that. Other archik files are
+    // doc changes; the canvas refetches whichever file it's loaded.
+    const event = changedPath.endsWith(".archik.suggested.yaml")
+      ? "archik:suggestion-changed"
+      : "archik:doc-changed";
     broadcast(clients, event);
   };
   watcher.on("change", onChange);

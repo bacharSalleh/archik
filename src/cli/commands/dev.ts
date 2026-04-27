@@ -11,10 +11,17 @@ import {
 import type { ParsedOptions } from "../options.ts";
 import { getString } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
+import { resolveDocPath } from "../resolveDocPath.ts";
 
 export async function devCommand(opts: ParsedOptions): Promise<number> {
-  const file = opts._[0] ?? "architecture.archik.yaml";
-  const docPath = path.resolve(file);
+  let docPath: string;
+  try {
+    docPath = await resolveDocPath(opts._[0]);
+  } catch (err) {
+    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
+  }
+  const file = path.relative(process.cwd(), docPath) || docPath;
 
   try {
     await access(docPath);

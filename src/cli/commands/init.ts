@@ -1,6 +1,7 @@
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getString, type ParsedOptions } from "../options.ts";
+import { resolveInitTarget } from "../resolveDocPath.ts";
 import { installSkill, type InstallSkillResult } from "./skill.ts";
 
 const STARTER = `version: "1.0"
@@ -32,8 +33,8 @@ edges:
 `;
 
 export async function initCommand(opts: ParsedOptions): Promise<number> {
-  const file = opts._[0] ?? "architecture.archik.yaml";
-  const abs = path.resolve(file);
+  const abs = await resolveInitTarget(opts._[0] as string | undefined);
+  const file = path.relative(process.cwd(), abs) || abs;
   try {
     await access(abs);
     console.error(`✗ ${file} already exists. Refusing to overwrite.`);
@@ -41,6 +42,9 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
   } catch {
     // file doesn't exist; proceed
   }
+  // The new convention is `.archik/main.archik.yaml`, so make sure
+  // the parent directory exists. Harmless for the legacy root layout.
+  await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, STARTER, "utf-8");
   console.log(`✓ Created ${file}`);
 

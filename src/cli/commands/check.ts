@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseYaml } from "../../io/yaml.ts";
 import type { NodeKind } from "../../domain/types.ts";
 import type { ParsedOptions } from "../options.ts";
+import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 
 /**
  * Kinds we DO expect to find in source. Skip pure-data infra and
@@ -46,9 +47,15 @@ function nameSlugs(name: string): string[] {
 }
 
 export async function checkCommand(opts: ParsedOptions): Promise<number> {
-  const file = opts._[0] ?? "architecture.archik.yaml";
-  const abs = path.resolve(file);
-  const baseDir = path.dirname(abs);
+  let abs: string;
+  try {
+    abs = await resolveDocPath(opts._[0]);
+  } catch (err) {
+    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
+  }
+  const file = path.relative(process.cwd(), abs) || abs;
+  const baseDir = projectRoot(abs);
 
   let text: string;
   try {

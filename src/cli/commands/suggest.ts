@@ -8,6 +8,7 @@ import {
 import { diffDocuments } from "../../domain/diff.ts";
 import { parseYaml, stringifyYaml } from "../../io/yaml.ts";
 import type { ParsedOptions } from "../options.ts";
+import { resolveDocPath } from "../resolveDocPath.ts";
 
 type Sub = "show" | "accept" | "reject";
 
@@ -19,8 +20,13 @@ export async function suggestCommand(opts: ParsedOptions): Promise<number> {
     );
     return 1;
   }
-  const file = (opts._[1] as string | undefined) ?? "architecture.archik.yaml";
-  const mainPath = path.resolve(file);
+  let mainPath: string;
+  try {
+    mainPath = await resolveDocPath(opts._[1] as string | undefined);
+  } catch (err) {
+    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
+  }
   const sidecar = suggestionPath(mainPath);
 
   if (sub === "show") return show(mainPath, sidecar);

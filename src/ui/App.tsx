@@ -20,6 +20,8 @@ import { useUIStore, type SelectionItem } from "./store.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
+import { Breadcrumbs } from "./Breadcrumbs.tsx";
+import { FileSwitcher, type FileEntry } from "./FileSwitcher.tsx";
 import {
   densityToLayoutOptions,
   loadDensity,
@@ -29,9 +31,9 @@ import {
 } from "./LayoutControls.tsx";
 import type { ViewMode } from "../layout/types.ts";
 
-const DOCUMENT_URL = "/architecture.archik.yaml";
-const SUGGESTION_URL = "/architecture.archik.suggested.yaml";
-const ACCEPT_URL = "/__archik/accept-suggestion";
+const ROOT_DOCUMENT_URL = "/architecture.archik.yaml";
+const ROOT_SUGGESTION_URL = "/architecture.archik.suggested.yaml";
+const ROOT_ACCEPT_URL = "/__archik/accept-suggestion";
 const SAVED_INDICATOR_MS = 1500;
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -41,8 +43,75 @@ type State =
   | { status: "ready"; document: Document }
   | { status: "error"; error: string };
 
+/**
+ * One frame in the navigation stack. The root frame uses the
+ * stable canonical URLs above; every drill-down frame is built
+ * from a node's `archikFile` and points at the generic per-file
+ * endpoint. The breadcrumb bar walks this stack left-to-right.
+ */
+export type FileFrame = {
+  /** Short label shown in the breadcrumb bar. */
+  label: string;
+  /** GET / PUT this URL to read/write the doc. */
+  docUrl: string;
+  /** GET / PUT / DELETE this URL for the suggestion sidecar. */
+  sidecarUrl: string;
+  /** POST this URL to accept the suggestion sidecar. */
+  acceptUrl: string;
+  /** Original `archikFile` value used to navigate here, or null at root. */
+  archikFile: string | null;
+};
+
+const ROOT_FRAME: FileFrame = {
+  label: "main",
+  docUrl: ROOT_DOCUMENT_URL,
+  sidecarUrl: ROOT_SUGGESTION_URL,
+  acceptUrl: ROOT_ACCEPT_URL,
+  archikFile: null,
+};
+
+function frameForArchikFile(archikFile: string, label: string): FileFrame {
+  const sidecar = archikFile.replace(/\.archik\.yaml$/, ".archik.suggested.yaml");
+  const enc = encodeURIComponent(archikFile);
+  const encSidecar = encodeURIComponent(sidecar);
+  return {
+    label,
+    docUrl: `/__archik/file?path=${enc}`,
+    sidecarUrl: `/__archik/file?path=${encSidecar}`,
+    acceptUrl: `/__archik/file-accept?path=${enc}`,
+    archikFile,
+  };
+}
+
 export function App(): React.ReactElement {
   const [state, setState] = useState<State>({ status: "loading" });
+  // Navigation stack — the last element is the file currently loaded
+  // in the canvas. Pushed by drill-down (a node's `archikFile`),
+  // popped by breadcrumb / back. Root is always present at index 0.
+  const [fileStack, setFileStack] = useState<FileFrame[]>([ROOT_FRAME]);
+  const currentFile = fileStack[fileStack.length - 1]!;
+  // All archik files in the project. Refetched on doc / suggestion
+  // change so the file-switcher dropdown reflects new files appearing
+  // and the suggestion-pending dots stay current.
+  const [availableFiles, setAvailableFiles] = useState<ReadonlyArray<FileEntry>>(
+    [],
+  );
+  const suggestionsByPath = useMemo(
+    () => new Set(availableFiles.filter((f) => f.hasSuggestion).map((f) => f.path)),
+    [availableFiles],
+  );
+  const rootFile = useMemo(
+    () => availableFiles.find((f) => f.isRoot) ?? null,
+    [availableFiles],
+  );
+  // What FileEntry.path corresponds to the file currently loaded.
+  // For the root frame we look it up from the file list (the
+  // canonical doc could be at root or under .archik/); for any
+  // drilled-down frame the archikFile *is* the path.
+  const currentFilePath: string | null =
+    fileStack.length === 1
+      ? rootFile?.path ?? null
+      : currentFile.archikFile;
   const [commandError, setCommandError] = useState<string | undefined>(
     undefined,
   );
@@ -123,8 +192,11 @@ export function App(): React.ReactElement {
 
   useEffect(() => {
     let cancelled = false;
+    // Each frame gets a fresh self-write-echo guard — the previous
+    // file's last text isn't relevant for this one.
+    lastTextRef.current = "";
     const load = (): void => {
-      loadDocumentFromUrlWithText(DOCUMENT_URL).then(
+      loadDocumentFromUrlWithText(currentFile.docUrl).then(
         ({ document, text }) => {
           if (cancelled) return;
           if (text === lastTextRef.current) return; // self-write echo
@@ -167,19 +239,49 @@ export function App(): React.ReactElement {
         },
       );
     };
+    setState({ status: "loading" });
     load();
     const unsubscribe = subscribeToDocumentChanges(load);
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, []);
+    // Re-run on navigation: each frame loads its own document.
+  }, [currentFile.docUrl]);
 
   useEffect(() => {
     return () => {
       if (savedIndicatorTimerRef.current) {
         clearTimeout(savedIndicatorTimerRef.current);
       }
+    };
+  }, []);
+
+  // File-list fetch. Drives the file-switcher dropdown plus the
+  // pending-suggestion dots in the breadcrumb. Refetches on every
+  // doc-change AND suggestion-change SSE event so new files show up
+  // and pending-suggestion flags stay current.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async (): Promise<void> => {
+      try {
+        const res = await fetch("/__archik/files", { cache: "no-store" });
+        if (cancelled) return;
+        if (!res.ok) return;
+        const body: { files?: FileEntry[] } = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(body.files)) setAvailableFiles(body.files);
+      } catch {
+        // Endpoint may be missing in older servers — silently skip.
+      }
+    };
+    void refresh();
+    const offDoc = subscribeToDocumentChanges(() => void refresh());
+    const offSuggestion = subscribeToSuggestionChanges(() => void refresh());
+    return () => {
+      cancelled = true;
+      offDoc();
+      offSuggestion();
     };
   }, []);
 
@@ -192,7 +294,7 @@ export function App(): React.ReactElement {
     let cancelled = false;
     const loadSuggestion = async (): Promise<void> => {
       try {
-        const res = await fetch(SUGGESTION_URL, { cache: "no-store" });
+        const res = await fetch(currentFile.sidecarUrl, { cache: "no-store" });
         if (cancelled) return;
         if (res.status === 404) {
           setSuggestion({ status: "none" });
@@ -241,11 +343,11 @@ export function App(): React.ReactElement {
       cancelled = true;
       unsubscribe();
     };
-  }, [state]);
+  }, [state, currentFile.sidecarUrl]);
 
   const acceptSuggestion = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch(ACCEPT_URL, { method: "POST" });
+      const res = await fetch(currentFile.acceptUrl, { method: "POST" });
       if (!res.ok) {
         const body = await res.text();
         setSuggestion({
@@ -264,11 +366,11 @@ export function App(): React.ReactElement {
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, []);
+  }, [currentFile.acceptUrl]);
 
   const rejectSuggestion = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch(SUGGESTION_URL, { method: "DELETE" });
+      const res = await fetch(currentFile.sidecarUrl, { method: "DELETE" });
       if (!res.ok && res.status !== 404) {
         const body = await res.text();
         setSuggestion({
@@ -285,7 +387,7 @@ export function App(): React.ReactElement {
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, []);
+  }, [currentFile.sidecarUrl]);
 
   const toggleReview = useCallback((): void => {
     setReviewMode((m) => !m);
@@ -305,7 +407,7 @@ export function App(): React.ReactElement {
     lastTextRef.current = text;
     setSaveStatus("saving");
     try {
-      await saveDocumentToUrl(DOCUMENT_URL, docToSave);
+      await saveDocumentToUrl(currentFile.docUrl, docToSave);
       setSaveStatus("saved");
       // Only clear the dirty flag if the in-memory document still matches
       // what we just persisted. The user may have kept editing during the
@@ -330,6 +432,38 @@ export function App(): React.ReactElement {
       );
     } catch {
       setSaveStatus("error");
+    }
+  }, [currentFile.docUrl]);
+
+  // Drill into a node's sub-architecture. Pushes a new frame onto
+  // the stack; the load effect picks up the URL change and refetches.
+  const openSubFile = useCallback(
+    (archikFile: string, label: string): void => {
+      setFileStack((s) => [...s, frameForArchikFile(archikFile, label)]);
+    },
+    [],
+  );
+
+  // Pop the navigation stack to a specific depth (0 = root only).
+  // Clicking "main" in the breadcrumbs is goToFrame(0).
+  const goToFrame = useCallback((index: number): void => {
+    setFileStack((s) => {
+      if (index < 0 || index >= s.length - 1) return s;
+      return s.slice(0, index + 1);
+    });
+  }, []);
+
+  // Jump directly to a peer file via the file-switcher dropdown.
+  // Resets the navigation stack — the user picks the file they want
+  // as the new root, and the breadcrumb trail starts fresh from there.
+  const switchToFile = useCallback((file: FileEntry): void => {
+    if (file.isRoot) {
+      // Canonical root: use the stable URLs we always served.
+      setFileStack([ROOT_FRAME]);
+    } else {
+      // Treat the chosen peer as the new root frame for navigation
+      // purposes. Drill-downs from here push onto this stack.
+      setFileStack([frameForArchikFile(file.path, file.name)]);
     }
   }, []);
 
@@ -595,7 +729,7 @@ export function App(): React.ReactElement {
   ]);
 
   if (state.status === "loading") {
-    return <Splash>Loading {DOCUMENT_URL}…</Splash>;
+    return <Splash>Loading {currentFile.docUrl}…</Splash>;
   }
   if (state.status === "error") {
     return (
@@ -774,21 +908,55 @@ export function App(): React.ReactElement {
           className="archik-panel"
           style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
         >
-          <Canvas
-            document={renderDoc}
-            className="h-full w-full archik-grid"
-            layoutOptions={layoutOptions}
-            viewMode={viewMode}
-            selectedNodeIds={selectedNodeIds}
-            selectedEdgeIds={selectedEdgeIds}
-            onSelectNode={handleSelectNode}
-            onSelectEdge={handleSelectEdge}
-            onSelectNothing={
-              connectFrom === null ? clearSelection : cancelConnect
-            }
-            onConnectDrag={handleConnectDrag}
-            {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
-          />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              width: "100%",
+            }}
+          >
+            {(availableFiles.length > 1 || fileStack.length > 1) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px",
+                  background: "var(--archik-surface)",
+                  borderBottom: "1px solid var(--archik-border)",
+                }}
+              >
+                <FileSwitcher
+                  files={availableFiles}
+                  currentPath={currentFilePath}
+                  onSwitchFile={switchToFile}
+                />
+                <Breadcrumbs
+                  stack={fileStack}
+                  onGoToFrame={goToFrame}
+                  suggestionsByPath={suggestionsByPath}
+                />
+              </div>
+            )}
+            <Canvas
+              document={renderDoc}
+              className="flex-1 archik-grid"
+              layoutOptions={layoutOptions}
+              viewMode={viewMode}
+              selectedNodeIds={selectedNodeIds}
+              selectedEdgeIds={selectedEdgeIds}
+              onSelectNode={handleSelectNode}
+              onSelectEdge={handleSelectEdge}
+              onSelectNothing={
+                connectFrom === null ? clearSelection : cancelConnect
+              }
+              onConnectDrag={handleConnectDrag}
+              onOpenSubFile={openSubFile}
+              viewKey={currentFile.docUrl}
+              {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
+            />
+          </div>
         </div>
         <aside
           aria-hidden={selection.length === 0}

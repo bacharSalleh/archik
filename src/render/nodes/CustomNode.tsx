@@ -43,9 +43,11 @@ export function CustomNode({
   const meta = KIND_META[node.kind];
   const Icon = meta.icon;
 
-  // Depth tint: 0 → faintest, clamps at depth 3.
-  const tintOpacity = Math.min(0.04 + depth * 0.035, 0.14);
-  const headerOpacity = Math.min(0.55 + depth * 0.08, 0.85);
+  // Depth tint: 0 → faintest, clamps at depth 3. Steps are large enough
+  // that two same-kind containers nested inside each other are clearly
+  // distinguishable — the previous 0.035 step was barely visible.
+  const tintOpacity = Math.min(0.04 + depth * 0.06, 0.22);
+  const headerOpacity = Math.min(0.55 + depth * 0.12, 0.95);
 
   const stroke = selected
     ? "var(--archik-selected)"
@@ -74,6 +76,25 @@ export function CustomNode({
         strokeWidth={strokeWidth}
         pointerEvents="none"
       />
+
+      {/* Elevation cue at depth ≥ 1: an inset stroke in the kind color
+          so two same-kind containers nested inside each other don't blur
+          into one tinted blob. Opacity scales with depth and clamps. */}
+      {depth >= 1 && w > 8 && h > 8 && (
+        <rect
+          x={3}
+          y={3}
+          width={w - 6}
+          height={h - 6}
+          rx={6}
+          ry={6}
+          fill="none"
+          stroke={meta.color}
+          strokeOpacity={Math.min(0.18 + (depth - 1) * 0.06, 0.32)}
+          strokeWidth={1}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Header strip — opaque so the title sits above the tinted body. */}
       <path

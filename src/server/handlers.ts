@@ -11,10 +11,11 @@
 import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
-import { stripSuggestionMarker } from "../domain/suggestion.ts";
+import { stripSuggestionMarker, suggestionPath } from "../domain/suggestion.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
@@ -229,6 +230,226 @@ export async function handleAccept(
   }
   res.statusCode = 204;
   res.end();
+}
+
+/**
+ * Resolve a relative archik path against the project root, refusing
+ * anything that escapes the root or doesn't end in `.archik.yaml`
+ * (or `.archik.suggested.yaml` for sidecars). Returns the absolute
+ * path, or `null` if the request should be rejected.
+ *
+ * This is the *only* trust boundary for sub-file requests — the
+ * canvas can ask for any path it likes, but we'll only serve files
+ * that pass these checks.
+ */
+export function safeResolveProjectFile(
+  projectRoot: string,
+  relPath: string,
+): string | null {
+  if (typeof relPath !== "string" || relPath.length === 0) return null;
+  // Decoded by the time we get here, but be defensive: normalize
+  // away any redundant `./` or trailing slashes, and keep forward
+  // slashes only.
+  if (relPath.includes("\\")) return null;
+  if (relPath.startsWith("/")) return null;
+  if (/^[a-zA-Z]:[\\/]/.test(relPath)) return null;
+  const normalRoot = path.resolve(projectRoot);
+  const candidate = path.resolve(normalRoot, relPath);
+  if (candidate !== normalRoot && !candidate.startsWith(normalRoot + path.sep)) {
+    return null;
+  }
+  if (
+    !candidate.endsWith(".archik.yaml") &&
+    !candidate.endsWith(".archik.suggested.yaml")
+  ) {
+    return null;
+  }
+  return candidate;
+}
+
+/**
+ * Walk the project root and enumerate every archik file, with a
+ * `hasSuggestion` flag if a `<stem>.suggested.yaml` is sitting
+ * next to it. Used by the file-switcher dropdown so the canvas
+ * can show peer files and pending-suggestion badges.
+ */
+export async function listArchikFiles(
+  projectRoot: string,
+  /** Absolute path of the canonical root file (whichever
+   *  `resolveDocPath` picked). The matching entry in the result is
+   *  flagged `isRoot: true` so the canvas knows to use the stable
+   *  `/architecture.archik.yaml` URL for it instead of the
+   *  per-file endpoint. */
+  rootDocPath?: string,
+): Promise<
+  Array<{
+    path: string;
+    name: string;
+    hasSuggestion: boolean;
+    isRoot: boolean;
+  }>
+> {
+  const root = path.resolve(projectRoot);
+  const canonicalRoot =
+    rootDocPath !== undefined ? path.resolve(rootDocPath) : null;
+  // Limit how deep we walk — prevents runaway traversal in odd
+  // monorepos. Architecture files almost always live at the root
+  // or under .archik/, neither of which is more than a few levels.
+  const MAX_DEPTH = 6;
+  // Ignore directories we're never going to find archik files in
+  // and which would be expensive to walk.
+  const SKIP_DIRS = new Set([
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    "coverage",
+    ".next",
+    ".turbo",
+    ".cache",
+  ]);
+  const found = new Set<string>();
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    if (depth > MAX_DEPTH) return;
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        // Always descend into .archik/, hidden or not. Skip other
+        // hidden directories — they aren't where users keep arch files.
+        if (entry.name.startsWith(".") && entry.name !== ".archik") continue;
+        await walk(full, depth + 1);
+      } else if (entry.isFile()) {
+        if (
+          entry.name.endsWith(".archik.yaml") &&
+          !entry.name.endsWith(".archik.suggested.yaml")
+        ) {
+          found.add(full);
+        }
+      }
+    }
+  };
+  await walk(root, 0);
+
+  const out: Array<{
+    path: string;
+    name: string;
+    hasSuggestion: boolean;
+    isRoot: boolean;
+  }> = [];
+  for (const abs of found) {
+    const rel = path.relative(root, abs).split(path.sep).join("/");
+    const sidecar = suggestionPath(abs);
+    let hasSuggestion = false;
+    try {
+      await fs.access(sidecar);
+      hasSuggestion = true;
+    } catch {
+      // no sidecar — fine
+    }
+    // Friendly label: the basename without extensions, with the
+    // canonical legacy file getting "main" instead of "architecture".
+    const base = path.basename(rel).replace(/\.archik\.yaml$/, "");
+    const name = base === "architecture" ? "main" : base;
+    const isRoot = canonicalRoot !== null && abs === canonicalRoot;
+    out.push({ path: rel, name, hasSuggestion, isRoot });
+  }
+  // Stable order: legacy root file first (if any), then alphabetical.
+  out.sort((a, b) => {
+    const aRoot = !a.path.includes("/");
+    const bRoot = !b.path.includes("/");
+    if (aRoot !== bRoot) return aRoot ? -1 : 1;
+    return a.path.localeCompare(b.path);
+  });
+  return out;
+}
+
+/**
+ * GET handler for `/__archik/files`. Returns the JSON list above.
+ * Read-only; no PUT / DELETE.
+ */
+export async function handleListFiles(
+  projectRoot: string,
+  rootDocPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.statusCode = 405;
+    res.setHeader("allow", "GET, HEAD");
+    res.end();
+    return;
+  }
+  try {
+    const files = await listArchikFiles(projectRoot, rootDocPath);
+    res.statusCode = 200;
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.setHeader("cache-control", "no-store");
+    if (req.method === "HEAD") {
+      res.end();
+    } else {
+      res.end(JSON.stringify({ files }));
+    }
+  } catch (err) {
+    res.statusCode = 500;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Generic file handler: GET / PUT a project archik file at any
+ * relative path under the project root. Used by the canvas when
+ * navigating into a sub-architecture pointed at by a node's
+ * `archikFile`. Dispatches to handleYaml or handleSidecar based
+ * on the extension.
+ */
+export async function handleArchikFile(
+  projectRoot: string,
+  relPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const abs = safeResolveProjectFile(projectRoot, relPath);
+  if (abs === null) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(
+      "Bad path: must be a relative .archik.yaml file under the project root.",
+    );
+    return;
+  }
+  if (abs.endsWith(".archik.suggested.yaml")) {
+    return handleSidecar(abs, req, res);
+  }
+  return handleYaml(abs, req, res);
+}
+
+/**
+ * Accept-suggestion for a sub-file. Derives the sidecar path with
+ * `suggestionPath` so the same atomic accept logic works regardless
+ * of which file the canvas is currently editing.
+ */
+export async function handleArchikAccept(
+  projectRoot: string,
+  relPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const main = safeResolveProjectFile(projectRoot, relPath);
+  if (main === null || main.endsWith(".archik.suggested.yaml")) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end("Bad path: accept needs the main file path, not the sidecar.");
+    return;
+  }
+  return handleAccept(main, suggestionPath(main), req, res);
 }
 
 export async function handleDiffSvg(

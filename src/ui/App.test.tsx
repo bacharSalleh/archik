@@ -29,6 +29,16 @@ function mockFetchWithSuggestionDisabled(...mainResponses: Response[]) {
     if (url.includes(SUGGESTION_URL)) {
       return { ok: false, status: 404, statusText: "Not Found" } as Response;
     }
+    // The file-switcher fetches the project's archik-file list on
+    // mount and on every doc/suggestion-changed event. Tests don't
+    // care about that surface — return an empty list so it's harmless.
+    if (url.includes("/__archik/files")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ files: [] }),
+      } as unknown as Response;
+    }
     const next = mainResponses[mainCalls++];
     if (next === undefined) {
       throw new Error(`unexpected fetch to ${url} (no more mocked responses)`);
@@ -94,11 +104,13 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText(renamed.name)).toBeInTheDocument();
     });
-    // Two main-doc fetches plus any number of suggestion 404s — only
-    // assert the doc fetches landed.
+    // Two main-doc fetches plus any number of suggestion 404s and
+    // file-list calls — only assert the doc fetches landed.
     const mainCalls = fetchSpy.mock.calls.filter(([input]) => {
       const url = typeof input === "string" ? input : (input as Request).url;
-      return !url.includes(SUGGESTION_URL);
+      return (
+        !url.includes(SUGGESTION_URL) && !url.includes("/__archik/files")
+      );
     });
     expect(mainCalls).toHaveLength(2);
   });

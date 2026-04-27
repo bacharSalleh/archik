@@ -31,6 +31,16 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
   /** Fired when the user drags from one node and releases over another. */
   onConnectDrag?: (fromId: string, toId: string) => void;
+  /** Drill into a node's sub-architecture. The canvas wires this to
+   *  the per-node "↓ open" affordance; only nodes with `archikFile`
+   *  expose it. */
+  onOpenSubFile?: (archikFile: string, label: string) => void;
+  /** Identity for the currently-loaded file. When this changes the
+   *  canvas saves the current zoom + scroll for the OLD key into an
+   *  in-memory map, then restores whatever state was last saved for
+   *  the new key (or defaults if first visit). Lets the user navigate
+   *  between architecture files without losing their place. */
+  viewKey?: string;
   /** When set, layer diff frames + edge tints over the diagram (review mode). */
   diffStatuses?: StatusMap;
 };
@@ -66,6 +76,8 @@ export function Canvas({
   onSelectEdge,
   onSelectNothing,
   onConnectDrag,
+  onOpenSubFile,
+  viewKey,
   diffStatuses,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
@@ -77,6 +89,15 @@ export function Canvas({
   const [drag, setDrag] = useState<DragState>({ type: "idle" });
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  // Per-file view state. The cleanup of the viewKey effect captures
+  // the *previous* key, so we save the old file's pose just as the
+  // user navigates away. zoomRef keeps the cleanup reading the latest
+  // zoom rather than the value at effect-schedule time.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const viewStatesRef = useRef<
+    Map<string, { zoom: number; scrollX: number; scrollY: number }>
+  >(new Map());
   // After a drag-connect, the click event still fires on the target node.
   // This flag is checked by a capture-phase click handler below to swallow
   // it, so the just-connected node doesn't get selected as a side effect.
@@ -125,6 +146,47 @@ export function Canvas({
     el.addEventListener("click", handler, { capture: true });
     return () => el.removeEventListener("click", handler, { capture: true });
   }, []);
+
+  // Save the viewport state for the OLD viewKey when it changes, via
+  // the effect's cleanup function. Keeps each file's pose around so
+  // returning to it restores zoom + scroll.
+  useEffect(() => {
+    if (viewKey === undefined) return;
+    const key = viewKey;
+    return () => {
+      const el = scrollRef.current;
+      viewStatesRef.current.set(key, {
+        zoom: zoomRef.current,
+        scrollX: el?.scrollLeft ?? 0,
+        scrollY: el?.scrollTop ?? 0,
+      });
+    };
+  }, [viewKey]);
+
+  // Restore (or default) for the NEW viewKey once layout is ready.
+  // Doing this only after `positioned` is set ensures the scroll
+  // container has its real content size, otherwise scrollLeft/scrollTop
+  // get clamped to 0.
+  const positionedReady = positioned !== null;
+  useEffect(() => {
+    if (viewKey === undefined || !positionedReady) return;
+    const saved = viewStatesRef.current.get(viewKey);
+    if (saved) {
+      setZoom(saved.zoom);
+    } else {
+      setZoom(1);
+    }
+    // Restore scroll on the next frame so the SVG has rendered at the
+    // chosen zoom — otherwise the scrollable area doesn't yet match
+    // the saved offsets and the browser clamps them.
+    const raf = requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollLeft = saved?.scrollX ?? 0;
+      el.scrollTop = saved?.scrollY ?? 0;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [viewKey, positionedReady]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
@@ -258,6 +320,7 @@ export function Canvas({
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
+          {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
           {...(diffStatuses !== undefined ? { diffStatuses } : {})}
         />
       </div>

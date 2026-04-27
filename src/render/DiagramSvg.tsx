@@ -199,6 +199,7 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   onSelectNothing?: (() => void) | undefined;
+  onOpenSubFile?: (archikFile: string, label: string) => void;
   /** When set, layer per-status diff frames + edge tints over the diagram. */
   diffStatuses?: StatusMap;
 };
@@ -214,6 +215,7 @@ type InnerProps = {
   onSelectEdge?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
+  onOpenSubFile?: (archikFile: string, label: string) => void;
 };
 
 /**
@@ -228,7 +230,25 @@ export function DiagramInner({
   selectedEdgeIds,
   onSelectNode,
   onSelectEdge,
+  onOpenSubFile,
 }: InnerProps): React.ReactElement {
+  // For each local node id, the *unique* set of cross-file paths
+  // referenced by edges touching it. Built once here so we don't
+  // walk the edge list inside every NodeRenderer.
+  const crossFileByNode = new Map<string, Set<string>>();
+  for (const edge of positioned.edges) {
+    if (edge.toFile !== undefined) {
+      const set = crossFileByNode.get(edge.from) ?? new Set<string>();
+      set.add(edge.toFile);
+      crossFileByNode.set(edge.from, set);
+    }
+    if (edge.fromFile !== undefined) {
+      const set = crossFileByNode.get(edge.to) ?? new Set<string>();
+      set.add(edge.fromFile);
+      crossFileByNode.set(edge.to, set);
+    }
+  }
+
   return (
     <>
       <defs>
@@ -256,8 +276,10 @@ export function DiagramInner({
             key={node.id}
             node={node}
             viewMode={viewMode}
+            crossFileByNode={crossFileByNode}
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+            {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
           />
         ))}
       </g>
@@ -301,6 +323,7 @@ export function DiagramSvg({
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
+  onOpenSubFile,
   diffStatuses,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
@@ -336,6 +359,7 @@ export function DiagramSvg({
           {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+          {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
         />
       </g>
       {diffStatuses && (
