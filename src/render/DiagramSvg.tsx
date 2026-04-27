@@ -199,6 +199,7 @@ type Props = {
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
   onSelectNothing?: (() => void) | undefined;
+  onOpenSubFile?: (archikFile: string, label: string) => void;
   /** When set, layer per-status diff frames + edge tints over the diagram. */
   diffStatuses?: StatusMap;
 };
@@ -214,6 +215,7 @@ type InnerProps = {
   onSelectEdge?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
+  onOpenSubFile?: (archikFile: string, label: string) => void;
 };
 
 /**
@@ -228,6 +230,7 @@ export function DiagramInner({
   selectedEdgeIds,
   onSelectNode,
   onSelectEdge,
+  onOpenSubFile,
 }: InnerProps): React.ReactElement {
   return (
     <>
@@ -258,6 +261,7 @@ export function DiagramInner({
             viewMode={viewMode}
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+            {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
           />
         ))}
       </g>
@@ -301,6 +305,7 @@ export function DiagramSvg({
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
+  onOpenSubFile,
   diffStatuses,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
@@ -336,6 +341,7 @@ export function DiagramSvg({
           {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
+          {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
         />
       </g>
       {diffStatuses && (

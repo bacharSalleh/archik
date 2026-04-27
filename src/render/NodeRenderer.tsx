@@ -6,7 +6,13 @@ import { DatabaseNode } from "./nodes/DatabaseNode.tsx";
 import { CloudNode } from "./nodes/CloudNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { CompactNode } from "./nodes/CompactNode.tsx";
-import { InfoIcon, NotesIcon, iconAnchorsFor, trayCenters } from "./icons.tsx";
+import {
+  InfoIcon,
+  NotesIcon,
+  SubArchIcon,
+  iconAnchorsFor,
+  trayCenters,
+} from "./icons.tsx";
 
 type ShapeProps = {
   node: PositionedNode;
@@ -81,6 +87,9 @@ type Props = {
   onSelectNode?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
+  /** Drill into a node's sub-architecture. Only fired when the node
+   *  has `archikFile` and the user clicks the SubArchIcon badge. */
+  onOpenSubFile?: (archikFile: string, label: string) => void;
   viewMode?: ViewMode;
   /** Container nesting depth — 0 for roots, +1 per container ancestor. */
   depth?: number;
@@ -90,6 +99,7 @@ export function NodeRenderer({
   node,
   selectedNodeIds,
   onSelectNode,
+  onOpenSubFile,
   viewMode = "detailed",
   depth = 0,
 }: Props): React.ReactElement {
@@ -119,7 +129,12 @@ export function NodeRenderer({
       {viewMode === "detailed" && !isContainer && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
-        const trayItems: Array<"info" | "notes"> = [];
+        const hasArchikFile =
+          node.archikFile !== undefined && node.archikFile.length > 0;
+        type TrayKind = "info" | "notes" | "subarch";
+        const trayItems: TrayKind[] = [];
+        // Sub-arch first so it's the rightmost — most actionable, easiest to find.
+        if (hasArchikFile) trayItems.push("subarch");
         if (hasDescription) trayItems.push("info");
         if (hasNotes) trayItems.push("notes");
         if (trayItems.length === 0) return null;
@@ -129,6 +144,23 @@ export function NodeRenderer({
           <>
             {trayItems.map((kind, i) => {
               const slot = slots[i]!;
+              if (kind === "subarch") {
+                const archikFile = node.archikFile!;
+                const handleOpen = onOpenSubFile
+                  ? (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      onOpenSubFile(archikFile, node.name);
+                    }
+                  : undefined;
+                return (
+                  <SubArchIcon
+                    key="subarch"
+                    cx={slot.x}
+                    cy={slot.y}
+                    {...(handleOpen ? { onClick: handleOpen } : {})}
+                  />
+                );
+              }
               if (kind === "info") {
                 return (
                   <InfoIcon
@@ -173,6 +205,7 @@ export function NodeRenderer({
           depth={childDepth}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
+          {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
         />
       ))}
     </g>

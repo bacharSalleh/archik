@@ -125,6 +125,40 @@ describe("NodeSchema", () => {
       NodeSchema.safeParse({ ...minimal, parentId: "Platform" }).success,
     ).toBe(false);
   });
+
+  describe("archikFile", () => {
+    const accept = (p: string): boolean =>
+      NodeSchema.safeParse({ ...minimal, archikFile: p }).success;
+
+    it("accepts a relative path ending in .archik.yaml", () => {
+      expect(accept(".archik/orders.archik.yaml")).toBe(true);
+      expect(accept("services/orders.archik.yaml")).toBe(true);
+      expect(accept("orders.archik.yaml")).toBe(true);
+    });
+
+    it("rejects an absolute path", () => {
+      expect(accept("/etc/passwd.archik.yaml")).toBe(false);
+    });
+
+    it("rejects a Windows drive-letter path", () => {
+      expect(accept("C:/foo/bar.archik.yaml")).toBe(false);
+    });
+
+    it("rejects a path containing `..` segments", () => {
+      expect(accept("../escape.archik.yaml")).toBe(false);
+      expect(accept(".archik/../../etc.archik.yaml")).toBe(false);
+    });
+
+    it("rejects backslash separators", () => {
+      expect(accept(".archik\\orders.archik.yaml")).toBe(false);
+    });
+
+    it("rejects paths without the .archik.yaml extension", () => {
+      expect(accept("orders.yaml")).toBe(false);
+      expect(accept("orders.json")).toBe(false);
+      expect(accept("orders")).toBe(false);
+    });
+  });
 });
 
 describe("EdgeSchema", () => {

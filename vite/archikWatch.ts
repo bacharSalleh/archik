@@ -1,9 +1,14 @@
 import path from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import { suggestionPath } from "../src/domain/suggestion.ts";
-import { resolveDocPath } from "../src/cli/resolveDocPath.ts";
+import {
+  projectRoot as deriveProjectRoot,
+  resolveDocPath,
+} from "../src/cli/resolveDocPath.ts";
 import {
   handleAccept,
+  handleArchikAccept,
+  handleArchikFile,
   handleDiffSvg,
   handleSidecar,
   handleYaml,
@@ -13,6 +18,9 @@ import {
 // matter where the doc actually lives on disk (root or .archik/).
 const YAML_URL = `/architecture.archik.yaml`;
 const SIDECAR_URL = `/architecture.archik.suggested.yaml`;
+// Generic per-file endpoint for sub-architectures.
+const FILE_URL = `/__archik/file`;
+const FILE_ACCEPT_URL = `/__archik/file-accept`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
 const DOC_EVENT = "archik:doc-changed";
@@ -38,6 +46,7 @@ export function archikWatch(): Plugin {
         ? path.resolve(explicit)
         : await resolveDocPath(undefined, server.config.root);
       sidecarPath = suggestionPath(docPath);
+      const root = deriveProjectRoot(docPath);
 
       server.middlewares.use(YAML_URL, (req, res, next) => {
         if (req.method === undefined) return next();
@@ -58,13 +67,30 @@ export function archikWatch(): Plugin {
         void handleDiffSvg(docPath, sidecarPath, res);
       });
 
-      server.watcher.add([docPath, sidecarPath]);
+      server.middlewares.use(FILE_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        const rel = parsePathParam(req.url ?? "");
+        void handleArchikFile(root, rel, req, res);
+      });
+
+      server.middlewares.use(FILE_ACCEPT_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        const rel = parsePathParam(req.url ?? "");
+        void handleArchikAccept(root, rel, req, res);
+      });
+
+      // Watch the main file, its sidecar, and the project's .archik/
+      // folder so sub-file edits also fire SSE for the live canvas.
+      server.watcher.add([docPath, sidecarPath, path.join(root, ".archik")]);
       const onChange = (changedPath: string): void => {
         const resolved = path.resolve(changedPath);
-        if (resolved === docPath) {
-          server.ws.send({ type: "custom", event: DOC_EVENT });
-        } else if (resolved === sidecarPath) {
+        if (resolved.endsWith(".archik.suggested.yaml")) {
           server.ws.send({ type: "custom", event: SUGGESTION_EVENT });
+        } else if (
+          resolved === docPath ||
+          resolved.endsWith(".archik.yaml")
+        ) {
+          server.ws.send({ type: "custom", event: DOC_EVENT });
         }
       };
       server.watcher.on("change", onChange);
@@ -72,4 +98,11 @@ export function archikWatch(): Plugin {
       server.watcher.on("unlink", onChange);
     },
   };
+}
+
+function parsePathParam(url: string): string {
+  const q = url.indexOf("?");
+  if (q < 0) return "";
+  const params = new URLSearchParams(url.slice(q + 1));
+  return params.get("path") ?? "";
 }

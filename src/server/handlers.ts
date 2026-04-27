@@ -11,10 +11,11 @@
 import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
-import { stripSuggestionMarker } from "../domain/suggestion.ts";
+import { stripSuggestionMarker, suggestionPath } from "../domain/suggestion.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
@@ -229,6 +230,90 @@ export async function handleAccept(
   }
   res.statusCode = 204;
   res.end();
+}
+
+/**
+ * Resolve a relative archik path against the project root, refusing
+ * anything that escapes the root or doesn't end in `.archik.yaml`
+ * (or `.archik.suggested.yaml` for sidecars). Returns the absolute
+ * path, or `null` if the request should be rejected.
+ *
+ * This is the *only* trust boundary for sub-file requests — the
+ * canvas can ask for any path it likes, but we'll only serve files
+ * that pass these checks.
+ */
+export function safeResolveProjectFile(
+  projectRoot: string,
+  relPath: string,
+): string | null {
+  if (typeof relPath !== "string" || relPath.length === 0) return null;
+  // Decoded by the time we get here, but be defensive: normalize
+  // away any redundant `./` or trailing slashes, and keep forward
+  // slashes only.
+  if (relPath.includes("\\")) return null;
+  if (relPath.startsWith("/")) return null;
+  if (/^[a-zA-Z]:[\\/]/.test(relPath)) return null;
+  const normalRoot = path.resolve(projectRoot);
+  const candidate = path.resolve(normalRoot, relPath);
+  if (candidate !== normalRoot && !candidate.startsWith(normalRoot + path.sep)) {
+    return null;
+  }
+  if (
+    !candidate.endsWith(".archik.yaml") &&
+    !candidate.endsWith(".archik.suggested.yaml")
+  ) {
+    return null;
+  }
+  return candidate;
+}
+
+/**
+ * Generic file handler: GET / PUT a project archik file at any
+ * relative path under the project root. Used by the canvas when
+ * navigating into a sub-architecture pointed at by a node's
+ * `archikFile`. Dispatches to handleYaml or handleSidecar based
+ * on the extension.
+ */
+export async function handleArchikFile(
+  projectRoot: string,
+  relPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const abs = safeResolveProjectFile(projectRoot, relPath);
+  if (abs === null) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(
+      "Bad path: must be a relative .archik.yaml file under the project root.",
+    );
+    return;
+  }
+  if (abs.endsWith(".archik.suggested.yaml")) {
+    return handleSidecar(abs, req, res);
+  }
+  return handleYaml(abs, req, res);
+}
+
+/**
+ * Accept-suggestion for a sub-file. Derives the sidecar path with
+ * `suggestionPath` so the same atomic accept logic works regardless
+ * of which file the canvas is currently editing.
+ */
+export async function handleArchikAccept(
+  projectRoot: string,
+  relPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const main = safeResolveProjectFile(projectRoot, relPath);
+  if (main === null || main.endsWith(".archik.suggested.yaml")) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end("Bad path: accept needs the main file path, not the sidecar.");
+    return;
+  }
+  return handleAccept(main, suggestionPath(main), req, res);
 }
 
 export async function handleDiffSvg(

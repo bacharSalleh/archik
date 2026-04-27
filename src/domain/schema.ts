@@ -8,6 +8,34 @@ export const IdSchema = z
   .string()
   .regex(ID_PATTERN, "id must match /^[a-z][a-z0-9-]*$/");
 
+/**
+ * `archikFile` is a relative path to another archik document — used
+ * to hang a sub-architecture off a node so the canvas can drill into
+ * it. Constraints (enforced at parse time):
+ *   - must be relative (no leading `/`, no Windows drive letter)
+ *   - must use forward slashes
+ *   - must NOT contain `..` segments (no escaping the project root)
+ *   - must end in `.archik.yaml` (extension is the file-type marker)
+ * Cycle / existence checks are runtime — the canvas decides whether
+ * the file actually loads.
+ */
+export const ArchikFilePathSchema = z
+  .string()
+  .min(1)
+  .refine((p) => !p.startsWith("/") && !/^[a-zA-Z]:[\\/]/.test(p), {
+    message: "archikFile must be a relative path",
+  })
+  .refine((p) => !p.includes("\\"), {
+    message: "archikFile must use forward slashes",
+  })
+  .refine(
+    (p) => !p.split("/").some((seg) => seg === "..") && !p.includes("./../"),
+    { message: "archikFile must not contain `..` segments" },
+  )
+  .refine((p) => p.endsWith(".archik.yaml"), {
+    message: "archikFile must end in `.archik.yaml`",
+  });
+
 export const InterfaceSchema = z.strictObject({
   name: z.string().min(1),
   protocol: z.string().min(1),
@@ -24,6 +52,10 @@ export const NodeSchema = z.strictObject({
   interfaces: z.array(InterfaceSchema).optional(),
   notes: z.array(z.string()).optional(),
   parentId: IdSchema.optional(),
+  /** Drill-down: relative path to another archik file capturing this
+   *  node's internal architecture. The canvas shows a "↓ open" affordance
+   *  on the node and navigates to that file when the user opens it. */
+  archikFile: ArchikFilePathSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

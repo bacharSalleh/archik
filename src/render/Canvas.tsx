@@ -31,6 +31,10 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
   /** Fired when the user drags from one node and releases over another. */
   onConnectDrag?: (fromId: string, toId: string) => void;
+  /** Drill into a node's sub-architecture. The canvas wires this to
+   *  the per-node "↓ open" affordance; only nodes with `archikFile`
+   *  expose it. */
+  onOpenSubFile?: (archikFile: string, label: string) => void;
   /** When set, layer diff frames + edge tints over the diagram (review mode). */
   diffStatuses?: StatusMap;
 };
@@ -66,6 +70,7 @@ export function Canvas({
   onSelectEdge,
   onSelectNothing,
   onConnectDrag,
+  onOpenSubFile,
   diffStatuses,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
@@ -258,6 +263,7 @@ export function Canvas({
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onSelectNothing !== undefined ? { onSelectNothing } : {})}
+          {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
           {...(diffStatuses !== undefined ? { diffStatuses } : {})}
         />
       </div>

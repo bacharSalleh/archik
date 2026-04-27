@@ -198,8 +198,36 @@ metadata:               # optional
   notes:                # optional, list of free-text notes
     - "Migrated from monolith in 2024."
   parentId: platform    # optional, must reference a real node
+  archikFile: .archik/orders.archik.yaml   # optional drill-down
   metadata:             # optional, free record
     team: fulfillment
+```
+
+### Drilling into a sub-architecture (`archikFile`)
+
+A node can point at *its own* archik file via `archikFile`. The
+canvas shows a small "↓ open" badge on those nodes; clicking it
+loads the linked file and adds a breadcrumb so the user can come
+back. Use it when a component is meaty enough to deserve its own
+diagram (a service with internal modules, a frontend with several
+panes, etc.).
+
+Constraints (the schema enforces them):
+- Relative path only — no leading `/`, no Windows drive letter.
+- Must use forward slashes; `..` segments are rejected.
+- Must end in `.archik.yaml` (the suggestion sidecar is derived
+  automatically as `<stem>.suggested.yaml` next to it).
+- Cycles aren't checked at parse time (each file validates on its
+  own); if you wire a loop the canvas just lets the user navigate
+  in and out.
+
+Conventional layout: keep sub-files under `.archik/` next to
+`main.archik.yaml`. Example:
+
+```
+.archik/main.archik.yaml          # entry point
+.archik/orders.archik.yaml        # Orders service internals
+.archik/payments.archik.yaml      # Payments service internals
 ```
 
 ## Node kinds (27 total, grouped by purpose)
