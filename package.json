@@ -38,7 +38,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "archik": "tsx --tsconfig tsconfig.app.json src/cli/index.ts",
-    "postinstall": "node bin/postinstall.js || true",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
