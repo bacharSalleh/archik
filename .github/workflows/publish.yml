@@ -45,12 +45,13 @@ jobs:
       # Auth comes from OIDC (Trusted Publishing on npmjs.com) — no
       # NPM_TOKEN secret stored anywhere.
       #
-      # We deliberately do NOT pass --provenance: provenance attestations
-      # require a *public* source repository, and ours is private. Trusted
-      # Publishing itself works fine without it; we just lose the
-      # cryptographic build-origin proof on the published tarball.
+      # --provenance attaches a sigstore-signed attestation linking the
+      # published tarball to this exact commit + workflow run. Visible
+      # on npmjs.com as a "Provenance" badge under the package name.
+      # Requires the source repo to be PUBLIC (npm rejects private-repo
+      # provenance with E422). Drop the flag if you ever flip back.
       - name: Publish
-        run: npm publish --access public
+        run: npm publish --access public --provenance
 
       # Create a GitHub Release on the tag so the repo's "Releases"
       # sidebar populates and downstream automations (release-bot

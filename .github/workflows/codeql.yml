@@ -1,0 +1,47 @@
+name: CodeQL
+
+# CodeQL is GitHub's static analyser for security vulnerabilities. Free
+# for public repositories. Runs on every PR + push to main, and on a
+# weekly schedule so newly-published rule additions get applied to the
+# existing tree without waiting for a fresh PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays at 06:30 Berlin (matches dependabot's cadence).
+    - cron: "30 5 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # `security-and-quality` is the default + extra maintainability
+          # checks. Keep it tight; we want signal, not 200 false positives.
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

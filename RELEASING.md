@@ -113,19 +113,21 @@ know how to fetch the GitHub OIDC token). The publish workflow
 therefore runs `npm install -g npm@latest` before `npm publish`. Don't
 remove that step.
 
-## Why we don't pass `--provenance`
+## Provenance (sigstore attestations)
 
-`--provenance` would attach a sigstore-signed attestation linking the
-published tarball to a specific GitHub commit + workflow run. Lovely
-in theory, but **the source repository must be public** — npm refuses
-the publish with `E422 "Unsupported GitHub Actions source repository
-visibility: 'private'"` otherwise. Our repo is private on purpose, so
-we forgo provenance.
+We pass `--provenance` to `npm publish`. Each release gets a
+sigstore-signed attestation linking the tarball to the exact commit
++ workflow run that produced it, surfaced on npmjs.com under a
+"Provenance" badge below the package name.
 
-If you ever flip the GitHub repo to public, you can put `--provenance`
-back on the publish command in `publish.yml` to get the attestation.
-The `id-token: write` permission is still in the workflow either way
-(Trusted Publishing also needs it).
+Provenance requires the source repo to be **public** — npm rejects
+private-repo provenance with `E422 "Unsupported GitHub Actions
+source repository visibility: 'private'"`. If you ever flip the
+repo back to private, drop the `--provenance` flag from
+`publish.yml` first or the publish will fail.
+
+The `id-token: write` workflow permission is required for both
+Trusted Publishing and provenance, so it's set unconditionally.
 
 ## First-publish bootstrap (historical)
 
