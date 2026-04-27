@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import { bold, cross, dim, gray, tick } from "../colors.ts";
 import { daemonPaths, isAlive, readState, removeState } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
@@ -29,20 +30,20 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
   try {
     docPath = await resolveDocPath(opts._[0]);
   } catch (err) {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
     return 1;
   }
   const paths = daemonPaths(docPath);
   const state = readState(paths.stateFile);
 
   if (!state) {
-    console.log(`archik is not running for ${docPath}`);
+    console.log(`${gray("•")} archik is not running for ${dim(docPath)}`);
     return 0;
   }
 
   if (!isAlive(state)) {
     removeState(paths.stateFile);
-    console.log(`archik was not running (cleaned up stale state)`);
+    console.log(`${gray("•")} archik was not running ${dim("(cleaned up stale state)")}`);
     return 0;
   }
 
@@ -60,6 +61,6 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
   }
 
   removeState(paths.stateFile);
-  console.log(`✓ archik stopped (PID ${state.pid})`);
+  console.log(`${tick()} ${bold("archik stopped")} ${dim(`(PID ${state.pid})`)}`);
   return 0;
 }

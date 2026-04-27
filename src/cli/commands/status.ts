@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
+import { bold, cyan, dim, gray } from "../colors.ts";
 import { daemonDir, isAlive, readState, removeState } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 
@@ -38,16 +39,18 @@ export async function statusCommand(_opts: ParsedOptions): Promise<number> {
   }
 
   if (running.length === 0) {
-    console.log("No archik instances running.");
+    console.log(`${gray("•")} No archik instances running.`);
     return 0;
   }
 
   for (const r of running) {
-    console.log(`${r.url}`);
-    console.log(`  PID      ${r.pid}`);
-    console.log(`  editing  ${r.docPath}`);
-    console.log(`  started  ${r.startedAt}`);
-    console.log(`  logs     ${r.logFile}`);
+    console.log("");
+    console.log(`${bold(cyan(r.url))}`);
+    console.log(`  ${dim("PID")}      ${r.pid}`);
+    console.log(`  ${dim("editing")}  ${bold(r.docPath)}`);
+    console.log(`  ${dim("started")}  ${dim(r.startedAt)}`);
+    console.log(`  ${dim("logs")}     ${dim(r.logFile)}`);
   }
+  console.log("");
   return 0;
 }

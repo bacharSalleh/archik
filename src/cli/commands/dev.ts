@@ -8,6 +8,7 @@ import {
   removeState,
   updateState,
 } from "../daemon.ts";
+import { arrow, bold, cross, cyan, dim, gray, tick } from "../colors.ts";
 import type { ParsedOptions } from "../options.ts";
 import { getString } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
@@ -18,7 +19,7 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   try {
     docPath = await resolveDocPath(opts._[0]);
   } catch (err) {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
     return 1;
   }
   const file = path.relative(process.cwd(), docPath) || docPath;
@@ -26,8 +27,8 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   try {
     await access(docPath);
   } catch {
-    console.error(`✗ ${file} not found in ${process.cwd()}`);
-    console.error(`  Run \`archik init\` to create one, then try again.`);
+    console.error(`${cross()} ${bold(file)} not found in ${dim(process.cwd())}`);
+    console.error(`  Run ${bold("archik init")} to create one, then try again.`);
     return 1;
   }
 
@@ -45,9 +46,9 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   });
   if (!lock.ok) {
     const url = lock.existing.urls.local[0] ?? "(unknown)";
-    console.error(`✗ archik is already running for ${docPath}`);
-    console.error(`  PID ${lock.existing.pid} on ${url}`);
-    console.error(`  Run \`archik stop\` first.`);
+    console.error(`${cross()} archik is already running for ${bold(docPath)}`);
+    console.error(`  ${dim("PID")} ${lock.existing.pid} ${dim("on")} ${cyan(url)}`);
+    console.error(`  Run ${bold("archik stop")} first.`);
     return 1;
   }
 
@@ -86,9 +87,15 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
     void openInBrowser(handle.url);
   }
 
-  console.log(`\narchik dev — editing ${docPath}`);
-  console.log(`  Local:  ${handle.url}`);
-  console.log("\nPress Ctrl+C to stop.\n");
+  const rule = gray("─".repeat(56));
+  console.log("");
+  console.log(rule);
+  console.log(`  ${tick()} ${bold("archik dev")} ${arrow()} ${cyan(bold(handle.url))}`);
+  console.log(rule);
+  console.log(`  ${dim("editing")}  ${bold(docPath)}`);
+  console.log("");
+  console.log(`  ${dim("Press Ctrl+C to stop.")}`);
+  console.log("");
 
   return new Promise<number>((resolve) => {
     const shutdown = async (): Promise<void> => {

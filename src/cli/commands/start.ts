@@ -10,6 +10,7 @@ import {
   readState,
   removeState,
 } from "../daemon.ts";
+import { arrow, bold, cross, cyan, dim, gray, tick } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
@@ -21,7 +22,7 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   try {
     docPath = await resolveDocPath(opts._[0]);
   } catch (err) {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
     return 1;
   }
   const file = path.relative(process.cwd(), docPath) || docPath;
@@ -29,8 +30,8 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   try {
     await access(docPath);
   } catch {
-    console.error(`✗ ${file} not found in ${process.cwd()}`);
-    console.error(`  Run \`archik init\` to create one, then try again.`);
+    console.error(`${cross()} ${bold(file)} not found in ${dim(process.cwd())}`);
+    console.error(`  Run ${bold("archik init")} to create one, then try again.`);
     return 1;
   }
 
@@ -41,9 +42,9 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   const existing = readState(paths.stateFile);
   if (existing && isAlive(existing)) {
     const url = existing.urls.local[0] ?? "(unknown)";
-    console.error(`✗ archik is already running for ${docPath}`);
-    console.error(`  PID ${existing.pid} on ${url}`);
-    console.error(`  Run \`archik stop\` first.`);
+    console.error(`${cross()} archik is already running for ${bold(docPath)}`);
+    console.error(`  ${dim("PID")} ${existing.pid} ${dim("on")} ${cyan(url)}`);
+    console.error(`  Run ${bold("archik stop")} first.`);
     return 1;
   }
   if (existing) removeState(paths.stateFile);
@@ -70,7 +71,7 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
   await log.close();
 
   if (child.pid === undefined) {
-    console.error(`✗ failed to spawn archik dev`);
+    console.error(`${cross()} failed to spawn archik dev`);
     return 1;
   }
 
@@ -105,16 +106,21 @@ export async function startCommand(opts: ParsedOptions): Promise<number> {
     // Dev's exit handler clears state on its own, but if we killed it
     // mid-startup the file may still be there. Drop it.
     removeState(paths.stateFile);
-    console.error(`✗ archik failed to start within ${READY_TIMEOUT_MS / 1000}s.`);
-    console.error(`  See log: ${paths.logFile}`);
+    console.error(`${cross()} archik failed to start within ${READY_TIMEOUT_MS / 1000}s.`);
+    console.error(`  See log: ${dim(paths.logFile)}`);
     return 1;
   }
 
   const url = ready.urls.local[0] ?? "(unknown)";
-  console.log(`✓ archik started — ${url}`);
-  console.log(`  editing  ${docPath}`);
-  console.log(`  PID      ${ready.pid}`);
-  console.log(`  logs     ${paths.logFile}`);
-  console.log(`  stop     archik stop`);
+  const rule = gray("─".repeat(56));
+  console.log("");
+  console.log(rule);
+  console.log(`  ${tick()} ${bold("archik")} ${dim("started")} ${arrow()} ${cyan(bold(url))}`);
+  console.log(rule);
+  console.log(`  ${dim("editing")}  ${bold(docPath)}`);
+  console.log(`  ${dim("PID")}      ${ready.pid}`);
+  console.log(`  ${dim("logs")}     ${dim(paths.logFile)}`);
+  console.log(`  ${dim("stop")}     ${bold("archik stop")}`);
+  console.log("");
   return 0;
 }
