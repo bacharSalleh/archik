@@ -27,6 +27,7 @@ describe("NodeKind taxonomy", () => {
       "stream",
       "gateway",
       "cdn",
+      "route",
       "interface",
       "adapter",
       "port",

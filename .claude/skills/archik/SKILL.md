@@ -185,14 +185,14 @@ metadata:               # optional
     team: fulfillment
 ```
 
-## Node kinds (26 total, grouped by purpose)
+## Node kinds (27 total, grouped by purpose)
 
 | Group       | Kinds |
 | ----------- | --------------------------------- |
 | Compute     | `service`, `function`, `worker`, `agent` |
 | Data        | `database`, `cache`, `vectordb`, `storage` |
 | Messaging   | `queue`, `topic`, `stream` |
-| Networking  | `gateway`, `cdn` |
+| Networking  | `gateway`, `cdn`, `route` |
 | Hexagonal   | `interface`, `adapter`, `port` |
 | AI / ML     | `llm`, `prompt`, `tool` |
 | Identity    | `auth` |
@@ -217,6 +217,7 @@ Picking the right kind:
 - Kafka / Kinesis stream-of-events → `stream`
 - API gateway, ingress, edge proxy → `gateway`
 - CloudFront / Fastly → `cdn`
+- A specific HTTP route / URL endpoint (e.g. `POST /v1/orders`) → `route`
 - An abstract contract → `interface`
 - A concrete impl of an interface → `adapter`
 - A hexagonal-architecture port → `port`

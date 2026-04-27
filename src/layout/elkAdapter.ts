@@ -66,6 +66,7 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   // Networking
   gateway: CARD,
   cdn: CARD,
+  route: CARD,
   // Hexagonal
   interface: CARD,
   adapter: CARD,
@@ -109,6 +110,7 @@ const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   stream: CHIP,
   gateway: CHIP,
   cdn: CHIP,
+  route: CHIP,
   interface: CHIP,
   adapter: CHIP,
   port: CHIP,

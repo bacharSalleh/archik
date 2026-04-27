@@ -18,6 +18,7 @@ import {
   Monitor,
   Package,
   Radio,
+  Route,
   SendHorizontal,
   Server,
   Sparkles,
@@ -119,6 +120,11 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
     color: "#0ea5e9",
     icon: Globe,
     description: "Content delivery network / static edge.",
+  },
+  route: {
+    color: "#3b82f6",
+    icon: Route,
+    description: "HTTP / URL route — path + method mapped to a handler.",
   },
 
   // Hexagonal architecture ----------------------------------------------
