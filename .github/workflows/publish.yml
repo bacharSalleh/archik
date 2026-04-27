@@ -13,7 +13,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # write — the GitHub Release step needs to
+                        # create the release on the tag.
       id-token: write   # OIDC: lets GitHub mint the token npm exchanges
                         # for short-lived publish credentials (Trusted
                         # Publishing). Still required even without
@@ -50,3 +51,36 @@ jobs:
       # cryptographic build-origin proof on the published tarball.
       - name: Publish
         run: npm publish --access public
+
+      # Create a GitHub Release on the tag so the repo's "Releases"
+      # sidebar populates and downstream automations (release-bot
+      # subscriptions, npmjs's GitHub link, etc.) light up. Notes
+      # are auto-generated from PRs / commits since the previous
+      # tag. Pulls the matching version section out of CHANGELOG.md
+      # if one exists so the release page mirrors it.
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v ver="$tag" '
+              $0 ~ "^## \\["ver"\\]" { capture = 1; next }
+              capture && /^## \[/ { exit }
+              capture { print }
+            ' CHANGELOG.md > /tmp/release-notes.md
+          fi
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "_See the [CHANGELOG](./CHANGELOG.md) for full release notes._" > /tmp/release-notes.md
+          fi
+          echo "path=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.changelog.outputs.path }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          make_latest: true

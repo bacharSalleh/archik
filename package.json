@@ -31,6 +31,8 @@
     "bin",
     "dist",
     "docs/hero.svg",
+    "docs/logo.svg",
+    "docs/wordmark.svg",
     ".claude/skills/archik",
     "README.md",
     "LICENSE"

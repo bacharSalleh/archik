@@ -10,10 +10,16 @@ npm version patch                      # 0.1.1 → 0.1.2 (or `minor` / `major`)
 git push origin main --follow-tags     # pushes the commit AND the tag
 ```
 
-The tag push triggers `.github/workflows/publish.yml`, which runs
-`prepublishOnly` (typecheck + tests + build) and then `npm publish
---access public`. You don't run `npm publish` from your laptop —
-CI does it via OIDC.
+The tag push triggers `.github/workflows/publish.yml`, which:
+
+1. Runs `prepublishOnly` (typecheck + tests + build).
+2. Runs `npm publish --access public` over OIDC (Trusted Publishing).
+3. Creates a **GitHub Release** on the tag, with notes auto-pulled
+   from the matching `## [x.y.z]` section in [`CHANGELOG.md`](./CHANGELOG.md).
+   Falls back to GitHub's auto-generated PR/commit summary when the
+   changelog has no matching section.
+
+You don't run `npm publish` from your laptop. CI does it.
 
 ## Bump levels
 
@@ -50,6 +56,7 @@ git config --global push.followTags true
 
 - Workflow runs: https://github.com/bacharSalleh/archik/actions
 - npm package: https://www.npmjs.com/package/archik
+- GitHub Releases: https://github.com/bacharSalleh/archik/releases
 
 When the workflow turns green, verify:
 
@@ -57,6 +64,35 @@ When the workflow turns green, verify:
 npm view archik version    # should print the version you just pushed
 npx -y archik@latest --help
 ```
+
+## Releases page (auto-populated)
+
+Every successful `publish.yml` run also creates a GitHub Release
+on the tag. The body is built from:
+
+1. The matching `## [x.y.z] - YYYY-MM-DD` section in
+   `CHANGELOG.md`. **Update the changelog before tagging** so the
+   release page mirrors what shipped.
+2. GitHub's auto-generated PR/commit list for the range
+   `prev-tag..this-tag`, appended below the changelog excerpt.
+
+If you forget the changelog update, you can edit the release on
+GitHub later — `gh release edit v0.6.x --notes-file -` reads from
+stdin if you pipe in a fresh excerpt.
+
+## Manual release (rarely needed)
+
+If CI is down or you need to ship from your laptop, the same steps
+manually:
+
+```bash
+npm run typecheck && npm test && npm run build
+npm publish --access public
+gh release create v0.6.x --generate-notes --latest
+```
+
+You'll need npm CLI ≥ 11.5.1 and a granular access token (Trusted
+Publishing only works from CI). Avoid this path — leak risk.
 
 ## Why there's no NPM_TOKEN
 

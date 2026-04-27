@@ -1,8 +1,14 @@
-# Archik
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/logo.svg" alt="archik" width="120">
+</p>
 
-> An architecture diagram tool where the file is the source of truth — and Claude can edit it alongside you.
+<h1 align="center">archik</h1>
 
-<p align="left">
+<p align="center">
+  <em>The shared vocabulary between you and Claude Code, at the engineering level.</em>
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/archik"><img alt="npm version" src="https://img.shields.io/npm/v/archik?color=cb3837&logo=npm&label=archik"></a>
   <a href="https://www.npmjs.com/package/archik"><img alt="npm downloads" src="https://img.shields.io/npm/dm/archik?color=cb3837&logo=npm"></a>
   <a href="./LICENSE"><img alt="license" src="https://img.shields.io/npm/l/archik?color=blue"></a>
@@ -15,7 +21,21 @@
   <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
 </p>
 
-You write a small YAML file describing your nodes (services, databases, queues, agents, LLMs, …) and the edges between them. Archik gives you a live browser canvas, a CLI for CI, and an installable AI skill so Claude Code understands your architecture file the same way you do — no proprietary format, no coordinates in the YAML, no manual layout.
+archik gives your project — and the AI editing it — *one file* that
+describes what the system actually looks like. Services, databases,
+queues, agents, LLMs, the edges between them. Plain YAML, schema-
+validated, no coordinates, no proprietary format.
+
+Open it in your browser for a live canvas. Render it in CI for a
+self-contained SVG. Install the [Claude Code skill](#for-claude-code--other-llms)
+so the model edits the same file you do — *the diagram and the
+codebase stop drifting because Claude treats the diagram as the
+spec*.
+
+If you've ever asked an AI agent "where would I add X?" and watched
+it guess from filenames, archik is the fix: the YAML answers the
+question, and Claude is required to read it before doing structural
+work.
 
 ## Quickstart
 
