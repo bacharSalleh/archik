@@ -58,7 +58,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
-    "chokidar": "^4.0.3",
+    "chokidar": "^5.0.0",
     "elkjs": "^0.10.2",
     "esbuild": "^0.28.0",
     "jsdom": "^25.0.1",
