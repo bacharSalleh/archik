@@ -36,6 +36,32 @@ export const ArchikFilePathSchema = z
     message: "archikFile must end in `.archik.yaml`",
   });
 
+/**
+ * `sourcePath` is a relative path (file OR directory) under the project
+ * root that this node maps to in the source tree. Used by `archik check`
+ * to verify the diagram and the codebase haven't drifted, and to skip
+ * the noisy slug-and-immediate-child-dir heuristic for nodes that
+ * decompose more finely than directories. Constraints:
+ *   - relative (no leading `/`, no Windows drive letter)
+ *   - forward slashes only (no `\`)
+ *   - no `..` segments
+ *   - non-empty
+ * No extension check — points to whatever's on disk.
+ */
+export const SourcePathSchema = z
+  .string()
+  .min(1)
+  .refine((p) => !p.startsWith("/") && !/^[a-zA-Z]:[\\/]/.test(p), {
+    message: "sourcePath must be a relative path",
+  })
+  .refine((p) => !p.includes("\\"), {
+    message: "sourcePath must use forward slashes",
+  })
+  .refine(
+    (p) => !p.split("/").some((seg) => seg === "..") && !p.includes("./../"),
+    { message: "sourcePath must not contain `..` segments" },
+  );
+
 export const InterfaceSchema = z.strictObject({
   name: z.string().min(1),
   protocol: z.string().min(1),
@@ -56,6 +82,12 @@ export const NodeSchema = z.strictObject({
    *  node's internal architecture. The canvas shows a "↓ open" affordance
    *  on the node and navigates to that file when the user opens it. */
   archikFile: ArchikFilePathSchema.optional(),
+  /** Where this node lives in the source tree, relative to the project
+   *  root. File or directory. Lets `archik check` verify the diagram
+   *  matches reality without the slug heuristic guessing wrong for
+   *  nodes that decompose more finely than directories (a function
+   *  inside a `commands/` folder, a React component inside `ui/`). */
+  sourcePath: SourcePathSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

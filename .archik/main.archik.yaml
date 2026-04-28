@@ -7,131 +7,158 @@ nodes:
     name: bin/archik.js
     description: Entry shim. If dist/cli/archik.mjs exists, spawns the bundled CLI with node; otherwise falls back to tsx + src/. Sets ARCHIK_PKG_ROOT so the CLI never has to guess where it lives.
     stack: Node ESM
+    sourcePath: bin/archik.js
   - id: cli
     kind: module
     name: CLI
     description: Command dispatcher. Parses options, routes to the right handler.
+    sourcePath: src/cli
   - id: cli-init
     kind: function
     name: init
     description: Scaffold the archik file (defaults to .archik/main.archik.yaml under the new convention, or architecture.archik.yaml if that already exists) and install the Claude skill (default).
+    sourcePath: src/cli/commands/init.ts
     parentId: cli
   - id: cli-validate
     kind: function
     name: validate
     description: Zod-validate the YAML. Exits 1 on schema error — CI-friendly.
+    sourcePath: src/cli/commands/validate.ts
     parentId: cli
   - id: cli-render
     kind: function
     name: render
     description: Headless ELK + React server-side render to a self-contained SVG file.
+    sourcePath: src/cli/commands/render.ts
     parentId: cli
   - id: cli-dev
     kind: function
     name: dev / start / stop / status
     description: Lifecycle of the canvas server. Single-instance per YAML enforced by the daemon lock.
+    sourcePath: src/cli/commands/dev.ts
     parentId: cli
   - id: cli-skill
     kind: function
     name: skill
     description: Copy SKILL.md into ./.claude/skills/archik/ (or ~/.claude/skills/archik/ with --user).
+    sourcePath: src/cli/commands/skill.ts
     parentId: cli
   - id: cli-resolve-doc-path
     kind: function
     name: resolveDocPath
     description: Helper shared by every read-side CLI command. Finds the canonical archik file — prefers the legacy architecture.archik.yaml at root, falls back to the new .archik/main.archik.yaml. Throws when both exist so the user picks one.
+    sourcePath: src/cli/resolveDocPath.ts
     parentId: cli
   - id: daemon
     kind: port
     name: Daemon Lock
     description: O_EXCL state file in $TMPDIR/archik-cli/<sha-of-doc-path>.json. Holds pid + URL + log path. dev / start / stop / status all share it. isAlive cross-checks `ps -o lstart=` against the recorded startedAt to defeat PID reuse.
+    sourcePath: src/cli/daemon.ts
   - id: dev-server
     kind: service
     name: Dev Server
     description: node:http server. Serves dist/ui/ statically and mounts the shared `handlers` module — root YAML, suggestion sidecar, accept, diff SVG, plus the per-file (/__archik/file, file-accept) and file-list (/__archik/files) endpoints that drive multi-file navigation. SSE on /__archik/events.
     stack: node:http
+    sourcePath: src/server/devServer.ts
   - id: handlers
     kind: module
     name: HTTP Handlers
     description: Single source of truth for every dev-surface endpoint — handleYaml, handleSidecar, handleAccept, handleDiffSvg, handleArchikFile, handleArchikAccept, handleListFiles. Atomic tmp+rename on every write so a partial write never truncates the source of truth. Mounted by both `archik dev` (node:http) and the Vite dogfood plugin so the suggest workflow behaves identically in published mode and in-repo `npm run dev`.
+    sourcePath: src/server/handlers.ts
   - id: vite-plugin
     kind: adapter
     name: Vite Plugin
     description: archikWatch — Vite dev plugin that mounts the shared `handlers` (root + per-file + list) and broadcasts archik:doc-changed / archik:suggestion-changed via Vite HMR. Watches the doc, sidecar, and the .archik/ folder so sub-file edits also fire live-reload.
     stack: Vite
+    sourcePath: vite/archikWatch.ts
   - id: file-watcher
     kind: worker
     name: YAML Watcher
     description: chokidar tail of the canonical YAML, its sidecar, and the project's .archik/ folder. Pushes archik:doc-changed / archik:suggestion-changed events to all SSE subscribers; sub-file edits flow through too.
     stack: chokidar
+    sourcePath: src/server/devServer.ts
   - id: canvas
     kind: frontend
     name: Canvas
     description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth. Holds a navigation stack (drill-down via a node's `archikFile`, breadcrumbs to walk back) and toggles an in-canvas diff overlay for pending suggestions instead of opening a separate tab.
     stack: React + Vite (build-time only)
+    sourcePath: src/render/Canvas.tsx
   - id: inspector
     kind: module
     name: Inspectors
     description: Toolbar, NodeInspector, EdgeInspector, Legend, KindPicker, AddNodeForm, ExportMenu — every UI surface that mutates the document. Locked while a suggestion is being reviewed so the merged-doc view stays read-only.
+    sourcePath: src/ui
     parentId: canvas
   - id: live-reload
     kind: adapter
     name: Live Reload
     description: EventSource client subscribed to /__archik/events. Falls back to Vite HMR for in-repo `npm run dev`.
+    sourcePath: src/io/liveReload.ts
     parentId: canvas
   - id: breadcrumbs
     kind: module
     name: Breadcrumbs
     description: Drill-down navigation bar at the top of the canvas. Walks the file stack left-to-right; each crumb except the last pops back to that depth. Hidden when the user is at the root file. Renders a suggestion dot next to any crumb whose file has a pending sidecar.
+    sourcePath: src/ui/Breadcrumbs.tsx
     parentId: canvas
   - id: file-switcher
     kind: module
     name: File Switcher
     description: Dropdown listing every archik file under the project root (root + every .archik/*.archik.yaml). Selecting a peer file resets the navigation stack so the user lands at its root. Shows an accent dot next to files with a pending suggestion sidecar; hidden when the project only has one file.
+    sourcePath: src/ui/FileSwitcher.tsx
     parentId: canvas
   - id: domain
     kind: module
     name: Domain
     description: Pure schema, validation, taxonomy, command operations. No React, no ELK, no I/O — safe to import from anywhere.
+    sourcePath: src/domain
   - id: schema
     kind: interface
     name: Schema
     description: Zod schemas + TypeScript types. The single source of truth for what counts as a valid Archik document. superRefine enforces cross-references — unique ids, edges land on real nodes, no self-loops, no parentId cycles, and the multi-file constraints (archikFile must be a relative .archik.yaml path with no ..; cross-file edges have at most one of fromFile / toFile and the local endpoint resolves locally).
+    sourcePath: src/domain/schema.ts
     parentId: domain
   - id: commands
     kind: function
     name: Commands
     description: Pure functions — addNode, removeEdge, updateNode, etc. Drive undo/redo via a command history.
+    sourcePath: src/domain/commands.ts
     parentId: domain
   - id: taxonomy
     kind: function
     name: Taxonomy
     description: 27 node kinds (route added in v0.5.0), 17 relationships, plus per-kind icon and palette metadata.
+    sourcePath: src/domain/taxonomy.ts
     parentId: domain
   - id: layout
     kind: service
     name: Layout Engine
     description: ELK adapter behind a LayoutEngine interface. Computes positions, edge routes, container padding, and offsets edges by their LCA so coords are absolute.
     stack: ELK.js
+    sourcePath: src/layout
   - id: renderer
     kind: service
     name: SVG Renderer
     description: Per-shape components (Service, Cache, Queue, Frontend, Container, etc). Theme-aware. Same code path used by the canvas and headless `archik render`.
+    sourcePath: src/render
   - id: diff-overlay
     kind: module
     name: Diff Overlay
     description: Diff overlay primitives (NodeDiffFrames, EdgeDiffOverlays, RemovedNodeDimmer) layered on top of the regular DiagramSvg when a suggestion is being reviewed. Same primitives feed the standalone DiffSvg used by `archik diff --out`. Lives in its own module to avoid a circular import between DiagramSvg and DiffSvg.
+    sourcePath: src/render/diffOverlay.tsx
     parentId: renderer
   - id: io
     kind: module
     name: I/O
     description: YAML/JSON parsers (Zod-backed), exporters (markdown, json, yaml), browser fetch/save adapters.
+    sourcePath: src/io
   - id: skill
     kind: prompt
     name: Claude Skill
     description: SKILL.md — the schema, the 3-rule protocol (read before answering, propose updates, validate after every edit), and the 27-kind taxonomy. Installed under .claude/skills/archik/.
+    sourcePath: .claude/skills/archik/SKILL.md
   - id: claude-code
-    kind: agent
+    kind: external
     name: Claude Code
     description: AI editor. Reads the skill at session start, edits the YAML alongside code changes, runs `archik validate` after every save.
   - id: elk

@@ -53,7 +53,10 @@ COMMANDS
                     --out <file>     output path (default: diagram.svg)
                     --theme <name>   "dark" (default) or "light"
   watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
-  check [path]      Drift detection — flag nodes without source dirs
+  check [path]      Drift detection — verify each node's sourcePath
+                    resolves and every src/services/packages/apps
+                    immediate child is claimed by a node. Walks all
+                    .archik/ sub-files. Exits 1 on drift.
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"

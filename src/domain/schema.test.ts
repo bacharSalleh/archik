@@ -159,6 +159,46 @@ describe("NodeSchema", () => {
       expect(accept("orders")).toBe(false);
     });
   });
+
+  describe("sourcePath", () => {
+    const accept = (p: string): boolean =>
+      NodeSchema.safeParse({ ...minimal, sourcePath: p }).success;
+
+    it("accepts a relative file path", () => {
+      expect(accept("src/cli/commands/init.ts")).toBe(true);
+      expect(accept("bin/archik.js")).toBe(true);
+    });
+
+    it("accepts a relative directory path", () => {
+      expect(accept("src/cli")).toBe(true);
+      expect(accept("services/orders")).toBe(true);
+    });
+
+    it("accepts paths with no extension (directories or extensionless files)", () => {
+      expect(accept("Dockerfile")).toBe(true);
+    });
+
+    it("rejects an absolute path", () => {
+      expect(accept("/etc/passwd")).toBe(false);
+    });
+
+    it("rejects a Windows drive-letter path", () => {
+      expect(accept("C:/foo/bar.ts")).toBe(false);
+    });
+
+    it("rejects a path containing `..` segments", () => {
+      expect(accept("../escape.ts")).toBe(false);
+      expect(accept("src/../../etc")).toBe(false);
+    });
+
+    it("rejects backslash separators", () => {
+      expect(accept("src\\cli\\index.ts")).toBe(false);
+    });
+
+    it("rejects empty string", () => {
+      expect(accept("")).toBe(false);
+    });
+  });
 });
 
 describe("EdgeSchema", () => {

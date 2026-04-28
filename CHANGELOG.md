@@ -8,13 +8,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- `sourcePath` node field — relative path (file or directory) from the
+  project root to where the node lives in the source tree. Lets
+  `archik check` skip the slug-and-immediate-child-dir heuristic for
+  nodes that decompose more finely than directories.
 
 ### Changed
--
+- `archik check` now: (a) walks every archik file under `.archik/`, not
+  just the root; (b) verifies each `sourcePath` actually resolves, with
+  a slug fallback only for sourceable kinds that don't set one;
+  (c) reports reverse drift — immediate-child folders under
+  `src/`/`services/`/`packages/`/`apps/` that no node references.
+  Output is grouped into "diagram → source" and "source → diagram".
+- `claude-code` node in the bundled archik diagram is now `external`
+  instead of `agent` — it's a separate tool, not archik's code.
 
 ### Fixed
--
+- Diff missed cross-file pointer changes. `archikFile` (on nodes) and
+  `fromFile` / `toFile` (on edges) are now compared, so the canvas
+  suggestion overlay correctly highlights cross-file restructuring.
 
 ## [0.6.8] - 2026-04-27
 
