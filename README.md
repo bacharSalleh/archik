@@ -17,7 +17,7 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/bach__92?style=social)](https://x.com/bach__92)
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg?v=2" alt="Sample Archik diagram of an LLM-assisted support system" width="780">
 </p>
 
 archik gives your project — and the AI editing it — *one file* that
@@ -47,8 +47,8 @@ npx archik stop       # done
 That's the whole onboarding. The canvas saves edits straight back to the YAML; the file is the truth, the canvas is a projection.
 
 <p align="center">
-  <video src="https://github.com/bacharSalleh/archik/raw/main/docs/record_1.mp4" poster="https://cdn.jsdelivr.net/npm/archik/docs/screenshot_1.png" width="780" controls muted autoplay loop playsinline>
-    <img src="https://cdn.jsdelivr.net/npm/archik/docs/screenshot_1.png" alt="Archik canvas demo" width="780">
+  <video src="https://github.com/bacharSalleh/archik/raw/main/docs/record.mp4" poster="https://cdn.jsdelivr.net/gh/bacharSalleh/archik@main/docs/archik.gif" width="780" controls muted autoplay loop playsinline>
+    <img src="https://cdn.jsdelivr.net/gh/bacharSalleh/archik@main/docs/archik.gif" alt="Archik canvas demo" width="780">
   </video>
 </p>
 
