@@ -47,8 +47,8 @@ npx archik stop       # done
 That's the whole onboarding. The canvas saves edits straight back to the YAML; the file is the truth, the canvas is a projection.
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/YOUR-UPLOADED-ID-HERE" width="780" controls muted autoplay loop playsinline>
-    <a href="https://github.com/bacharSalleh/archik/raw/main/docs/record_1.mp4">▶ Watch the canvas in motion</a>
+  <video src="https://github.com/bacharSalleh/archik/raw/main/docs/record_1.mp4" poster="https://cdn.jsdelivr.net/npm/archik/docs/screenshot_1.png" width="780" controls muted autoplay loop playsinline>
+    <img src="https://cdn.jsdelivr.net/npm/archik/docs/screenshot_1.png" alt="Archik canvas demo" width="780">
   </video>
 </p>
 
