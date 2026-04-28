@@ -5,7 +5,6 @@ import { initCommand } from "./commands/init.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
 import { watchCommand } from "./commands/watch.ts";
-import { checkCommand } from "./commands/check.ts";
 import { devCommand } from "./commands/dev.ts";
 import { skillCommand } from "./commands/skill.ts";
 import { startCommand } from "./commands/start.ts";
@@ -53,10 +52,6 @@ COMMANDS
                     --out <file>     output path (default: diagram.svg)
                     --theme <name>   "dark" (default) or "light"
   watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
-  check [path]      Drift detection — verify each node's sourcePath
-                    resolves and every src/services/packages/apps
-                    immediate child is claimed by a node. Walks all
-                    .archik/ sub-files. Exits 1 on drift.
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
@@ -95,8 +90,6 @@ async function main(): Promise<number> {
       return renderCommand(opts);
     case "watch":
       return watchCommand(opts);
-    case "check":
-      return checkCommand(opts);
     case "skill":
       return skillCommand(opts);
     case "diff":

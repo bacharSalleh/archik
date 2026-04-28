@@ -129,7 +129,6 @@ archik render [path]     Render to a self-contained SVG file
                          --out <file>     output path (default: diagram.svg)
                          --theme <name>   "dark" (default) or "light"
 archik watch [path]      Re-render to SVG on every file change (Ctrl+C to stop)
-archik check [path]      Drift detection — flag nodes without matching source dirs
 
 archik skill             Install the Claude skill for AI editing
                          --user           install into ~/.claude/skills (all projects)
@@ -153,9 +152,6 @@ archik validate
 
 # Generate a committable SVG of your architecture for the docs site
 archik render --theme light --out docs/architecture.svg
-
-# Warn when nodes don't have a matching source folder under src/, services/, packages/, or apps/
-archik check
 ```
 
 ## Schema

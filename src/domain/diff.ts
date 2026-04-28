@@ -95,7 +95,6 @@ const NODE_FIELDS = [
   "notes",
   "metadata",
   "archikFile",
-  "sourcePath",
 ] as const;
 
 const EDGE_FIELDS = [

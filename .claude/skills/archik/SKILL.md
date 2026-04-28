@@ -72,12 +72,11 @@ service" but not where to go to read or edit it. So:
    — those are the places where moving a folder will outgrow the
    diagram, and where new code is most likely to need a YAML
    update too.
-4. **Run `archik check`** — verifies every node maps to real source.
-   Two directions: (a) every node with a `sourcePath` resolves to a
-   file/dir on disk; (b) every immediate-child dir under `src/`,
-   `services/`, `packages/`, `apps/` is claimed by some node. Walks
-   the root file plus every `.archik/*.archik.yaml` sub-file. Exits
-   1 on drift — CI-friendly. Worth running before any non-trivial edit.
+4. **Cross-check the source tree** when answering structural
+   questions: most projects keep one folder per top-level node under
+   `src/` (or `services/` / `packages/`). Mismatches are where
+   moving code will outgrow the diagram and where new code most
+   often needs a YAML update too.
 
 When the user asks "where would I add X?" or "what's the right
 place for Y?", you should already have the answer because step 3
@@ -248,48 +247,9 @@ metadata:               # optional
     - "Migrated from monolith in 2024."
   parentId: platform    # optional, must reference a real node
   archikFile: .archik/orders.archik.yaml   # optional drill-down
-  sourcePath: services/orders             # optional, where this lives in the source tree
   metadata:             # optional, free record
     team: fulfillment
 ```
-
-### Where the node lives in the tree (`sourcePath`)
-
-`sourcePath` is a relative path (file OR directory) from the project
-root pointing at the code this node represents. It's optional, but
-once you set it `archik check` becomes precise instead of guessing
-from id slugs:
-
-```yaml
-- id: orders-api
-  kind: service
-  name: Orders API
-  sourcePath: services/orders            # directory
-- id: cli-init
-  kind: function
-  name: init
-  sourcePath: src/cli/commands/init.ts   # specific file
-```
-
-Constraints (the schema enforces them):
-- Relative path only — no leading `/`, no Windows drive letter.
-- Forward slashes only; `..` segments are rejected.
-- Non-empty. No required extension — points to whatever's on disk.
-
-When to set it:
-- The node decomposes more finely than top-level dirs (a function in
-  a `commands/` folder, a React component file in `ui/`).
-- The id-to-folder slug match would be ambiguous (a `cli-render`
-  function would otherwise false-match `src/render/`).
-- The node lives outside the conventional `src/` / `services/` /
-  `packages/` / `apps/` parents (a script in `bin/`, a doc under
-  `.claude/`).
-
-When to leave it off:
-- The node id matches a top-level folder under one of the candidate
-  parents — the slug fallback already handles it.
-- The node has no source (kinds like `database`, `cache`, `queue`,
-  `external`, `llm` aren't expected to live in the tree).
 
 ### Cross-file edges (`fromFile` / `toFile`)
 
@@ -658,7 +618,6 @@ archik suggest show                # summary of pending sidecar (default)
 archik suggest accept              # apply the sidecar over the main file
 archik suggest reject              # discard the sidecar
 archik watch                       # re-render SVG on save
-archik check                       # drift: nodes vs source dirs
 archik dev                         # open the live editor in the browser (foreground)
 archik start                       # same as dev, detached — returns the prompt
 archik stop                        # stop the background server
@@ -687,13 +646,6 @@ sub-file):
 3. If the project commits a rendered SVG (e.g. `docs/architecture.svg`),
    regenerate it with `archik render --out docs/architecture.svg` so
    the committed picture matches the YAML.
-4. Run `archik check` whenever a node was added, removed, or had its
-   `sourcePath` changed. The check verifies (a) every `sourcePath`
-   resolves to a real file/dir on disk, and (b) every immediate-child
-   dir under the candidate parents is claimed by some node. New nodes
-   that decompose more finely than directories (a function in a
-   `commands/` folder, a React component in `ui/`) should set
-   `sourcePath` so the check is precise instead of guessing.
 
 ## Things to avoid
 
