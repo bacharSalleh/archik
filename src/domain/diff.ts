@@ -94,6 +94,7 @@ const NODE_FIELDS = [
   "interfaces",
   "notes",
   "metadata",
+  "archikFile",
 ] as const;
 
 const EDGE_FIELDS = [
@@ -104,6 +105,8 @@ const EDGE_FIELDS = [
   "description",
   "protocol",
   "color",
+  "fromFile",
+  "toFile",
 ] as const;
 
 function diffFields<T extends Record<string, unknown>>(

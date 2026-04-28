@@ -76,6 +76,74 @@ describe("diffDocuments", () => {
     expect(same.nodes.unchanged.length).toBe(baseline.nodes.length);
   });
 
+  it("notices a node's archikFile drill-down change", () => {
+    const a: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [
+        {
+          id: "orders",
+          kind: "service",
+          name: "Orders",
+          archikFile: ".archik/orders.archik.yaml",
+        },
+      ],
+      edges: [],
+    };
+    const b: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [
+        {
+          id: "orders",
+          kind: "service",
+          name: "Orders",
+          archikFile: ".archik/orders-v2.archik.yaml",
+        },
+      ],
+      edges: [],
+    };
+    const d = diffDocuments(a, b);
+    expect(d.nodes.changed).toHaveLength(1);
+    expect(d.nodes.changed[0]!.changes[0]!.field).toBe("archikFile");
+  });
+
+  it("notices an edge's fromFile / toFile cross-file change", () => {
+    const a: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "api", kind: "service", name: "API" }],
+      edges: [
+        {
+          id: "api-pays",
+          from: "api",
+          to: "charge-handler",
+          relationship: "http_call",
+          toFile: ".archik/payments.archik.yaml",
+        },
+      ],
+    };
+    const b: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "api", kind: "service", name: "API" }],
+      edges: [
+        {
+          id: "api-pays",
+          from: "api",
+          to: "charge-handler",
+          relationship: "http_call",
+          toFile: ".archik/payments-v2.archik.yaml",
+        },
+      ],
+    };
+    const d = diffDocuments(a, b);
+    expect(d.edges.changed).toHaveLength(1);
+    expect(d.edges.changed[0]!.changes.map((c) => c.field)).toContain(
+      "toFile",
+    );
+  });
+
   it("notices array-field changes (responsibilities)", () => {
     const a: Document = {
       ...baseline,
