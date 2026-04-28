@@ -7,6 +7,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.6.21] - 2026-04-28
+
 ### Removed
 - `archik check` command. The slug-and-folder heuristic was too coarse
   for diagrams that decompose more finely than directories, and the
@@ -90,7 +101,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.6.8...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.6.21...HEAD
+[0.6.21]: https://github.com/bacharSalleh/archik/compare/v0.6.8...v0.6.21
 [0.6.8]: https://github.com/bacharSalleh/archik/compare/v0.5.0...v0.6.8
 [0.5.0]: https://github.com/bacharSalleh/archik/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/bacharSalleh/archik/compare/v0.3.0...v0.4.3
