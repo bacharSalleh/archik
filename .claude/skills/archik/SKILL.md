@@ -37,8 +37,12 @@ you can talk about the system without re-explaining it every time.
    see "Suggesting changes" below). Don't edit the main file
    directly; the user reviews and accepts in the canvas or via
    `archik suggest accept`.
-3. **After** every edit to a YAML, run `archik validate`. Fix any
-   reported errors before declaring the change done.
+3. **After** every edit to a YAML, run `archik validate <path>`
+   against the file you actually wrote — the canonical root file, a
+   sidecar, or any sub-file under `.archik/`. Validate covers schema
+   errors AND cross-file existence (`archikFile` / `fromFile` /
+   `toFile` targets must be on disk). Fix every reported error before
+   declaring the change done.
 
 The sections below are the detailed reference behind these three
 rules — *when* to consult, *when* to propose, schema, taxonomy,
@@ -135,9 +139,13 @@ asked).
 
 * Write the *full proposed document*, not a patch. The diff is
   computed by archik between the main file and the sidecar.
-* Run `archik validate architecture.archik.suggested.yaml` after
-  writing. The schema enforces cross-references (no dangling edges,
-  no parent cycles, no duplicate ids); silent failures are not OK.
+* Run `archik validate <sidecar-path>` after writing — that's
+  `.archik/main.archik.suggested.yaml` under the new layout, or
+  `architecture.archik.suggested.yaml` under the legacy one. Validate
+  catches schema errors (dangling edges, parent cycles, duplicate
+  ids) AND missing cross-file targets (`archikFile` / `fromFile` /
+  `toFile` resolved against the project root). Silent failures are
+  not OK — re-edit and re-run until it passes.
 * If a suggestion sidecar already exists, treat it as your previous
   proposal — extend or replace it. Don't write a new sidecar with a
   different name.
@@ -264,6 +272,10 @@ Constraints (the schema enforces them):
 
 - The cross-file path follows the same rules as `archikFile` (relative,
   forward slashes, no `..`, ends in `.archik.yaml`).
+- The path is resolved against the **project root** (parent of
+  `.archik/` under the new layout, the doc's own directory under the
+  legacy one) — same rule as `archikFile`. `archik validate` exits
+  1 if the file isn't on disk.
 - The *local* endpoint id must still match a node in this file.
 - An edge with **both** `fromFile` and `toFile` is rejected — author
   it inside one of the two referenced files instead.
@@ -282,17 +294,33 @@ Constraints (the schema enforces them):
 - Must use forward slashes; `..` segments are rejected.
 - Must end in `.archik.yaml` (the suggestion sidecar is derived
   automatically as `<stem>.suggested.yaml` next to it).
+- **Resolved against the project root**, not the file's own
+  directory. With the new layout the project root is the parent of
+  `.archik/`, so a sibling sub-file is `.archik/orders.archik.yaml`
+  (with the prefix), NOT `orders.archik.yaml`. `archik validate`
+  exits 1 if the target file isn't on disk — catch it there instead
+  of as a 404 in the canvas.
 - Cycles aren't checked at parse time (each file validates on its
   own); if you wire a loop the canvas just lets the user navigate
   in and out.
 
 Conventional layout: keep sub-files under `.archik/` next to
-`main.archik.yaml`. Example:
+`main.archik.yaml`, and reference them with the `.archik/` prefix:
 
 ```
 .archik/main.archik.yaml          # entry point
 .archik/orders.archik.yaml        # Orders service internals
 .archik/payments.archik.yaml      # Payments service internals
+```
+
+```yaml
+# in .archik/main.archik.yaml
+nodes:
+  - id: orders
+    kind: service
+    name: Orders
+    archikFile: .archik/orders.archik.yaml   # ✅ project-root relative
+    # archikFile: orders.archik.yaml         # ❌ validate fails
 ```
 
 ## Node kinds (27 total, grouped by purpose)
@@ -605,11 +633,15 @@ archik checkout.
 
 ## Verification workflow
 
-After **every** edit you make to the archik file:
+After **every** edit you make to an archik file (root, sidecar, or
+sub-file):
 
-1. Run `archik validate` — fix any reported errors before declaring
-   the change done. Schema errors include the path of the offending
-   field so you can fix them precisely.
+1. Run `archik validate <path>` against the file you wrote. Validate
+   covers schema errors (with the field path so you can fix them
+   precisely) AND cross-file existence — `archikFile`, `fromFile`,
+   and `toFile` are resolved against the project root and the
+   command exits 1 if the target file isn't on disk. Fix every
+   reported error before declaring the change done.
 2. If the project has an `archik dev` server running, the file watcher
    broadcasts the change automatically — no restart needed.
 3. If the project commits a rendered SVG (e.g. `docs/architecture.svg`),
