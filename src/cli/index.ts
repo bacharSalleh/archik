@@ -49,6 +49,7 @@ COMMANDS
   stop [path]       Stop the background server started with 'archik start'
   status            List running archik instances (across all projects)
   validate [path]   Validate a document against the schema
+                    --json           structured output for agents
   render [path]     Render the diagram to an SVG file
                     --out <file>     output path (default: diagram.svg)
                     --theme <name>   "dark" (default) or "light"
@@ -64,8 +65,10 @@ COMMANDS
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
+                    --json           structured diff output for agents
   suggest [sub]     Manage Claude's pending architecture suggestion
                     show             summarise the pending sidecar (default)
+                                     --json   structured output for agents
                     accept           apply the sidecar over the main file
                     reject           discard the sidecar
   skill             Install the Archik skill for Claude

@@ -112,4 +112,56 @@ describe("validateCommand cross-file existence", () => {
     const errOutput = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(errOutput).toMatch(/payments\.archik\.yaml/);
   });
+
+  /**
+   * Locks the --json output shape that agents will rely on. If you
+   * need to evolve it, do it deliberately — bumping a key name here
+   * is a breaking change for every Claude / Cursor / Aider session
+   * using the CLI.
+   */
+  describe("--json", () => {
+    it("emits { ok: true, file, nodes, edges } on success", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [], json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.file).toMatch(/main\.archik\.yaml$/);
+      expect(typeof parsed.nodes).toBe("number");
+      expect(typeof parsed.edges).toBe("number");
+    });
+
+    it("emits { ok: false, file, errors: [{path, message}] } on schema error", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        'version: "0.9"\nname: Demo\nnodes: []\nedges: []\n',
+      );
+      const code = await validateCommand({ _: [], json: "true" });
+      expect(code).toBe(1);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.file).toMatch(/main\.archik\.yaml$/);
+      expect(Array.isArray(parsed.errors)).toBe(true);
+      expect(parsed.errors[0]).toHaveProperty("path");
+      expect(parsed.errors[0]).toHaveProperty("message");
+    });
+
+    it("emits structured errors for invalid YAML, not human text", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        ":\n  bogus: [unclosed",
+      );
+      const code = await validateCommand({ _: [], json: "true" });
+      expect(code).toBe(1);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.errors[0].message).toMatch(/Invalid YAML/);
+    });
+  });
 });

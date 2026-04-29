@@ -1,56 +1,106 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { checkCrossFileReferences, formatErrors } from "../../domain/validate.ts";
-import { parseYaml } from "../../io/yaml.ts";
-import type { ParsedOptions } from "../options.ts";
+import YAML from "yaml";
+import {
+  checkCrossFileReferences,
+  formatErrors,
+  validateDocument,
+  type ValidationError,
+} from "../../domain/validate.ts";
+import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
+
+const isJson = (opts: ParsedOptions): boolean => {
+  const v = getString(opts, "json");
+  return v !== undefined && v !== "false" && v !== "0";
+};
+
+function emitJson(value: unknown): void {
+  console.log(JSON.stringify(value, null, 2));
+}
 
 export async function validateCommand(
   opts: ParsedOptions,
 ): Promise<number> {
+  const json = isJson(opts);
   let abs: string;
   try {
     abs = await resolveDocPath(opts._[0]);
   } catch (err) {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+    const message = err instanceof Error ? err.message : String(err);
+    if (json) emitJson({ ok: false, errors: [{ path: "<root>", message }] });
+    else console.error(`✗ ${message}`);
     return 1;
   }
   const file = path.relative(process.cwd(), abs) || abs;
+
   let text: string;
   try {
     text = await readFile(abs, "utf-8");
   } catch (err) {
-    console.error(`✗ Cannot read ${file}`);
-    console.error(err instanceof Error ? err.message : String(err));
-    return 1;
-  }
-  let doc;
-  try {
-    doc = parseYaml(text);
-  } catch (err) {
-    console.error(`✗ ${file}`);
-    console.error(err instanceof Error ? err.message : String(err));
+    const message = err instanceof Error ? err.message : String(err);
+    if (json) {
+      emitJson({ ok: false, file, errors: [{ path: "<root>", message }] });
+    } else {
+      console.error(`✗ Cannot read ${file}`);
+      console.error(message);
+    }
     return 1;
   }
 
-  // Cross-file references (archikFile / fromFile / toFile) are
-  // resolved by the dev server against the project root — same root
-  // we derive here. A typo like `agent-loop.archik.yaml` (missing the
-  // `.archik/` prefix) parses fine against the schema but 404s in the
-  // canvas the moment the user drills in, so catch it at validate time.
+  // Run YAML.parse + validateDocument directly so we can surface
+  // structured ValidationError[] to JSON callers instead of a single
+  // pre-formatted string blob.
+  let raw: unknown;
+  try {
+    raw = YAML.parse(text);
+  } catch (err) {
+    const message = `Invalid YAML: ${err instanceof Error ? err.message : String(err)}`;
+    const errors: ValidationError[] = [{ path: "<root>", message }];
+    if (json) emitJson({ ok: false, file, errors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(errors));
+    }
+    return 1;
+  }
+
+  const validated = validateDocument(raw);
+  if (!validated.ok) {
+    if (json) emitJson({ ok: false, file, errors: validated.errors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(validated.errors));
+    }
+    return 1;
+  }
+
+  // Cross-file references — same project root the dev server uses.
   const root = projectRoot(abs);
-  const crossFileErrors = checkCrossFileReferences(doc, (rel) =>
+  const crossFileErrors = checkCrossFileReferences(validated.value, (rel) =>
     existsSync(path.resolve(root, rel)),
   );
   if (crossFileErrors.length > 0) {
-    console.error(`✗ ${file}`);
-    console.error(formatErrors(crossFileErrors));
+    if (json) emitJson({ ok: false, file, errors: crossFileErrors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(crossFileErrors));
+    }
     return 1;
   }
 
-  console.log(
-    `✓ ${file} — ${doc.nodes.length} nodes, ${doc.edges.length} edges`,
-  );
+  if (json) {
+    emitJson({
+      ok: true,
+      file,
+      nodes: validated.value.nodes.length,
+      edges: validated.value.edges.length,
+    });
+  } else {
+    console.log(
+      `✓ ${file} — ${validated.value.nodes.length} nodes, ${validated.value.edges.length} edges`,
+    );
+  }
   return 0;
 }
