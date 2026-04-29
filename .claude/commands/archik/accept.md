@@ -1,5 +1,5 @@
 ---
-description: Apply the pending archik suggestion sidecar over the main file
+description: Apply the pending suggestion
 ---
 
 # /archik:accept — apply the pending suggestion

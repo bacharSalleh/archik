@@ -51,12 +51,32 @@ If `npx archik` is unreachable (offline, sandboxed, missing), STOP
 and tell the user. Do NOT fall back to reading or editing YAML by
 hand — that breaks the contract and silently desyncs the canvas.
 
-The user-facing slash commands (`/archik:suggest`,
-`/archik:describe`, `/archik:accept`, `/archik:reject`,
-`/archik:dev`) are thin shims over this same CLI. When a user types
-`/archik:suggest <description>`, treat it as direct authorisation to
-run the sidecar workflow now — skip the "want me to update the YAML?"
-question.
+The user-facing slash commands are thin shims over this same CLI:
+
+| Command                | Purpose                                       |
+| ---------------------- | --------------------------------------------- |
+| `/archik:spawn`        | Bootstrap a diagram from the source tree       |
+| `/archik:evolve`       | Propose a cleaner bounded-context refactor    |
+| `/archik:suggest <…>`  | Propose changes from a feature description    |
+| `/archik:describe <id>`| Explain a node and its connections            |
+| `/archik:accept`       | Apply the pending suggestion                  |
+| `/archik:reject`       | Discard the pending suggestion                |
+| `/archik:dev`          | Start the live canvas                         |
+
+When a user types `/archik:suggest <description>`, `/archik:spawn`,
+or `/archik:evolve`, treat it as direct authorisation to run the
+sidecar workflow now — skip the "want me to update the YAML?"
+question. Each command's body file under `.claude/commands/archik/`
+has the detailed protocol for that specific verb; follow it.
+
+Three things separate the proposal commands:
+
+- **`spawn`** is *descriptive* — mirror the source tree as it is.
+- **`evolve`** is *prescriptive* — propose a cleaner shape, then
+  wait for the user to discuss before they accept. Never
+  auto-accepts.
+- **`suggest`** is *targeted* — apply one feature-sized change
+  from a user description.
 
 ## Protocol
 
