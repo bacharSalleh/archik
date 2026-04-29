@@ -1,5 +1,5 @@
 ---
-description: Propose diagram changes from a feature description
+description: Propose a diagram change
 argument-hint: <feature description>
 ---
 
@@ -43,22 +43,28 @@ the contract with the user.
    If `$ARGUMENTS` mentions a specific node by name, also run
    `npx archik q describe <id>` for it.
 
-3. **Author the draft** in a workspace temp file (NOT under
-   `.archik/`). Use the path `/tmp/archik-draft-<short-id>.yaml`.
-   The draft is the *full proposed end-state* of the document — every
-   node and edge, not just the delta. Follow the schema, kinds, and
-   relationships documented in the archik skill.
+3. **Author + stage in one step.** Pipe the draft straight into
+   `npx archik suggest set -` via a heredoc — no temp file, no
+   `/tmp/` paths. The CLI validates the schema, checks cross-file
+   references, stamps `metadata.suggestion`, and atomically writes
+   `.archik/main.archik.suggested.yaml`:
 
-4. **Stage the draft as the sidecar via the CLI**:
+   ```bash
+   npx archik suggest set --note "$ARGUMENTS" - <<'YAML'
+   version: "1.0"
+   name: My Architecture
+   nodes:
+     # full proposed end-state — every node, not just the delta
+   edges:
+     # full proposed end-state — every edge, not just the delta
+   YAML
    ```
-   npx archik suggest set /tmp/archik-draft-<id>.yaml --note "$ARGUMENTS"
-   ```
-   This validates the schema, checks cross-file references, stamps
-   `metadata.suggestion`, and atomically renames it into place. If
-   the command exits non-zero, fix the reported errors in the temp
-   file and re-run — never edit the sidecar directly.
 
-5. **Tell the user how to review**. Surface the canvas URL from
+   If the command exits non-zero, re-run with the corrected YAML.
+   Never write a draft file under `.archik/` and never edit the
+   sidecar directly.
+
+4. **Tell the user how to review**. Surface the canvas URL from
    step 1 plus the terminal options:
    - "📝 Suggestion ready — open the canvas at <URL> and use the
      **Review** banner to see added/removed/changed nodes."

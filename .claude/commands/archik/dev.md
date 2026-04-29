@@ -1,5 +1,5 @@
 ---
-description: Start the live canvas in the browser
+description: Open the live canvas
 ---
 
 # /archik:dev — open the archik canvas
