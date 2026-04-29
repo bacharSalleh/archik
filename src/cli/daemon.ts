@@ -148,18 +148,44 @@ export function isAlive(state: Pick<DaemonState, "pid" | "startedAt">): boolean 
 }
 
 /**
- * HTTP-probe the recorded URL with a short timeout. Returns true on
- * any HTTP response (2xx, 3xx, 4xx, 5xx — the server is *answering*),
- * false on timeout / connection refused / DNS error / abort.
+ * Whether a URL points at a loopback host we're willing to probe.
  *
- * Used by `isResponsive` to ground-truth liveness: the PID check
- * tells us a process owns the slot, but the HTTP probe tells us the
- * dev server is actually serving on the port we wrote down. The
- * canonical false-positive of `isAlive` alone is "the parent node
- * process lingers but the dev server died" or "the PID got recycled
- * by an unrelated process within the start-time window".
+ * Daemon URLs are always loopback by construction — `devServer`
+ * converts `--host 0.0.0.0` to `localhost` when it builds the URL
+ * to advertise, and the default bind address is `127.0.0.1`. So a
+ * legitimately-written state file always passes this check. Anything
+ * else (a tampered state file, a future change that broadens the
+ * advertised URL) is treated as untrusted and we skip the probe to
+ * avoid a file-controlled outbound request — flagged by CodeQL as
+ * SSRF.
  */
-async function probeUrl(url: string, timeoutMs = 1500): Promise<boolean> {
+function isLoopbackProbeUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "[::1]" ||
+      host === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * HTTP-probe a *known-loopback* URL with a short timeout. Returns
+ * true on any HTTP response (2xx, 3xx, 4xx, 5xx — the server is
+ * *answering*), false on timeout / connection refused / abort.
+ *
+ * The caller MUST gate this on `isLoopbackProbeUrl` — `fetch` here
+ * is intentionally fed only loopback hosts so a file-controlled
+ * URL can never produce an outbound request to an attacker-chosen
+ * destination.
+ */
+async function probeLoopback(url: string, timeoutMs = 1500): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -177,12 +203,18 @@ async function probeUrl(url: string, timeoutMs = 1500): Promise<boolean> {
  * the answer needs to be ground-truth correct (e.g. `archik
  * status`); fall back to `isAlive` when speed matters more (e.g.
  * inside `acquireLock`'s retry loop).
+ *
+ * The probe is restricted to loopback hosts — see
+ * `isLoopbackProbeUrl`. For any non-loopback URL on disk (which
+ * never happens with a legitimately-written state file), we skip
+ * the probe and trust the PID check.
  */
 export async function isResponsive(state: DaemonState): Promise<boolean> {
   if (!isAlive(state)) return false;
   const url = state.urls?.local?.[0];
   if (!url) return true; // no URL on record — trust the PID check
-  return probeUrl(url);
+  if (!isLoopbackProbeUrl(url)) return true; // refuse non-loopback probes
+  return probeLoopback(url);
 }
 
 /**
