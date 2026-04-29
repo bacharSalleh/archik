@@ -5,6 +5,7 @@ import { initCommand } from "./commands/init.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
 import { watchCommand } from "./commands/watch.ts";
+import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
 import { skillCommand } from "./commands/skill.ts";
 import { startCommand } from "./commands/start.ts";
@@ -52,6 +53,14 @@ COMMANDS
                     --out <file>     output path (default: diagram.svg)
                     --theme <name>   "dark" (default) or "light"
   watch [path]      Re-render to SVG on file changes (Ctrl+C to stop)
+  q <sub>           Query the diagram (agent-friendly, --json supported)
+                    describe <id>      node + its incoming/outgoing edges
+                    deps <id>          outgoing edges
+                    dependents <id>    incoming edges
+                    list               all nodes (--kind / --parent / --file)
+                    edges              all edges (--from / --to / --rel)
+                    impact <id>        what would break if removed
+                    stats              counts by kind and relationship
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
@@ -90,6 +99,8 @@ async function main(): Promise<number> {
       return renderCommand(opts);
     case "watch":
       return watchCommand(opts);
+    case "q":
+      return qCommand(opts);
     case "skill":
       return skillCommand(opts);
     case "diff":
