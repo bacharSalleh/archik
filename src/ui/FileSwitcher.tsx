@@ -12,6 +12,10 @@ export type FileEntry = {
    *  canvas accesses this one via the stable /architecture.archik.yaml
    *  URL; every other file via the per-file endpoint. */
   isRoot: boolean;
+  /** True when only the suggestion sidecar exists on disk — there's
+   *  no sibling main file yet. The canvas renders these distinctly
+   *  ("(pending)" label) so the user can review before accepting. */
+  isOrphanSuggestion?: boolean;
 };
 
 type Props = {
@@ -28,17 +32,29 @@ type Props = {
 };
 
 /**
- * Dropdown listing every archik file in the project. Hidden when
- * the project only has one file (no useful "switch" to offer).
- * Shows a small accent-coloured dot next to files that have a
- * pending suggestion sidecar.
+ * Dropdown listing every archik file in the project, plus any
+ * orphan suggestion sidecars (a `*.archik.suggested.yaml` whose
+ * sibling main file doesn't exist yet — typically a brand-new
+ * sub-architecture proposed by `/archik:spawn`). The dropdown is
+ * suppressed only when there's a single real file AND no pending
+ * suggestions of any kind — otherwise the user needs a way to see
+ * orphans, and a single-file project with one orphan suggestion
+ * would otherwise hide the only thing they need to act on.
+ *
+ * Each file entry shows an accent-coloured dot when a sidecar is
+ * pending; orphans additionally get a "(pending)" suffix on the
+ * name and a dashed left border so they read as "doesn't exist
+ * yet, awaiting your decision".
  */
 export function FileSwitcher({
   files,
   currentPath,
   onSwitchFile,
 }: Props): React.ReactElement | null {
-  if (files.length <= 1) return null;
+  const hasAnySuggestion = files.some(
+    (f) => f.hasSuggestion || f.isOrphanSuggestion,
+  );
+  if (files.length <= 1 && !hasAnySuggestion) return null;
   const current =
     files.find((f) => f.path === currentPath) ?? files[0]!;
 
@@ -84,13 +100,24 @@ export function FileSwitcher({
           </div>
           {files.map((file) => {
             const isCurrent = file.path === current.path;
+            const isOrphan = file.isOrphanSuggestion === true;
             return (
               <button
                 key={file.path}
                 type="button"
+                title={
+                  isOrphan
+                    ? `Pending sub-architecture. Accept via \`npx archik suggest accept ${file.path.replace(/\.archik\.suggested\.yaml$/, ".archik.yaml")}\` to make it real, or use /archik:accept.`
+                    : undefined
+                }
                 onClick={() => {
                   close();
-                  if (!isCurrent) onSwitchFile(file);
+                  // Orphans aren't navigable yet — the canvas doesn't
+                  // render a sidecar-as-main standalone. Surface them
+                  // in the list so the user knows they exist; the
+                  // tooltip explains how to accept from the CLI.
+                  if (isOrphan || isCurrent) return;
+                  onSwitchFile(file);
                 }}
                 className="archik-menu-item"
                 style={{
@@ -104,6 +131,13 @@ export function FileSwitcher({
                   background: isCurrent
                     ? "var(--archik-surface-hover)"
                     : undefined,
+                  // Dashed left border distinguishes orphan suggestions
+                  // (sub-architectures that don't exist yet) from real
+                  // files. Same idea as the canvas's "added" overlay.
+                  borderLeft: isOrphan
+                    ? "2px dashed var(--archik-accent)"
+                    : undefined,
+                  paddingLeft: isOrphan ? 8 : undefined,
                 }}
               >
                 <span
@@ -113,8 +147,21 @@ export function FileSwitcher({
                   }}
                 >
                   {file.name}
+                  {isOrphan && (
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        fontSize: 10,
+                        fontWeight: 500,
+                        color: "var(--archik-accent)",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      (pending)
+                    </span>
+                  )}
                 </span>
-                {file.hasSuggestion && <SuggestionDot />}
+                {file.hasSuggestion && !isOrphan && <SuggestionDot />}
                 <span
                   style={{
                     flex: 1,

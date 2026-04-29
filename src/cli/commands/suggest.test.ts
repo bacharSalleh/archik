@@ -194,4 +194,46 @@ edges: []
     const code = await suggestCommand({ _: ["bogus"] });
     expect(code).toBe(1);
   });
+
+  it("refuses to write an orphan sidecar without --allow-orphan", async () => {
+    // No `.archik/memory.archik.yaml` on disk — staging a sidecar
+    // for it without opt-in is the bug the guardrail catches.
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+
+    const code = await suggestCommand({
+      _: ["set", "draft.yaml"],
+      main: ".archik/memory.archik.yaml",
+    });
+
+    expect(code).toBe(1);
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Main file"),
+    );
+    // Sidecar must not have been written.
+    await expect(
+      readFile(path.join(cwd, ".archik/memory.archik.suggested.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("writes an orphan sidecar when --allow-orphan is set", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+
+    const code = await suggestCommand({
+      _: ["set", "draft.yaml"],
+      main: ".archik/memory.archik.yaml",
+      "allow-orphan": "true",
+      note: "new sub-architecture",
+    });
+
+    expect(code).toBe(0);
+    const sidecar = path.join(cwd, ".archik/memory.archik.suggested.yaml");
+    const written = YAML.parse(await readFile(sidecar, "utf-8"));
+    expect(written.metadata.suggestion.note).toBe("new sub-architecture");
+    // The implied target main file does not exist.
+    await expect(
+      readFile(path.join(cwd, ".archik/memory.archik.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
 });

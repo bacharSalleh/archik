@@ -112,6 +112,43 @@ describe("listArchikFiles", () => {
     expect(orders?.hasSuggestion).toBe(true);
   });
 
+  it("surfaces orphan suggestion sidecars (no sibling main file)", async () => {
+    await mkdir(path.join(root, ".archik"));
+    await writeFile(path.join(root, ".archik", "main.archik.yaml"), "");
+    // memory.archik.suggested.yaml exists but memory.archik.yaml does not —
+    // the canvas needs to see this so the user can act on it.
+    await writeFile(
+      path.join(root, ".archik", "memory.archik.suggested.yaml"),
+      "",
+    );
+    const files = await listArchikFiles(root);
+    const memory = files.find(
+      (f) => f.path === ".archik/memory.archik.suggested.yaml",
+    );
+    expect(memory).toBeDefined();
+    expect(memory?.isOrphanSuggestion).toBe(true);
+    expect(memory?.hasSuggestion).toBe(true);
+    expect(memory?.name).toBe("memory");
+  });
+
+  it("does NOT mark a sidecar with a sibling main file as orphan", async () => {
+    await mkdir(path.join(root, ".archik"));
+    await writeFile(path.join(root, ".archik", "main.archik.yaml"), "");
+    await writeFile(path.join(root, ".archik", "orders.archik.yaml"), "");
+    await writeFile(
+      path.join(root, ".archik", "orders.archik.suggested.yaml"),
+      "",
+    );
+    const files = await listArchikFiles(root);
+    // Only two entries (main + orders) — the sidecar shows up as
+    // hasSuggestion:true on the orders main entry, NOT as a third
+    // standalone orphan entry.
+    expect(files).toHaveLength(2);
+    const orders = files.find((f) => f.path === ".archik/orders.archik.yaml");
+    expect(orders?.hasSuggestion).toBe(true);
+    expect(orders?.isOrphanSuggestion).toBeUndefined();
+  });
+
   it("renames the legacy `architecture` file to display name 'main'", async () => {
     await writeFile(path.join(root, "architecture.archik.yaml"), "");
     const files = await listArchikFiles(root);

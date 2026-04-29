@@ -104,14 +104,17 @@ archik suggest set` stages it.
 
 7. **Stage the draft.** Pipe the YAML straight into `npx archik
    suggest set -` via a heredoc — no temp files, no `/tmp/` paths.
-   For sub-files, do them first; the main draft references them
-   via `archikFile`, so they need to exist on disk before the main
-   draft validates.
+   Sub-files come first because the main draft references them via
+   `archikFile`, and `suggest set` validates that those targets
+   exist on disk.
 
-   a. **Each sub-file**: stage with `suggest set -`, then accept
-      it so the file lands at `.archik/<id>.archik.yaml`:
+   a. **Each sub-file**: the parent file doesn't exist yet, so
+      pass `--allow-orphan` to opt in to writing a sidecar for a
+      missing main. Then accept it so the file lands at
+      `.archik/<id>.archik.yaml`:
       ```bash
       npx archik suggest set --main .archik/<id>.archik.yaml \
+                             --allow-orphan \
                              --note "spawn: <id> internals" - <<'YAML'
       version: "1.0"
       name: <Id> Internals
@@ -120,9 +123,13 @@ archik suggest set` stages it.
       YAML
       npx archik suggest accept .archik/<id>.archik.yaml
       ```
-      Repeat for every sub-file you reference.
+      Repeat for every sub-file. The `accept` step is what makes
+      the file real on disk — without it the orphan sidecar lingers
+      and the canvas shows it as "(pending)" rather than rendering it.
 
-   b. **Main draft**: once all sub-files exist, stage the main one:
+   b. **Main draft**: once all sub-files exist (i.e. their
+      `accept`s succeeded), stage the main one. No `--allow-orphan`
+      needed because the main file already exists from `archik init`:
       ```bash
       npx archik suggest set --note "spawn: mirror source tree" - <<'YAML'
       version: "1.0"
