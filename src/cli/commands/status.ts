@@ -3,6 +3,7 @@ import path from "node:path";
 import { bold, cyan, dim, gray, yellow } from "../colors.ts";
 import {
   daemonDir,
+  daemonPaths,
   isAlive,
   isResponsive,
   readState,
@@ -11,9 +12,12 @@ import {
 } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 import {
+  type ProjectRuntimeState,
   projectStatePath,
   readProjectState,
   removeProjectState,
+  runtimeStateFromDaemonState,
+  writeProjectState,
 } from "../projectState.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
 
@@ -123,8 +127,16 @@ async function reportThisProject(): Promise<string | null> {
   } catch {
     return null; // not in a project, or ambiguous setup
   }
-  const state = await readProjectState(docPath);
-  if (state === null) return null;
+  let state = await readProjectState(docPath);
+  if (state === null) {
+    // runtime.json missing — heal from the canonical tmpdir state if
+    // the daemon is still alive. Covers the case where something
+    // (typically `git clean -fdX` matching the gitignore line, or an
+    // editor's "clean untracked") removed the file out from under a
+    // running daemon. Silent no-op when the daemon is genuinely gone.
+    state = await rebuildProjectState(docPath);
+    if (state === null) return null;
+  }
 
   const alive = isAlive({ pid: state.pid, startedAt: state.startedAt });
   if (!alive) {
@@ -147,4 +159,27 @@ async function reportThisProject(): Promise<string | null> {
   console.log(`  ${dim("editing")}  ${bold(docPath)}`);
   console.log(`  ${dim("started")}  ${dim(state.startedAt)}`);
   return docPath;
+}
+
+/**
+ * Try to reconstruct `.archik/runtime.json` from the canonical tmpdir
+ * daemon state. Returns the rebuilt entry on success (and persists it
+ * to disk best-effort), or null when there's nothing to rebuild from.
+ *
+ * Persistence is fire-and-forget — `archik status` should still print
+ * the right thing even if the filesystem rejects the write (read-only
+ * mount, permission change, race with `archik stop`). The in-memory
+ * state is what the caller renders.
+ */
+async function rebuildProjectState(
+  docPath: string,
+): Promise<ProjectRuntimeState | null> {
+  const { stateFile } = daemonPaths(docPath);
+  const dState = readState(stateFile);
+  if (dState === null) return null;
+  if (!isAlive({ pid: dState.pid, startedAt: dState.startedAt })) return null;
+  const rebuilt = runtimeStateFromDaemonState(dState);
+  if (rebuilt === null) return null;
+  await writeProjectState(docPath, rebuilt).catch(() => undefined);
+  return rebuilt;
 }

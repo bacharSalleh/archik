@@ -131,11 +131,29 @@ archik suggest set` stages it.
       nodes: [ ... ]
       edges: [ ... ]
       YAML
+      # mechanical: puts sub-file on disk so the main draft's
+      # archikFile: pointer validates. NOT the user's review gate
+      # on the main draft — that one is always left as a sidecar.
       npx archik suggest accept .archik/<id>.archik.yaml
       ```
       Repeat for every sub-file. The `accept` step is what makes
       the file real on disk — without it the orphan sidecar lingers
       and the canvas shows it as "(pending)" rather than rendering it.
+
+      **Narrate each auto-accept with its rationale**, not just
+      "accept each". The user must be able to tell from your status
+      line that you are NOT bypassing their `/archik:accept` review
+      on the main draft. Example narration:
+
+      > Auto-accepting `agent` sub-file so the main draft can
+      > reference it via `archikFile:` — the next `suggest set`
+      > would fail validation otherwise. The main draft will still
+      > be left as a sidecar for you to review.
+
+      The main draft (step 8b) is always left as a sidecar.
+      `/archik:accept` is the user's gate; `npx archik suggest
+      accept <sub-file>` here is mechanical plumbing for the
+      cross-file reference, not a substitute for that gate.
 
    b. **Main draft**: once all sub-files exist (i.e. their
       `accept`s succeeded), stage the main one. No `--allow-orphan`

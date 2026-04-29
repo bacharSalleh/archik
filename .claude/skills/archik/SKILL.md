@@ -39,6 +39,8 @@ If `npx archik` is unreachable (offline, sandboxed, missing), STOP and tell the 
 | `/archik:reject`            | Discard the pending suggestion                |
 | `/archik:dev`               | Open the live canvas                          |
 
+Slash commands are typed **by the user**, not by you. You always run `npx archik` directly. When a workflow internally needs `suggest accept` (e.g. spawn's sub-file step — the parent draft references sub-files via `archikFile:` and `suggest set` validates target-on-disk), narrate the rationale so the user can tell you are not bypassing their `/archik:accept` review on the main draft. The main draft is always left as a sidecar.
+
 When a user types `/archik:suggest`, `/archik:spawn`, or `/archik:evolve`, treat it as direct authorisation to run the sidecar workflow now — skip "want me to update the YAML?". Each command's body file under `.claude/commands/archik/` has the full protocol; follow it.
 
 Distinction:

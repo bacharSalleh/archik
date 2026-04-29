@@ -27,6 +27,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { DaemonState } from "./daemon.ts";
 import { projectRoot } from "./resolveDocPath.ts";
 
 export type ProjectRuntimeState = {
@@ -86,6 +87,43 @@ export async function readProjectState(
   } catch {
     return null;
   }
+}
+
+/**
+ * Reconstruct a `ProjectRuntimeState` from a tmpdir `DaemonState`.
+ * Pure transform — the caller owns alive-checks and write-back.
+ *
+ * Used by `archik status` to heal the case where `runtime.json` was
+ * deleted while the daemon kept running (typically by a `git clean
+ * -fdX` matching the gitignore line `init` adds, or by an editor's
+ * "clean untracked" action). The tmpdir state file under
+ * `$TMPDIR/archik-cli/<hash>.json` remains canonical, so we can
+ * always rebuild the project-local file from it.
+ *
+ * Returns null when the daemon state lacks a parseable loopback URL
+ * — in that case there's nothing to reconstruct port/host from.
+ */
+export function runtimeStateFromDaemonState(
+  state: Pick<DaemonState, "pid" | "startedAt" | "urls">,
+): ProjectRuntimeState | null {
+  const url = state.urls?.local?.[0];
+  if (url === undefined) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.port === "") return null;
+  const port = Number.parseInt(parsed.port, 10);
+  if (!Number.isFinite(port)) return null;
+  return {
+    pid: state.pid,
+    port,
+    host: parsed.hostname,
+    url,
+    startedAt: state.startedAt,
+  };
 }
 
 /** Removes the runtime file. Silently no-ops if it's already gone. */
