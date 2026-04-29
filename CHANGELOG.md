@@ -8,28 +8,62 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.7.1] - 2026-04-29
+
+### Added
+- `/archik:spawn` slash command — bootstrap an archik diagram by
+  mirroring the project's source tree. Descriptive, not
+  prescriptive: maps top-level dirs and manifest files to nodes,
+  emits edges only with real evidence, drills into substantial
+  subsystems via `archikFile`. Stages the result as a sidecar
+  via `npx archik suggest set` for canvas review.
+- `/archik:evolve` slash command — propose a cleaner refactor
+  toward modular bounded contexts. Hunts for god services, leaky
+  cross-context boundaries, missing port/adapter pairs, anaemic
+  queues, cyclic dependencies. Prescriptive, but never
+  auto-accepts; stages a sidecar and explicitly invites
+  discussion before the user runs `/archik:accept`. Optional
+  `$ARGUMENTS` to focus on one area.
+
+### Changed
+- Tightened descriptions on the five existing `/archik:*` slash
+  commands so they read cleanly in Claude Code's slash menu
+  (the `/archik:` prefix already provides the namespace).
+- README onboarding rewritten around `npx archik@latest init` →
+  `npx archik@latest start` → `/archik:spawn`. Adds a
+  seven-command table and a typical first-day flow under
+  "For Claude Code".
+
+## [0.7.0] - 2026-04-29
+
+### Added
 - `archik suggest set <draft>` — promote a draft YAML into the
   canonical sidecar position. Validates the schema, checks
   cross-file references, stamps `metadata.suggestion`, and
   atomically renames the draft into place. Reads from stdin when
   the path is `-`. Refuses to use the main file as the draft.
 - `/archik:*` slash commands for Claude Code: `/archik:suggest`,
-  `/archik:spawn`, `/archik:evolve`, `/archik:accept`,
-  `/archik:reject`, `/archik:describe`, `/archik:dev`. All are
-  thin shims over `npx archik` so Claude drives diagram changes
-  through the CLI rather than editing YAML by hand.
-  - `/archik:spawn` mirrors the project's source tree as a fresh
-    archik diagram (descriptive — bootstrap from real code).
-  - `/archik:evolve` proposes a cleaner bounded-context refactor
-    of the current diagram (prescriptive — discuss before
-    accepting; never auto-accepts).
-- Tightened descriptions on existing slash commands so they read
-  cleanly in Claude Code's slash menu (no more "the pending
-  archik suggestion sidecar" mouthfuls).
+  `/archik:accept`, `/archik:reject`, `/archik:describe`,
+  `/archik:dev`. All are thin shims over `npx archik` so Claude
+  drives diagram changes through the CLI rather than editing YAML
+  by hand.
 - `archik commands` — install or refresh the `/archik:*` slash
   commands in a project (or `--user` for all projects). `archik
   init` installs them automatically alongside the skill; opt out
   with `--no-commands`.
+- `archik q` — agent-friendly query CLI (`describe`, `deps`,
+  `dependents`, `list`, `edges`, `impact`, `stats`) with stable
+  exit codes and `--json` output.
+- `--json` flag on `validate`, `diff`, and `suggest show` for
+  agent consumption.
 
 ### Changed
 - `SKILL.md` rewritten around a CLI-only hard rule: Claude must
@@ -124,7 +158,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.6.21...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/bacharSalleh/archik/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/bacharSalleh/archik/compare/v0.6.21...v0.7.0
 [0.6.21]: https://github.com/bacharSalleh/archik/compare/v0.6.8...v0.6.21
 [0.6.8]: https://github.com/bacharSalleh/archik/compare/v0.5.0...v0.6.8
 [0.5.0]: https://github.com/bacharSalleh/archik/compare/v0.4.3...v0.5.0
