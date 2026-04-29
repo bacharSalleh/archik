@@ -1,5 +1,5 @@
 ---
-description: Describe a node in the archik diagram and its incoming/outgoing edges
+description: Explain a node and its connections
 argument-hint: <node-id>
 ---
 

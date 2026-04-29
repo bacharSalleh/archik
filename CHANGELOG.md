@@ -14,10 +14,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   atomically renames the draft into place. Reads from stdin when
   the path is `-`. Refuses to use the main file as the draft.
 - `/archik:*` slash commands for Claude Code: `/archik:suggest`,
-  `/archik:accept`, `/archik:reject`, `/archik:describe`,
-  `/archik:dev`. All are thin shims over `npx archik` so Claude
-  drives diagram changes through the CLI rather than editing YAML
-  by hand.
+  `/archik:spawn`, `/archik:evolve`, `/archik:accept`,
+  `/archik:reject`, `/archik:describe`, `/archik:dev`. All are
+  thin shims over `npx archik` so Claude drives diagram changes
+  through the CLI rather than editing YAML by hand.
+  - `/archik:spawn` mirrors the project's source tree as a fresh
+    archik diagram (descriptive — bootstrap from real code).
+  - `/archik:evolve` proposes a cleaner bounded-context refactor
+    of the current diagram (prescriptive — discuss before
+    accepting; never auto-accepts).
+- Tightened descriptions on existing slash commands so they read
+  cleanly in Claude Code's slash menu (no more "the pending
+  archik suggestion sidecar" mouthfuls).
 - `archik commands` — install or refresh the `/archik:*` slash
   commands in a project (or `--user` for all projects). `archik
   init` installs them automatically alongside the skill; opt out

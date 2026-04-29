@@ -1,5 +1,5 @@
 ---
-description: Propose architecture changes to the archik diagram from a feature description
+description: Propose diagram changes from a feature description
 argument-hint: <feature description>
 ---
 

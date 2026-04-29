@@ -1,5 +1,5 @@
 ---
-description: Discard the pending archik suggestion sidecar
+description: Discard the pending suggestion
 ---
 
 # /archik:reject — discard the pending suggestion
