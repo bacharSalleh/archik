@@ -8,10 +8,14 @@ import {
   removeState,
   updateState,
 } from "../daemon.ts";
-import { arrow, bold, cross, cyan, dim, gray, tick } from "../colors.ts";
+import { arrow, bold, cross, cyan, dim, gray, tick, yellow } from "../colors.ts";
 import type { ParsedOptions } from "../options.ts";
 import { getString } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
+import {
+  removeProjectState,
+  writeProjectState,
+} from "../projectState.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
 
 export async function devCommand(opts: ParsedOptions): Promise<number> {
@@ -57,11 +61,15 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
     if (released) return;
     released = true;
     removeState(paths.stateFile);
+    // Best-effort: project-local runtime file. Fire-and-forget — we
+    // don't want shutdown to block on filesystem races.
+    void removeProjectState(docPath).catch(() => undefined);
   };
   process.on("exit", release);
 
   const portArg = getString(opts, "port");
-  const port = portArg !== undefined ? Number.parseInt(portArg, 10) : undefined;
+  const requestedPort =
+    portArg !== undefined ? Number.parseInt(portArg, 10) : undefined;
   const host = getString(opts, "host");
   const uiDir = path.join(pkgRoot(), "dist", "ui");
 
@@ -71,7 +79,9 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
       docPath,
       uiDir,
       ...(host !== undefined ? { host } : {}),
-      ...(port !== undefined && Number.isFinite(port) ? { port } : {}),
+      ...(requestedPort !== undefined && Number.isFinite(requestedPort)
+        ? { port: requestedPort }
+        : {}),
     });
   } catch (err) {
     release();
@@ -81,6 +91,35 @@ export async function devCommand(opts: ParsedOptions): Promise<number> {
   updateState(paths.stateFile, {
     urls: { local: [handle.url], network: [] },
   });
+
+  // Project-local runtime file. Lets `archik status` answer "is
+  // archik running here?" without scanning $TMPDIR/archik-cli/, and
+  // gives the user a single canonical place to look up the port.
+  await writeProjectState(docPath, {
+    pid: process.pid,
+    port: handle.port,
+    host: handle.host,
+    url: handle.url,
+    startedAt: new Date().toISOString(),
+  });
+
+  // Port conflict surface: devServer auto-rebinds to the next free
+  // port if the requested one is in use. That's friendly, but
+  // silently — surface the difference so the user knows their
+  // --port preference didn't take.
+  if (
+    requestedPort !== undefined &&
+    Number.isFinite(requestedPort) &&
+    handle.port !== requestedPort
+  ) {
+    console.log("");
+    console.log(
+      `  ${yellow("!")} Port ${bold(String(requestedPort))} was in use; bound to ${bold(String(handle.port))} instead.`,
+    );
+    console.log(
+      `    ${dim("Pass a different --port if you want a specific number.")}`,
+    );
+  }
 
   const shouldOpen = !opts["no-open"];
   if (shouldOpen) {

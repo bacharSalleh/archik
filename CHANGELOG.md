@@ -16,7 +16,33 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
-## [0.7.2] - 2026-04-29
+## [0.7.3] - 2026-04-29
+
+### Added
+- Project-local runtime state at `.archik/runtime.json`. `archik
+  dev` and `archik start` now write the running daemon's PID,
+  port, host, URL, and start time into this file when the server
+  comes up; `archik stop` and graceful shutdown remove it.
+  Distinct from the cross-project tmpdir registry — this file
+  makes "is archik running for THIS project?" answerable from
+  inside the project itself, without scanning a global directory.
+- `archik init` appends `.archik/runtime.json` to an existing
+  `.gitignore`, since the file is per-machine ephemeral state and
+  shouldn't be committed. No-op when no `.gitignore` is present —
+  creating one is a project-level decision.
+
+### Changed
+- `archik status` now leads with a "This project" section read
+  from `.archik/runtime.json` when invoked inside an archik
+  project, then lists "Other projects" from the cross-project
+  registry. Stale `.archik/runtime.json` (PID dead) is cleaned up
+  silently with a one-line note. The cross-project list filters
+  out the current project to avoid duplication.
+- `archik dev` / `archik start` now print a yellow warning when
+  the requested `--port` was in use and the dev server bound to a
+  different one — previously the rebind was silent, so users with
+  a `--port 5173` preference might not realise they ended up on
+  5174.
 
 ### Added
 - Per-command `--help` for every CLI subcommand. `npx archik
@@ -215,7 +241,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/bacharSalleh/archik/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bacharSalleh/archik/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bacharSalleh/archik/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bacharSalleh/archik/compare/v0.6.21...v0.7.0

@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { bold, cross, dim, gray, tick } from "../colors.ts";
 import { daemonPaths, isAlive, readState, removeState } from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
+import { removeProjectState } from "../projectState.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
 
 const SIGTERM_GRACE_MS = 5_000;
@@ -37,12 +38,16 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
   const state = readState(paths.stateFile);
 
   if (!state) {
+    // Best-effort: the project-local runtime file might still be
+    // hanging around even when the tmpdir state is gone.
+    await removeProjectState(docPath).catch(() => undefined);
     console.log(`${gray("•")} archik is not running for ${dim(docPath)}`);
     return 0;
   }
 
   if (!isAlive(state)) {
     removeState(paths.stateFile);
+    await removeProjectState(docPath).catch(() => undefined);
     console.log(`${gray("•")} archik was not running ${dim("(cleaned up stale state)")}`);
     return 0;
   }
@@ -61,6 +66,7 @@ export async function stopCommand(opts: ParsedOptions): Promise<number> {
   }
 
   removeState(paths.stateFile);
+  await removeProjectState(docPath).catch(() => undefined);
   console.log(`${tick()} ${bold("archik stopped")} ${dim(`(PID ${state.pid})`)}`);
   return 0;
 }

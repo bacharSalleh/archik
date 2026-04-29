@@ -1,7 +1,8 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { arrow, bold, cross, cyan, dim, gray, magenta, tick } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
+import { RUNTIME_FILENAME } from "../projectState.ts";
 import { resolveInitTarget } from "../resolveDocPath.ts";
 import {
   installCommands,
@@ -54,6 +55,13 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
   await writeFile(abs, STARTER, "utf-8");
   console.log(`${tick()} Created ${bold(file)}`);
 
+  // Project-local `.archik/runtime.json` is per-machine ephemeral
+  // state (PID, port, URL of the running dev server). If the
+  // project has a .gitignore, append the runtime file so it doesn't
+  // accidentally get committed. No-op when there's no .gitignore —
+  // we don't create one ourselves, that's a project-level decision.
+  await ensureRuntimeIgnored().catch(() => undefined);
+
   // Skill is installed by default — opt out with --no-skill. Failure to
   // install isn't fatal (the YAML is still useful on its own); we just
   // surface the reason and keep going.
@@ -96,6 +104,38 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
 
   printNextSteps(file, skillResult, commandsResult);
   return 0;
+}
+
+/**
+ * Append `.archik/runtime.json` to the project's .gitignore if one
+ * exists and the entry isn't already there. Silently no-ops when no
+ * .gitignore is present — creating one is a project-level decision
+ * we don't make for the user.
+ */
+async function ensureRuntimeIgnored(): Promise<void> {
+  const gitignore = path.resolve(".gitignore");
+  let current: string;
+  try {
+    current = await readFile(gitignore, "utf-8");
+  } catch {
+    return; // no .gitignore — leave it alone
+  }
+  const target = `.archik/${RUNTIME_FILENAME}`;
+  // Match either an exact line or a line preceded by `/` (some users
+  // anchor patterns). Don't match commented-out lines.
+  const lines = current.split(/\r?\n/);
+  const already = lines.some((raw) => {
+    const line = raw.trim();
+    if (line.startsWith("#")) return false;
+    return line === target || line === `/${target}`;
+  });
+  if (already) return;
+  const trailing = current.endsWith("\n") ? "" : "\n";
+  await writeFile(
+    gitignore,
+    `${current}${trailing}\n# archik per-machine runtime state\n${target}\n`,
+    "utf-8",
+  );
 }
 
 function printNextSteps(
