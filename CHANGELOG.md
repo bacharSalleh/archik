@@ -16,6 +16,37 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.7.5] - 2026-04-29
+
+### Changed
+- `/archik:spawn` step 8a now requires the agent to narrate *why*
+  each sub-file `suggest accept` is mechanical — the parent draft
+  references sub-files via `archikFile:` and `suggest set`
+  validates target-on-disk, so the sub-file accepts must happen
+  before the main draft can be staged. Previously the agent
+  emitted a terse "accept each" status line that read
+  indistinguishably from skipping the user's `/archik:accept`
+  review on the main draft. The example narration in the slash
+  command body and the inline bash-block comment make the
+  distinction visible to skim-readers.
+- `SKILL.md` adds an explicit one-liner under "Slash commands"
+  stating the agent/user invocation split: the agent always runs
+  `npx archik` directly; `/archik:*` is user-typed only. Closes
+  the higher-level "why didn't the agent use `/archik:accept`?"
+  loophole at the skill level.
+
+### Fixed
+- `archik status` now self-heals when `.archik/runtime.json` was
+  deleted out from under a running daemon (typically by a `git
+  clean -fdX` matching the `.gitignore` line `archik init`
+  appends, or by an editor's "clean untracked" action).
+  Previously the project-local section silently disappeared while
+  the daemon kept serving HTTP. Status now reads the canonical
+  tmpdir state at `$TMPDIR/archik-cli/<hash>.json`, verifies the
+  recorded PID is alive, and rebuilds `runtime.json` from it.
+  Stays silent when the daemon is genuinely gone — same UX as
+  before in that case.
+
 ## [0.7.4] - 2026-04-29
 
 ### Added
@@ -268,7 +299,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/bacharSalleh/archik/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/bacharSalleh/archik/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/bacharSalleh/archik/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bacharSalleh/archik/compare/v0.7.1...v0.7.2
