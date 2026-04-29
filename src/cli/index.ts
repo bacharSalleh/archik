@@ -7,6 +7,7 @@ import { renderCommand } from "./commands/render.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
+import { commandsCommand } from "./commands/commands.ts";
 import { skillCommand } from "./commands/skill.ts";
 import { startCommand } from "./commands/start.ts";
 import { stopCommand } from "./commands/stop.ts";
@@ -37,8 +38,9 @@ USAGE
 
 COMMANDS
   init              Scaffold a starter .archik/main.archik.yaml
-                                     (also installs the Claude skill by default)
+                                     (also installs the Claude skill + slash commands by default)
                     --no-skill       skip installing the Claude skill
+                    --no-commands    skip installing the /archik:* slash commands
   dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
@@ -69,11 +71,19 @@ COMMANDS
   suggest [sub]     Manage Claude's pending architecture suggestion
                     show             summarise the pending sidecar (default)
                                      --json   structured output for agents
+                    set <draft>      validate a draft YAML and stage it as
+                                     the sidecar (use "-" to read stdin)
+                                     --note '<one-liner>'  set metadata.suggestion.note
+                                     --main <path>          override main file detection
+                                     --json                 structured output for agents
                     accept           apply the sidecar over the main file
                     reject           discard the sidecar
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
+  commands          Install the /archik:* slash commands for Claude Code
+                    --user           install to ~/.claude/commands (all projects)
+                    --force          overwrite if any already exist
 
 Default file resolution (when no [path] is given):
   1. .archik/main.archik.yaml      (preferred new convention)
@@ -106,6 +116,8 @@ async function main(): Promise<number> {
       return qCommand(opts);
     case "skill":
       return skillCommand(opts);
+    case "commands":
+      return commandsCommand(opts);
     case "diff":
       return diffCommand(opts);
     case "suggest":

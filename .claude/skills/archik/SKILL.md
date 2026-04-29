@@ -1,6 +1,6 @@
 ---
 name: archik
-description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml exists in the project, or the user asks about the system's architecture, services, dependencies, or data flow. The YAML is the shared map of the project between the user and Claude — read it before answering structural questions, and propose updates when work introduces or changes nodes/edges. Also covers the archik CLI for validation and rendering.
+description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml exists in the project, or the user asks about the system's architecture, services, dependencies, or data flow. The YAML is the shared map between the user and Claude. Interact with it ONLY through the `npx archik` CLI — `q` for queries, `suggest set` for proposals, `validate` after every change. Never read, write, or edit archik files manually.
 ---
 
 # Archik — the project's shared map
@@ -26,28 +26,60 @@ project uses. Don't assume — small differences here matter.
 Treat the file as a shared vocabulary. It exists so the user and
 you can talk about the system without re-explaining it every time.
 
+## Hard rule: the CLI is the only interface to archik files
+
+You MUST NOT use `Read`, `Write`, `Edit`, or any other file-touching
+tool against `.archik/main.archik.yaml`, `architecture.archik.yaml`,
+any `*.archik.yaml` sub-file, or any sidecar. The `npx archik` CLI is
+the contract — it owns reads, writes, validation, and lifecycle.
+
+| Need                          | Use                                       |
+| ----------------------------- | ----------------------------------------- |
+| Inspect structure             | `npx archik q ...`                        |
+| Validate                      | `npx archik validate <path>`              |
+| Propose a change              | `npx archik suggest set <draft>`          |
+| Apply / discard a suggestion  | `npx archik suggest accept | reject`      |
+| Render or diff                | `npx archik render` / `npx archik diff`   |
+
+`.archik/main.archik.yaml` is the user's source of truth — only
+`npx archik suggest accept` is allowed to mutate it. The sidecar
+`.archik/main.archik.suggested.yaml` is owned by the CLI too — only
+`npx archik suggest set` (writes it) and `accept` / `reject`
+(consumes it) may touch it.
+
+If `npx archik` is unreachable (offline, sandboxed, missing), STOP
+and tell the user. Do NOT fall back to reading or editing YAML by
+hand — that breaks the contract and silently desyncs the canvas.
+
+The user-facing slash commands (`/archik:suggest`,
+`/archik:describe`, `/archik:accept`, `/archik:reject`,
+`/archik:dev`) are thin shims over this same CLI. When a user types
+`/archik:suggest <description>`, treat it as direct authorisation to
+run the sidecar workflow now — skip the "want me to update the YAML?"
+question.
+
 ## Protocol
 
 1. **Before** answering structural questions — *"what does X do?",
    "what depends on Y?", "where does data flow when …?"* — query
    the diagram with `npx archik q ...` (see CLI section). The CLI
    walks the root file plus every `.archik/*.archik.yaml` sub-file
-   and returns focused, deterministic answers without you re-reading
-   the whole YAML. Fall back to reading the archik file directly
-   only when the CLI is unreachable. Don't guess from filenames or
-   memory.
-2. **When** work introduces, removes, or rewires components, write
-   the proposed end-state to a sibling `*.suggested.yaml` next to
-   the main file (same schema, plus a `metadata.suggestion` block —
-   see "Suggesting changes" below). Don't edit the main file
-   directly; the user reviews and accepts in the canvas or via
+   and returns focused, deterministic answers. Don't guess from
+   filenames or memory, and don't read the YAML directly — see the
+   hard rule above.
+2. **When** work introduces, removes, or rewires components, author
+   the proposed end-state in a workspace temp file (e.g.
+   `/tmp/archik-draft-<id>.yaml`) and stage it as the sidecar with
+   `npx archik suggest set <tmp> --note "<one-liner>"`. Do NOT
+   write `.archik/main.archik.suggested.yaml` directly — the CLI is
+   the only thing allowed to put files in `.archik/`. The user
+   reviews and accepts in the canvas or via
    `npx archik suggest accept`.
-3. **After** every edit to a YAML, run `npx archik validate <path>`
-   against the file you actually wrote — the canonical root file, a
-   sidecar, or any sub-file under `.archik/`. Validate covers schema
-   errors AND cross-file existence (`archikFile` / `fromFile` /
-   `toFile` targets must be on disk). Fix every reported error before
-   declaring the change done.
+3. **After** every `suggest set`, the CLI has already validated for
+   you — schema, cross-file existence, the lot. If it exits non-zero,
+   fix the temp draft and re-run; never patch the sidecar directly.
+   For files outside `.archik/` (none, in a normal flow), use
+   `npx archik validate <path>`.
 
 The sections below are the detailed reference behind these three
 rules — *when* to consult, *when* to propose, schema, taxonomy,
@@ -60,16 +92,21 @@ The archik file tells you *what* exists. The source tree tells you
 the file is valuable — without it you just know there's "an Orders
 service" but not where to go to read or edit it. So:
 
-1. **Read the archik file in full.** Use `npx archik validate` first to
-   find the canonical path (it prefers `.archik/main.archik.yaml`,
-   falls back to `architecture.archik.yaml`). Then `cat` it —
-   don't grep, you want the whole shape in your head.
+1. **Pull the diagram shape from the CLI.** Don't `cat` the YAML —
+   use the query CLI:
+   ```
+   npx archik q stats     # files, node and edge counts, kind histogram
+   npx archik q list      # every node, with kind and parent
+   npx archik q edges     # every edge, with relationship and endpoints
+   ```
+   That gives you the same picture as reading the file, without
+   touching it.
 2. **List the source tree.** A single `ls` of the top-level project
    directory plus the most likely source roots is usually enough:
-   `ls -F . src/ services/ packages/ apps/ 2>/dev/null`. If the
-   project has sub-architectures under `.archik/`, list those too
-   (`ls .archik/`) — they're how the user breaks the diagram up by
-   component.
+   `ls -F . src/ services/ packages/ apps/ 2>/dev/null`. (`ls
+   .archik/` is fine for *finding out which sub-architectures
+   exist*; don't open the YAMLs themselves — query them via
+   `npx archik q list --file <name>`.)
 3. **Build the mapping in your head.** Most projects follow one of
    two patterns: each top-level archik node id matches a folder
    under `src/` (or `services/` / `packages/`), or the `stack` /
@@ -86,54 +123,48 @@ service" but not where to go to read or edit it. So:
 When the user asks "where would I add X?" or "what's the right
 place for Y?", you should already have the answer because step 3
 gave it to you. When they ask "what would `archik render` show?",
-the answer is in step 1.
+run `npx archik render --out /tmp/preview.svg` and describe it.
 
 ## Suggesting changes (the sidecar workflow)
 
-The archik file is the user's source of truth. You don't get to
-mutate it directly. Instead, write your proposed end-state to a
-sidecar file in the same directory, with the same stem plus
-`.suggested`:
+The archik file is the user's source of truth. You don't mutate it
+directly, and you don't write the sidecar directly either — both are
+under `.archik/` and only the CLI is allowed to touch that
+directory (see the hard rule).
 
-```
-# new convention
-.archik/main.archik.yaml             ← truth — user owns it
-.archik/main.archik.suggested.yaml   ← your draft proposal
+The flow is always the same:
 
-# legacy layout — same naming rule, just at the root
-architecture.archik.yaml
-architecture.archik.suggested.yaml
-```
+1. Author the *full proposed end-state* document in a workspace temp
+   file outside `.archik/`. Pick a path like
+   `/tmp/archik-draft-<short-id>.yaml`.
+2. Run `npx archik suggest set <tmp> --note "<one-liner>"`. The CLI
+   parses, schema-validates, checks cross-file references, stamps
+   `metadata.suggestion`, and atomically renames the draft into
+   place as `.archik/main.archik.suggested.yaml` (or the legacy
+   `architecture.archik.suggested.yaml`).
+3. If `set` exits non-zero, fix the temp file based on the reported
+   errors and re-run. Never patch the sidecar with `Edit`/`Write`.
 
-The sidecar is a complete, valid Archik document — same schema as the
-main file, plus a `metadata.suggestion` block that marks it as a
-proposal:
+A minimal draft looks exactly like a normal archik document — the
+CLI fills in the suggestion marker for you, so you don't have to:
 
 ```yaml
 version: "1.0"
 name: My Architecture
-metadata:
-  suggestion:
-    from: .archik/main.archik.yaml
-    at: 2026-04-26T17:00:00Z
-    note: add Stripe payment flow         # optional one-liner
 nodes:
   # ... entire proposed end-state, not just the delta
 edges:
   # ...
 ```
 
-Once you've written the sidecar:
+Once `suggest set` has succeeded:
 
 * The canvas shows a **📝 Suggestion pending** banner with `Review`,
   `Accept`, `Reject` buttons. Review **toggles an in-canvas overlay
   on the same page** — added nodes/edges get green frames, removed
   ones get red dashed frames and dim out, changed ones get amber
-  frames, and each gets a `+` / `−` / `~` badge. The button label
-  flips to "Hide diff" while the overlay is on; click again to drop
-  back to the regular view. Accept renames the sidecar over the main
-  file; Reject deletes the sidecar. Both also clear review mode so
-  the canvas snaps back to the new truth.
+  frames, and each gets a `+` / `−` / `~` badge. Accept renames the
+  sidecar over the main file; Reject deletes the sidecar.
 * From the terminal: `npx archik suggest show | accept | reject`.
 
 If the user has no canvas open and asks "apply it", run
@@ -144,16 +175,11 @@ asked).
 
 * Write the *full proposed document*, not a patch. The diff is
   computed by archik between the main file and the sidecar.
-* Run `npx archik validate <sidecar-path>` after writing — that's
-  `.archik/main.archik.suggested.yaml` under the new layout, or
-  `architecture.archik.suggested.yaml` under the legacy one. Validate
-  catches schema errors (dangling edges, parent cycles, duplicate
-  ids) AND missing cross-file targets (`archikFile` / `fromFile` /
-  `toFile` resolved against the project root). Silent failures are
-  not OK — re-edit and re-run until it passes.
-* If a suggestion sidecar already exists, treat it as your previous
-  proposal — extend or replace it. Don't write a new sidecar with a
-  different name.
+* Don't call `Write`/`Edit` against `.archik/main.archik.suggested.yaml`
+  or any peer file under `.archik/`. The CLI owns that directory.
+* If a suggestion sidecar already exists, `npx archik suggest set`
+  overwrites it. Tell the user you're replacing their previous
+  pending suggestion.
 
 ## When to consult the YAML
 
@@ -674,31 +700,38 @@ npx archik diff a.yaml b.yaml --out diff.svg
 npx archik diff a.yaml b.yaml --json
 npx archik suggest show            # summary of pending sidecar (default)
                   --json           #   structured output
+npx archik suggest set <draft>     # validate a draft YAML and stage it as the sidecar
+                  --note '<text>'  #   set metadata.suggestion.note
+                  --main <path>    #   override main file detection
+                  --json           #   structured output
+                  -                #   draft path "-" reads from stdin
 npx archik suggest accept          # apply the sidecar over the main file
 npx archik suggest reject          # discard the sidecar
 npx archik watch                   # re-render SVG on save
 npx archik dev                     # open the live editor in the browser
 npx archik start | stop | status   # detached canvas server lifecycle
-npx archik init                    # scaffold a starter file + install this skill
-npx archik skill                   # install/refresh this skill in cwd
+npx archik init                    # scaffold a starter file + install skill + slash commands
+npx archik skill                   # install/refresh the Claude skill in cwd
+npx archik commands                # install/refresh the /archik:* slash commands in cwd
 ```
 
 ## Verification workflow
 
-After **every** edit you make to an archik file (root, sidecar, or
-sub-file):
+After **every** `npx archik suggest set` or `npx archik suggest
+accept`:
 
-1. Run `npx archik validate <path>` against the file you wrote. Validate
-   covers schema errors (with the field path so you can fix them
-   precisely) AND cross-file existence — `archikFile`, `fromFile`,
-   and `toFile` are resolved against the project root and the
-   command exits 1 if the target file isn't on disk. Fix every
-   reported error before declaring the change done.
-2. If the project has an `archik dev` server running, the file watcher
-   broadcasts the change automatically — no restart needed.
-3. If the project commits a rendered SVG (e.g. `docs/architecture.svg`),
-   regenerate it with `archik render --out docs/architecture.svg` so
-   the committed picture matches the YAML.
+1. The CLI has already validated the schema and cross-file references
+   for you — `set` refuses to write a broken sidecar, `accept` runs
+   over a sidecar that was validated when it was staged. If `set`
+   reported errors, fix them in the temp draft and re-run; never
+   reach for `Write`/`Edit` on the sidecar.
+2. If the project has an `archik dev` server running, the file
+   watcher broadcasts the change to the canvas automatically — no
+   restart needed. Surface the URL so the user can click through.
+3. If the project commits a rendered SVG (e.g.
+   `docs/architecture.svg`), regenerate it with `npx archik render
+   --out docs/architecture.svg` so the committed picture matches the
+   YAML.
 
 ## Things to avoid
 

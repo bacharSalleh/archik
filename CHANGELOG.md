@@ -8,13 +8,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- `archik suggest set <draft>` — promote a draft YAML into the
+  canonical sidecar position. Validates the schema, checks
+  cross-file references, stamps `metadata.suggestion`, and
+  atomically renames the draft into place. Reads from stdin when
+  the path is `-`. Refuses to use the main file as the draft.
+- `/archik:*` slash commands for Claude Code: `/archik:suggest`,
+  `/archik:accept`, `/archik:reject`, `/archik:describe`,
+  `/archik:dev`. All are thin shims over `npx archik` so Claude
+  drives diagram changes through the CLI rather than editing YAML
+  by hand.
+- `archik commands` — install or refresh the `/archik:*` slash
+  commands in a project (or `--user` for all projects). `archik
+  init` installs them automatically alongside the skill; opt out
+  with `--no-commands`.
 
 ### Changed
--
-
-### Fixed
--
+- `SKILL.md` rewritten around a CLI-only hard rule: Claude must
+  not read, write, or edit any archik file directly. Queries go
+  through `npx archik q`, suggestions through `npx archik suggest
+  set`, validation through `npx archik validate`. Eliminates the
+  prior "fall back to reading the YAML" escape hatch, which let
+  the skill silently desync from the canvas.
 
 ## [0.6.21] - 2026-04-28
 
