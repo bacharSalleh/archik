@@ -18,11 +18,21 @@ import {
   type ThemeName,
 } from "../themeTokens.ts";
 
+const isJson = (opts: ParsedOptions): boolean => {
+  const v = getString(opts, "json");
+  return v !== undefined && v !== "false" && v !== "0";
+};
+
 export async function diffCommand(opts: ParsedOptions): Promise<number> {
   const beforePath = opts._[0];
   const afterPath = opts._[1];
+  const json = isJson(opts);
   if (beforePath === undefined || afterPath === undefined) {
-    console.error("✗ Usage: archik diff <before.yaml> <after.yaml> [--out diff.svg]");
+    if (json) {
+      console.log(JSON.stringify({ ok: false, error: "usage: archik diff <before.yaml> <after.yaml> [--out diff.svg] [--json]" }));
+    } else {
+      console.error("✗ Usage: archik diff <before.yaml> <after.yaml> [--out diff.svg]");
+    }
     return 1;
   }
   const themeRaw = getString(opts, "theme") ?? "dark";
@@ -34,17 +44,42 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
 
   const before = await readDocument(beforePath);
   if ("error" in before) {
-    console.error(`✗ ${beforePath}: ${before.error}`);
+    if (json) console.log(JSON.stringify({ ok: false, file: beforePath, error: before.error }));
+    else console.error(`✗ ${beforePath}: ${before.error}`);
     return 1;
   }
   const after = await readDocument(afterPath);
   if ("error" in after) {
-    console.error(`✗ ${afterPath}: ${after.error}`);
+    if (json) console.log(JSON.stringify({ ok: false, file: afterPath, error: after.error }));
+    else console.error(`✗ ${afterPath}: ${after.error}`);
     return 1;
   }
 
   const diff = diffDocuments(before.doc, after.doc);
-  printSummary(beforePath, afterPath, diff);
+
+  if (json) {
+    const totals = {
+      added: diff.nodes.added.length + diff.edges.added.length,
+      removed: diff.nodes.removed.length + diff.edges.removed.length,
+      changed: diff.nodes.changed.length + diff.edges.changed.length,
+    };
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          before: beforePath,
+          after: afterPath,
+          totals,
+          nodes: diff.nodes,
+          edges: diff.edges,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    printSummary(beforePath, afterPath, diff);
+  }
 
   const out = getString(opts, "out");
   if (out !== undefined) {
@@ -58,7 +93,7 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
     const outAbs = path.resolve(out);
     await mkdir(path.dirname(outAbs), { recursive: true });
     await writeFile(outAbs, svg, "utf-8");
-    console.log(`\n✓ Visual diff → ${out}`);
+    if (!json) console.log(`\n✓ Visual diff → ${out}`);
   }
 
   return 0;

@@ -7,10 +7,15 @@ import {
 } from "../../domain/suggestion.ts";
 import { diffDocuments } from "../../domain/diff.ts";
 import { parseYaml, stringifyYaml } from "../../io/yaml.ts";
-import type { ParsedOptions } from "../options.ts";
+import { getString, type ParsedOptions } from "../options.ts";
 import { resolveDocPath } from "../resolveDocPath.ts";
 
 type Sub = "show" | "accept" | "reject";
+
+const isJson = (opts: ParsedOptions): boolean => {
+  const v = getString(opts, "json");
+  return v !== undefined && v !== "false" && v !== "0";
+};
 
 export async function suggestCommand(opts: ParsedOptions): Promise<number> {
   const sub = (opts._[0] as Sub | undefined) ?? "show";
@@ -29,14 +34,26 @@ export async function suggestCommand(opts: ParsedOptions): Promise<number> {
   }
   const sidecar = suggestionPath(mainPath);
 
-  if (sub === "show") return show(mainPath, sidecar);
+  if (sub === "show") return show(mainPath, sidecar, isJson(opts));
   if (sub === "accept") return accept(mainPath, sidecar);
   return reject(sidecar);
 }
 
-async function show(mainPath: string, sidecar: string): Promise<number> {
+async function show(
+  mainPath: string,
+  sidecar: string,
+  json: boolean,
+): Promise<number> {
   if (!(await exists(sidecar))) {
-    console.log(`No pending suggestion (${path.basename(sidecar)} not present).`);
+    if (json) {
+      console.log(
+        JSON.stringify({ ok: true, pending: false, sidecar: path.basename(sidecar) }),
+      );
+    } else {
+      console.log(
+        `No pending suggestion (${path.basename(sidecar)} not present).`,
+      );
+    }
     return 0;
   }
   const sidecarText = await readFile(sidecar, "utf-8");
@@ -44,43 +61,77 @@ async function show(mainPath: string, sidecar: string): Promise<number> {
   try {
     sidecarDoc = parseYaml(sidecarText);
   } catch (err) {
-    console.error(`✗ Suggestion file fails validation:`);
-    console.error(err instanceof Error ? err.message : String(err));
+    const message = err instanceof Error ? err.message : String(err);
+    if (json) {
+      console.log(
+        JSON.stringify({ ok: false, sidecar: path.basename(sidecar), error: message }),
+      );
+    } else {
+      console.error(`✗ Suggestion file fails validation:`);
+      console.error(message);
+    }
     return 1;
   }
+
+  const suggestionMeta = sidecarDoc.metadata?.suggestion;
+  const mainExists = await exists(mainPath);
+  let totals = { added: 0, removed: 0, changed: 0 };
+  let diff = null as ReturnType<typeof diffDocuments> | null;
+  if (mainExists) {
+    const mainDoc = parseYaml(await readFile(mainPath, "utf-8"));
+    diff = diffDocuments(mainDoc, sidecarDoc);
+    totals = {
+      added: diff.nodes.added.length + diff.edges.added.length,
+      removed: diff.nodes.removed.length + diff.edges.removed.length,
+      changed: diff.nodes.changed.length + diff.edges.changed.length,
+    };
+  }
+
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          pending: true,
+          sidecar: path.basename(sidecar),
+          main: path.basename(mainPath),
+          mainExists,
+          suggestion: suggestionMeta ?? null,
+          totals,
+          diff,
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
+
   console.log(`Suggestion: ${path.basename(sidecar)}`);
-  if (sidecarDoc.metadata?.suggestion) {
-    const s = sidecarDoc.metadata.suggestion;
-    console.log(`  authored:  ${s.at}`);
-    console.log(`  proposes:  changes to ${s.from}`);
-    if (s.note) console.log(`  note:      ${s.note}`);
+  if (suggestionMeta) {
+    console.log(`  authored:  ${suggestionMeta.at}`);
+    console.log(`  proposes:  changes to ${suggestionMeta.from}`);
+    if (suggestionMeta.note) console.log(`  note:      ${suggestionMeta.note}`);
   }
   console.log("");
-
-  if (!(await exists(mainPath))) {
+  if (!mainExists) {
     console.log(
       "(no current architecture file — accept will install this as the new one)",
     );
     return 0;
   }
-
-  const mainDoc = parseYaml(await readFile(mainPath, "utf-8"));
-  const diff = diffDocuments(mainDoc, sidecarDoc);
-  const totals = {
-    add: diff.nodes.added.length + diff.edges.added.length,
-    rm: diff.nodes.removed.length + diff.edges.removed.length,
-    ch: diff.nodes.changed.length + diff.edges.changed.length,
-  };
-  if (totals.add + totals.rm + totals.ch === 0) {
+  if (totals.added + totals.removed + totals.changed === 0) {
     console.log("Suggestion is identical to the current file.");
     return 0;
   }
   console.log(
-    `Diff vs current: ${totals.add} added, ${totals.rm} removed, ${totals.ch} changed`,
+    `Diff vs current: ${totals.added} added, ${totals.removed} removed, ${totals.changed} changed`,
   );
   console.log("");
   console.log("To preview visually:");
-  console.log(`  archik diff ${path.basename(mainPath)} ${path.basename(sidecar)} --out diff.svg`);
+  console.log(
+    `  archik diff ${path.basename(mainPath)} ${path.basename(sidecar)} --out diff.svg`,
+  );
   console.log("");
   console.log("To apply or discard:");
   console.log("  archik suggest accept");

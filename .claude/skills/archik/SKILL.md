@@ -20,7 +20,7 @@ The file lives in one of two places, in this order of preference:
 2. `architecture.archik.yaml` — the legacy root location, still
    fully supported.
 
-Run `archik validate` (or check both paths) to find which one the
+Run `npx archik validate` (or check both paths) to find which one the
 project uses. Don't assume — small differences here matter.
 
 Treat the file as a shared vocabulary. It exists so the user and
@@ -29,15 +29,20 @@ you can talk about the system without re-explaining it every time.
 ## Protocol
 
 1. **Before** answering structural questions — *"what does X do?",
-   "what depends on Y?", "where does data flow when …?"* — read
-   the archik file. Don't guess from filenames or memory.
+   "what depends on Y?", "where does data flow when …?"* — query
+   the diagram with `npx archik q ...` (see CLI section). The CLI
+   walks the root file plus every `.archik/*.archik.yaml` sub-file
+   and returns focused, deterministic answers without you re-reading
+   the whole YAML. Fall back to reading the archik file directly
+   only when the CLI is unreachable. Don't guess from filenames or
+   memory.
 2. **When** work introduces, removes, or rewires components, write
    the proposed end-state to a sibling `*.suggested.yaml` next to
    the main file (same schema, plus a `metadata.suggestion` block —
    see "Suggesting changes" below). Don't edit the main file
    directly; the user reviews and accepts in the canvas or via
-   `archik suggest accept`.
-3. **After** every edit to a YAML, run `archik validate <path>`
+   `npx archik suggest accept`.
+3. **After** every edit to a YAML, run `npx archik validate <path>`
    against the file you actually wrote — the canonical root file, a
    sidecar, or any sub-file under `.archik/`. Validate covers schema
    errors AND cross-file existence (`archikFile` / `fromFile` /
@@ -55,7 +60,7 @@ The archik file tells you *what* exists. The source tree tells you
 the file is valuable — without it you just know there's "an Orders
 service" but not where to go to read or edit it. So:
 
-1. **Read the archik file in full.** Use `archik validate` first to
+1. **Read the archik file in full.** Use `npx archik validate` first to
    find the canonical path (it prefers `.archik/main.archik.yaml`,
    falls back to `architecture.archik.yaml`). Then `cat` it —
    don't grep, you want the whole shape in your head.
@@ -129,17 +134,17 @@ Once you've written the sidecar:
   back to the regular view. Accept renames the sidecar over the main
   file; Reject deletes the sidecar. Both also clear review mode so
   the canvas snaps back to the new truth.
-* From the terminal: `archik suggest show | accept | reject`.
+* From the terminal: `npx archik suggest show | accept | reject`.
 
 If the user has no canvas open and asks "apply it", run
-`archik suggest accept` for them (only after they've explicitly
+`npx archik suggest accept` for them (only after they've explicitly
 asked).
 
 **Key rules:**
 
 * Write the *full proposed document*, not a patch. The diff is
   computed by archik between the main file and the sidecar.
-* Run `archik validate <sidecar-path>` after writing — that's
+* Run `npx archik validate <sidecar-path>` after writing — that's
   `.archik/main.archik.suggested.yaml` under the new layout, or
   `architecture.archik.suggested.yaml` under the legacy one. Validate
   catches schema errors (dangling edges, parent cycles, duplicate
@@ -189,7 +194,7 @@ The YAML tracks **shape**, not implementation detail.
 
 ## Hard rules for editing
 
-The schema enforces these — `archik validate` will reject the file
+The schema enforces these — `npx archik validate` will reject the file
 if you break any of them, so don't bother trying.
 
 - **Never put coordinates** (`x`, `y`, `width`, `height`, `viewport`) in
@@ -274,7 +279,7 @@ Constraints (the schema enforces them):
   forward slashes, no `..`, ends in `.archik.yaml`).
 - The path is resolved against the **project root** (parent of
   `.archik/` under the new layout, the doc's own directory under the
-  legacy one) — same rule as `archikFile`. `archik validate` exits
+  legacy one) — same rule as `archikFile`. `npx archik validate` exits
   1 if the file isn't on disk.
 - The *local* endpoint id must still match a node in this file.
 - An edge with **both** `fromFile` and `toFile` is rejected — author
@@ -297,7 +302,7 @@ Constraints (the schema enforces them):
 - **Resolved against the project root**, not the file's own
   directory. With the new layout the project root is the parent of
   `.archik/`, so a sibling sub-file is `.archik/orders.archik.yaml`
-  (with the prefix), NOT `orders.archik.yaml`. `archik validate`
+  (with the prefix), NOT `orders.archik.yaml`. `npx archik validate`
   exits 1 if the target file isn't on disk — catch it there instead
   of as a 404 in the canvas.
 - Cycles aren't checked at parse time (each file validates on its
@@ -601,41 +606,89 @@ edges:
 
 ## CLI
 
-These commands are available globally if archik was installed via
-`npm link`. Without a positional path, each command resolves the
-archik file in this order: `.archik/main.archik.yaml` (preferred),
-then `architecture.archik.yaml` (legacy). If both exist the
-command errors and asks the user to pick one.
+The CLI is the agent-friendly bridge to archik. Prefer it over
+re-reading the YAML when answering structural questions — the answers
+are deterministic, focused, and don't pollute your context with the
+whole diagram.
+
+### Running the CLI
+
+The CLI ships as the `archik` npm package. Two equivalent ways to
+invoke any command:
 
 ```
-archik validate                    # schema check (run after every edit)
-archik validate path/to/file.yaml
-archik render --out diagram.svg    # headless layout → SVG
-archik render --theme light --out diagram-light.svg
-archik diff a.yaml b.yaml          # text + colour-coded SVG diff
-archik diff a.yaml b.yaml --out diff.svg
-archik suggest show                # summary of pending sidecar (default)
-archik suggest accept              # apply the sidecar over the main file
-archik suggest reject              # discard the sidecar
-archik watch                       # re-render SVG on save
-archik dev                         # open the live editor in the browser (foreground)
-archik start                       # same as dev, detached — returns the prompt
-archik stop                        # stop the background server
-archik status                      # list running archik instances
-archik init                        # scaffold a starter file (also installs this skill into ./.claude/skills/archik/ unless --no-skill)
-archik skill                       # install/refresh this skill in cwd
+npx archik <command>      # works without installing — caches after first use
+archik <command>          # if the user has run `npm i -g archik`
 ```
 
-If `archik` isn't on PATH (the user hasn't run `npm link` yet), fall
-back to the in-repo form: `npm run archik -- <command>` from the
-archik checkout.
+**Default to `npx archik` in your suggestions and shell calls.** It
+just works in fresh repos, doesn't require a global install, and
+falls through to the cached binary on subsequent runs. Suggest
+`npm i -g archik` only when the user wants the live canvas
+(`archik dev`) on a fast keystroke.
+
+If neither form is reachable (offline, sandboxed shell), fall back to
+reading the YAML directly with the same schema documented above —
+the file is always the source of truth.
+
+### Without a positional path
+
+Every read command resolves the archik file in this order:
+`.archik/main.archik.yaml` (preferred), then
+`architecture.archik.yaml` (legacy). If both exist the command errors
+and asks the user to pick one.
+
+### Querying the diagram (use this for structural questions)
+
+```
+npx archik q describe <id>          # node + its incoming/outgoing edges
+npx archik q deps <id>              # outgoing edges (what this node uses)
+npx archik q dependents <id>        # incoming edges (what uses this node)
+npx archik q list                   # all nodes
+                  --kind <k>        #   filter by kind (service, function, …)
+                  --parent <id>     #   filter by container
+                  --file <p>        #   filter by file (substring match)
+npx archik q edges                  # all edges
+                  --from <id>       #   filter by source
+                  --to <id>         #   filter by target
+                  --rel <name>      #   filter by relationship
+npx archik q impact <id>            # what would break if this node were removed
+npx archik q stats                  # files, nodes, edges, kind histogram
+```
+
+Add `--json` to any `q` subcommand for a stable machine-readable
+shape (object on stdout). Exit codes: `0` found, `1` empty / unknown
+id, `2` could not load. Walks the root file plus every
+`.archik/*.archik.yaml` sub-file. Cross-file id collisions error
+rather than silently picking — surface the ambiguity.
+
+### Authoring & lifecycle
+
+```
+npx archik validate                # schema + cross-file existence (CI-friendly, exit 1 on error)
+npx archik validate --json         # structured { ok, file, nodes, edges, errors }
+npx archik render --out diagram.svg
+                  --theme light    # "dark" (default) or "light"
+npx archik diff a.yaml b.yaml      # text summary
+npx archik diff a.yaml b.yaml --out diff.svg
+npx archik diff a.yaml b.yaml --json
+npx archik suggest show            # summary of pending sidecar (default)
+                  --json           #   structured output
+npx archik suggest accept          # apply the sidecar over the main file
+npx archik suggest reject          # discard the sidecar
+npx archik watch                   # re-render SVG on save
+npx archik dev                     # open the live editor in the browser
+npx archik start | stop | status   # detached canvas server lifecycle
+npx archik init                    # scaffold a starter file + install this skill
+npx archik skill                   # install/refresh this skill in cwd
+```
 
 ## Verification workflow
 
 After **every** edit you make to an archik file (root, sidecar, or
 sub-file):
 
-1. Run `archik validate <path>` against the file you wrote. Validate
+1. Run `npx archik validate <path>` against the file you wrote. Validate
    covers schema errors (with the field path so you can fix them
    precisely) AND cross-file existence — `archikFile`, `fromFile`,
    and `toFile` are resolved against the project root and the
