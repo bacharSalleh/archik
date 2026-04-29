@@ -16,6 +16,40 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.7.2] - 2026-04-29
+
+### Added
+- `/archik:spawn` and `/archik:evolve` slash commands now pipe the
+  proposed YAML through stdin to `npx archik suggest set -` via a
+  heredoc, instead of writing a temp file under `/tmp/`. Same goes
+  for `/archik:suggest`. Eliminates a class of permission /
+  path-resolution failures and the symptom where Claude could leak
+  a `/tmp/` path into a canvas URL.
+
+### Changed
+- Slash-menu descriptions tightened — the `/archik:` prefix
+  already provides the namespace, so there's no need to repeat
+  "the archik diagram" / "the pending suggestion sidecar":
+  - `/archik:suggest` → "Propose a diagram change"
+  - `/archik:spawn`   → "Mirror the source tree as a diagram"
+  - `/archik:evolve`  → "Propose a cleaner modular refactor"
+  - `/archik:describe`→ "Show a node's connections"
+  - `/archik:dev`     → "Open the live canvas"
+- `archik init` now suggests `/archik:spawn` first in the "Try
+  this in Claude Code" hint — bootstrap from real code, then
+  iterate with `/archik:suggest`.
+
+### Fixed
+- `archik status` now ground-truths each daemon's liveness with a
+  1.5s HTTP HEAD probe of the recorded URL, in addition to the
+  PID check. Stale entries (dev server crashed but parent process
+  lingered, or PID got recycled within the start-time window)
+  are removed automatically on every `status` run, so a phantom
+  "PID 12345 → http://localhost:5173" no longer sits forever in
+  the listing. The probe is restricted to loopback hosts —
+  `localhost`, `127.0.0.1`, `[::1]`, `::1` — to avoid SSRF on a
+  tampered state file.
+
 ## [0.7.1] - 2026-04-29
 
 ### Added
@@ -158,7 +192,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/bacharSalleh/archik/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bacharSalleh/archik/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bacharSalleh/archik/compare/v0.6.21...v0.7.0
 [0.6.21]: https://github.com/bacharSalleh/archik/compare/v0.6.8...v0.6.21
