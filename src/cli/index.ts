@@ -9,6 +9,7 @@ import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
 import { commandsCommand } from "./commands/commands.ts";
 import { skillCommand } from "./commands/skill.ts";
+import { COMMAND_HELP } from "./help.ts";
 import { startCommand } from "./commands/start.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { statusCommand } from "./commands/status.ts";
@@ -91,8 +92,25 @@ Default file resolution (when no [path] is given):
 `);
 }
 
+function wantsHelp(rest: string[]): boolean {
+  return rest.includes("--help") || rest.includes("-h");
+}
+
 async function main(): Promise<number> {
   const [, , command, ...rest] = process.argv;
+
+  // Per-command --help: catch it before option parsing so a flag
+  // misuse ("--port" without a value, etc.) doesn't override the
+  // user's intent to read the help page.
+  if (command !== undefined && wantsHelp(rest)) {
+    const text = COMMAND_HELP[command];
+    if (text !== undefined) {
+      console.log(text);
+      return 0;
+    }
+    // Unknown command + --help: fall through to global help below.
+  }
+
   const opts = parseOptions(rest);
 
   switch (command) {

@@ -19,12 +19,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.7.2] - 2026-04-29
 
 ### Added
-- `/archik:spawn` and `/archik:evolve` slash commands now pipe the
-  proposed YAML through stdin to `npx archik suggest set -` via a
-  heredoc, instead of writing a temp file under `/tmp/`. Same goes
-  for `/archik:suggest`. Eliminates a class of permission /
-  path-resolution failures and the symptom where Claude could leak
-  a `/tmp/` path into a canvas URL.
+- Per-command `--help` for every CLI subcommand. `npx archik
+  suggest --help`, `npx archik q --help`, `npx archik status
+  --help`, etc., now print a focused usage / flags / examples /
+  exit-codes page so agents can introspect each command without
+  reading the global help dump.
+- `--allow-orphan` flag on `archik suggest set`. Stages a sidecar
+  whose target main file doesn't yet exist on disk — used when
+  proposing a brand-new sub-architecture. Without the flag,
+  `suggest set` now refuses to write an orphan with a clear error
+  pointing at the parent-file workflow.
+- `/archik:spawn` and `/archik:evolve` slash commands now pipe
+  the proposed YAML through stdin to `npx archik suggest set -`
+  via a heredoc, instead of writing a temp file under `/tmp/`.
+  Same goes for `/archik:suggest`. Eliminates a class of
+  permission / path-resolution failures and the symptom where
+  Claude could leak a `/tmp/` path into a canvas URL.
 
 ### Changed
 - Slash-menu descriptions tightened — the `/archik:` prefix
@@ -38,6 +48,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik init` now suggests `/archik:spawn` first in the "Try
   this in Claude Code" hint — bootstrap from real code, then
   iterate with `/archik:suggest`.
+- `/archik:spawn` updated to use `--allow-orphan` when staging a
+  brand-new sub-file's sidecar, then `accept` immediately so the
+  sub-file is real on disk before the main draft references it.
 
 ### Fixed
 - `archik status` now ground-truths each daemon's liveness with a
@@ -49,6 +62,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the listing. The probe is restricted to loopback hosts —
   `localhost`, `127.0.0.1`, `[::1]`, `::1` — to avoid SSRF on a
   tampered state file.
+- Orphan suggestion sidecars (`*.archik.suggested.yaml` with no
+  sibling main file) were invisible in the browser. The server's
+  file-listing endpoint now surfaces them as standalone entries
+  with `isOrphanSuggestion: true`, and the FileSwitcher renders
+  them with a "(pending)" label and a dashed accent border so the
+  user can see what's waiting and accept it via
+  `/archik:accept <path>` or `npx archik suggest accept <path>`.
+  The dropdown also stays visible when there's a single real file
+  plus pending suggestions — previously it self-hid on
+  `files.length <= 1`.
 
 ## [0.7.1] - 2026-04-29
 

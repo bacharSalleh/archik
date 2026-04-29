@@ -241,6 +241,25 @@ async function set(opts: ParsedOptions): Promise<number> {
     );
   }
 
+  // Orphan-sidecar guardrail: a `set` against a main that doesn't yet
+  // exist on disk produces a `<x>.archik.suggested.yaml` with no
+  // sibling `<x>.archik.yaml`, which the canvas can't render alongside
+  // the rest of the diagram (no `archikFile:` pointer to it from a
+  // file the canvas already shows). Agents hit this when they try to
+  // propose a brand-new sub-architecture in one shot. Force the
+  // explicit `--allow-orphan` opt-in so the workflow is intentional;
+  // the canvas surfaces orphan sidecars distinctly so the user knows
+  // they're pending.
+  const allowOrphan = getString(opts, "allow-orphan") === "true";
+  if (!allowOrphan && !(await exists(mainPath))) {
+    return fail(
+      json,
+      `Main file ${path.relative(process.cwd(), mainPath) || mainPath} does not exist. ` +
+        `If you intend to propose a new sub-architecture, pass --allow-orphan; ` +
+        `otherwise propose the change to the parent file (with archikFile: ...) first.`,
+    );
+  }
+
   let text: string;
   try {
     text = draftArg === "-" ? await readStdin() : await readFile(draftAbs!, "utf-8");

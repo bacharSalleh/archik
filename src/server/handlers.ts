@@ -287,6 +287,11 @@ export async function listArchikFiles(
     name: string;
     hasSuggestion: boolean;
     isRoot: boolean;
+    /** True when this entry has no sibling main file on disk — only
+     *  the suggestion sidecar exists. The canvas renders these
+     *  distinctly ("(pending)") so the user can review and accept
+     *  before they become real architecture files. */
+    isOrphanSuggestion?: boolean;
   }>
 > {
   const root = path.resolve(projectRoot);
@@ -316,8 +321,12 @@ export async function listArchikFiles(
   }
 
   // 2. Everything under `.archik/`, recursive (depth-limited so a
-  // pathological symlink tree can't trap us).
+  // pathological symlink tree can't trap us). We collect both
+  // canonical archik files AND `.archik.suggested.yaml` sidecars,
+  // then resolve them below — a sidecar without a sibling main is
+  // an "orphan" that the canvas surfaces as a pending entry.
   const MAX_DEPTH = 6;
+  const orphanSidecars = new Set<string>();
   const walk = async (dir: string, depth: number): Promise<void> => {
     if (depth > MAX_DEPTH) return;
     let entries;
@@ -332,16 +341,30 @@ export async function listArchikFiles(
         await walk(full, depth + 1);
       } else if (entry.isFile() && isArchikYaml(entry.name)) {
         found.add(full);
+      } else if (
+        entry.isFile() &&
+        entry.name.endsWith(".archik.suggested.yaml")
+      ) {
+        orphanSidecars.add(full);
       }
     }
   };
   await walk(path.join(root, ".archik"), 0);
+
+  // Drop sidecars whose sibling main is in `found` — those are
+  // normal pending suggestions, surfaced via `hasSuggestion: true`
+  // on the main entry, not as standalone orphans.
+  for (const abs of orphanSidecars) {
+    const sibling = abs.replace(/\.archik\.suggested\.yaml$/, ".archik.yaml");
+    if (found.has(sibling)) orphanSidecars.delete(abs);
+  }
 
   const out: Array<{
     path: string;
     name: string;
     hasSuggestion: boolean;
     isRoot: boolean;
+    isOrphanSuggestion?: boolean;
   }> = [];
   for (const abs of found) {
     const rel = path.relative(root, abs).split(path.sep).join("/");
@@ -359,6 +382,23 @@ export async function listArchikFiles(
     const name = base === "architecture" ? "main" : base;
     const isRoot = canonicalRoot !== null && abs === canonicalRoot;
     out.push({ path: rel, name, hasSuggestion, isRoot });
+  }
+  // Append orphan suggestion entries. Their `path` points at the
+  // sidecar itself (the only file on disk), and the canvas knows to
+  // load that path when the entry is selected.
+  for (const abs of orphanSidecars) {
+    const rel = path.relative(root, abs).split(path.sep).join("/");
+    const base = path
+      .basename(rel)
+      .replace(/\.archik\.suggested\.yaml$/, "");
+    const name = base === "architecture" ? "main" : base;
+    out.push({
+      path: rel,
+      name,
+      hasSuggestion: true,
+      isRoot: false,
+      isOrphanSuggestion: true,
+    });
   }
   // Stable order: legacy root file first (if any), then alphabetical.
   out.sort((a, b) => {
