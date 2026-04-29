@@ -43,7 +43,17 @@ archik suggest set` stages it.
      this will produce a sidecar you can review or reject. Want me
      to continue?" Wait for confirmation.
 
-3. **Map the source tree.** Walk the project from cwd, paying
+3. **Lock in the schema.** Run this before drafting any YAML —
+   the prose below describes the workflow, not the field shapes.
+   The CLI is the schema:
+   ```
+   npx archik schema
+   ```
+   Pay attention to which fields are arrays vs strings, and that
+   every edge requires an `id` (kebab-case). Authoring from
+   intuition produces predictable validation errors.
+
+4. **Map the source tree.** Walk the project from cwd, paying
    attention to conventional layouts. Don't recurse into
    `node_modules`, `dist`, `build`, `.git`, `.next`,
    `target`, `venv`, `.venv`, or `vendor`.
@@ -73,13 +83,13 @@ archik suggest set` stages it.
    - **Frontends**: `apps/web`, `apps/mobile`, `client/`,
      `packages/ui` apps that ship a UI → `frontend`.
 
-4. **Choose the kind for each node.** Default: `service`. Use the
+5. **Choose the kind for each node.** Default: `service`. Use the
    taxonomy from the skill — `function` for serverless, `worker`
    for background consumers, `agent` for LLM-driven agents, etc.
    When unsure, pick the closest fit and add a `notes:` entry
    explaining the inference rather than picking `custom`.
 
-5. **Nest by structure**, mirroring the directories.
+6. **Nest by structure**, mirroring the directories.
    - Top-level grouping dir (e.g. `services/`) → a `module` container.
    - Each child dir → a node with `parentId` pointing at the container.
    - If a node has substantial internal structure (e.g.
@@ -88,7 +98,7 @@ archik suggest set` stages it.
      sub-file. Don't nest beyond two levels in the main file —
      drill-down is what `archikFile` is for.
 
-6. **Wire the edges.** Be conservative — only add an edge when you
+7. **Wire the edges.** Be conservative — only add an edge when you
    have actual evidence:
    - Cross-package imports → `depends_on` or a more specific
      relationship (`uses`, `invokes`).
@@ -102,7 +112,7 @@ archik suggest set` stages it.
    When in doubt, leave the edge out. The user will add it via
    `/archik:suggest` later.
 
-7. **Stage the draft.** Pipe the YAML straight into `npx archik
+8. **Stage the draft.** Pipe the YAML straight into `npx archik
    suggest set -` via a heredoc — no temp files, no `/tmp/` paths.
    Sub-files come first because the main draft references them via
    `archikFile`, and `suggest set` validates that those targets
@@ -144,7 +154,8 @@ archik suggest set` stages it.
    c. If `suggest set` reports validation errors, re-run with the
       corrected YAML. Never edit the sidecar by hand.
 
-8. **Tell the user how to review.** Surface the canvas URL plus:
+9. **Tell the user how to review and what's next.** Surface the
+   canvas URL plus the natural follow-up:
    - "📝 Initial diagram staged from source tree — open the
      canvas at <URL> and use Review to see the proposed nodes."
    - "Looks wrong? Run `/archik:reject` and we'll iterate. Or run

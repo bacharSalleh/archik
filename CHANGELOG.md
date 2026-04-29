@@ -16,7 +16,34 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
-## [0.7.3] - 2026-04-29
+## [0.7.4] - 2026-04-29
+
+### Added
+- `npx archik schema` — single source of truth for the document
+  shape. Prints every field, its required/optional status, its
+  type ("array of string" vs "string"), the full kinds and
+  relationships lists, and the cross-cutting constraints. `--json`
+  for piping into jq. Agents (and humans) should run this before
+  authoring a YAML draft instead of guessing from prose.
+- Validation errors now include an actionable `hint:` for the two
+  canonical first-attempt mistakes — `notes`/`responsibilities`
+  written as a single string instead of an array, and edges
+  missing their required `id`. The hints point back at
+  `npx archik schema` for the full shape.
+
+### Changed
+- `SKILL.md` rewritten — 767 lines down to 214 (~72% slimmer).
+  The skill now teaches Claude to drive archik through the CLI
+  rather than describing the YAML schema in prose. Hard rule
+  reinforced: no `Read`/`Write`/`Edit` against archik files.
+  New "Follow-ups" section: after every accept/reject, propose a
+  concrete next step (implement, evolve, regenerate the SVG)
+  rather than ending the turn at "done".
+- `/archik:suggest`, `/archik:spawn`, and `/archik:evolve` slash
+  commands now call `npx archik schema` as an explicit step
+  before authoring the draft, so the YAML is built against the
+  actual shape rather than from intuition. Each also prompts for
+  a follow-up at the end ("implement / evolve / regenerate svg").
 
 ### Added
 - Project-local runtime state at `.archik/runtime.json`. `archik
@@ -241,7 +268,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/bacharSalleh/archik/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/bacharSalleh/archik/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/bacharSalleh/archik/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bacharSalleh/archik/compare/v0.7.0...v0.7.1

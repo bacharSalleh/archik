@@ -74,7 +74,16 @@ any file under `.archik/`.
    the highest-impact subset and tell the user the rest is round
    two.
 
-4. **Author + stage in one step.** Pipe the full proposed
+4. **Lock in the schema before authoring.** Run this once so you
+   draft against the actual shape, not from intuition:
+   ```
+   npx archik schema
+   ```
+   Note which fields are arrays vs strings; every edge needs an
+   `id`. Validation errors on the first attempt are almost always
+   one of these two patterns.
+
+5. **Author + stage in one step.** Pipe the full proposed
    end-state directly into `npx archik suggest set -` via a
    heredoc — no temp files, no `/tmp/` paths:
 
@@ -100,7 +109,7 @@ any file under `.archik/`.
    If `suggest set` reports validation errors, re-run with the
    corrected YAML. Never patch the sidecar directly.
 
-5. **Open the discussion.** Print, in this order:
+6. **Open the discussion.** Print, in this order:
 
    a. The canvas URL with: *"📝 Evolved diagram staged — open
       <URL> and toggle Review to see green / red / amber overlays."*
