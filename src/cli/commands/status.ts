@@ -1,7 +1,13 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { bold, cyan, dim, gray } from "../colors.ts";
-import { daemonDir, isAlive, readState, removeState } from "../daemon.ts";
+import {
+  daemonDir,
+  isResponsive,
+  readState,
+  removeState,
+  type DaemonState,
+} from "../daemon.ts";
 import type { ParsedOptions } from "../options.ts";
 
 export async function statusCommand(_opts: ParsedOptions): Promise<number> {
@@ -13,6 +19,24 @@ export async function statusCommand(_opts: ParsedOptions): Promise<number> {
     // no daemon dir yet — nothing running
   }
 
+  // Probe every state file in parallel. PID-only liveness can be a
+  // false positive (PID reuse, dead dev server but lingering parent),
+  // so we ground-truth with an HTTP HEAD on the recorded URL — if it
+  // doesn't answer, the entry is stale and we drop it from disk.
+  const candidates: Array<{ stateFile: string; state: DaemonState }> = [];
+  for (const f of files) {
+    const stateFile = path.join(dir, f);
+    const state = readState(stateFile);
+    if (state) candidates.push({ stateFile, state });
+  }
+  const probes = await Promise.all(
+    candidates.map(async ({ stateFile, state }) => ({
+      stateFile,
+      state,
+      alive: await isResponsive(state),
+    })),
+  );
+
   const running: Array<{
     pid: number;
     url: string;
@@ -21,11 +45,8 @@ export async function statusCommand(_opts: ParsedOptions): Promise<number> {
     logFile: string;
   }> = [];
 
-  for (const f of files) {
-    const stateFile = path.join(dir, f);
-    const state = readState(stateFile);
-    if (!state) continue;
-    if (!isAlive(state)) {
+  for (const { stateFile, state, alive } of probes) {
+    if (!alive) {
       removeState(stateFile);
       continue;
     }

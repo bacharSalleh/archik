@@ -148,6 +148,44 @@ export function isAlive(state: Pick<DaemonState, "pid" | "startedAt">): boolean 
 }
 
 /**
+ * HTTP-probe the recorded URL with a short timeout. Returns true on
+ * any HTTP response (2xx, 3xx, 4xx, 5xx — the server is *answering*),
+ * false on timeout / connection refused / DNS error / abort.
+ *
+ * Used by `isResponsive` to ground-truth liveness: the PID check
+ * tells us a process owns the slot, but the HTTP probe tells us the
+ * dev server is actually serving on the port we wrote down. The
+ * canonical false-positive of `isAlive` alone is "the parent node
+ * process lingers but the dev server died" or "the PID got recycled
+ * by an unrelated process within the start-time window".
+ */
+async function probeUrl(url: string, timeoutMs = 1500): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await fetch(url, { method: "HEAD", signal: controller.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * `isAlive` plus an HTTP probe of the recorded URL. Use this when
+ * the answer needs to be ground-truth correct (e.g. `archik
+ * status`); fall back to `isAlive` when speed matters more (e.g.
+ * inside `acquireLock`'s retry loop).
+ */
+export async function isResponsive(state: DaemonState): Promise<boolean> {
+  if (!isAlive(state)) return false;
+  const url = state.urls?.local?.[0];
+  if (!url) return true; // no URL on record — trust the PID check
+  return probeUrl(url);
+}
+
+/**
  * Atomically claim the state file. Uses O_EXCL so two processes
  * racing for the lock can't both succeed. If the file already
  * exists but its owner is dead, clears it and retries.
