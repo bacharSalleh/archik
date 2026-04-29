@@ -1,4 +1,4 @@
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { getString, type ParsedOptions } from "../options.ts";
@@ -9,6 +9,11 @@ export type SkillScope = "project" | "user";
 export type InstallSkillResult =
   | { ok: true; target: string; scope: SkillScope }
   | { ok: false; reason: "exists"; target: string }
+  | { ok: false; reason: "missing-source"; source: string };
+
+export type InstallCommandsResult =
+  | { ok: true; targetDir: string; copied: string[]; scope: SkillScope }
+  | { ok: false; reason: "exists"; existing: string[]; targetDir: string }
   | { ok: false; reason: "missing-source"; source: string };
 
 export async function installSkill(args: {
@@ -56,6 +61,72 @@ export async function installSkill(args: {
   await mkdir(targetDir, { recursive: true });
   await copyFile(source, target);
   return { ok: true, target, scope: args.scope };
+}
+
+/**
+ * Install the bundled `/archik:*` slash commands into the user's
+ * `.claude/commands/archik/` directory. The slash commands are pure
+ * shims over the `npx archik` CLI; their job is to give the user a
+ * one-keystroke way to trigger the CLI-mediated workflow Claude
+ * follows under the skill.
+ *
+ * Source layout (in this package): `.claude/commands/archik/*.md`
+ * Target layout (project): `<scope>/.claude/commands/archik/*.md`
+ */
+export async function installCommands(args: {
+  scope: SkillScope;
+  force: boolean;
+}): Promise<InstallCommandsResult> {
+  const sourceDir = path.join(
+    pkgRoot(),
+    ".claude",
+    "commands",
+    "archik",
+  );
+  let entries: string[];
+  try {
+    entries = (await readdir(sourceDir)).filter((f) => f.endsWith(".md"));
+  } catch {
+    return { ok: false, reason: "missing-source", source: sourceDir };
+  }
+  if (entries.length === 0) {
+    return { ok: false, reason: "missing-source", source: sourceDir };
+  }
+
+  const commandsBase =
+    args.scope === "user"
+      ? path.join(os.homedir(), ".claude", "commands")
+      : path.resolve(".claude", "commands");
+  const targetDir = path.join(commandsBase, "archik");
+
+  // Without --force, refuse if any of the target files already exist.
+  // Reporting which ones lets the user decide whether to overwrite
+  // selectively (by deleting first) or pass --force.
+  if (!args.force) {
+    const existing: string[] = [];
+    for (const file of entries) {
+      try {
+        await stat(path.join(targetDir, file));
+        existing.push(file);
+      } catch {
+        // missing — fine
+      }
+    }
+    if (existing.length > 0) {
+      return { ok: false, reason: "exists", existing, targetDir };
+    }
+  }
+
+  await mkdir(targetDir, { recursive: true });
+  const copied: string[] = [];
+  for (const file of entries) {
+    await copyFile(
+      path.join(sourceDir, file),
+      path.join(targetDir, file),
+    );
+    copied.push(file);
+  }
+  return { ok: true, targetDir, copied, scope: args.scope };
 }
 
 export async function skillCommand(opts: ParsedOptions): Promise<number> {
