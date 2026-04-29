@@ -26,10 +26,11 @@ queues, agents, LLMs, the edges between them. Plain YAML, schema-
 validated, no coordinates, no proprietary format.
 
 Open it in your browser for a live canvas. Render it in CI for a
-self-contained SVG. Install the [Claude Code skill](#for-claude-code--other-llms)
-so the model edits the same file you do — *the diagram and the
-codebase stop drifting because Claude treats the diagram as the
-spec*.
+self-contained SVG. The [Claude Code skill and `/archik:*` slash
+commands](#for-claude-code--other-llms) install automatically with
+`archik init`, so the model edits the same file you do — *the
+diagram and the codebase stop drifting because Claude treats the
+diagram as the spec*.
 
 If you've ever asked an AI agent "where would I add X?" and watched
 it guess from filenames, archik is the fix: the YAML answers the
@@ -39,7 +40,8 @@ work.
 ## Quickstart
 
 ```bash
-npx archik init       # scaffold .archik/main.archik.yaml in cwd
+npx archik init       # scaffolds .archik/main.archik.yaml AND installs the
+                      # Claude skill + /archik:* slash commands by default
 npx archik start      # canvas at http://localhost:5173 (background)
 npx archik stop       # done
 ```
