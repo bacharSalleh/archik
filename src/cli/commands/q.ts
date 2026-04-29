@@ -44,22 +44,37 @@ async function loadAll(opts: ParsedOptions): Promise<LoadResult> {
   }
   const base = projectRoot(abs);
   const result = await discoverDocs(abs, base);
-  if (result.errors.length > 0 && result.docs.length === 0) {
+
+  // Root must load. If it didn't, we'd silently miss every node that
+  // lives in the root file — the most common case is "all of them" —
+  // and report empty results as if the diagram had no such nodes.
+  // Treat as fatal even when sub-files parsed fine.
+  const rootError = result.errors.find((e) => e.abs === abs);
+  if (rootError !== undefined) {
+    console.error(`${cross()} ${rootError.relPath}: ${rootError.message}`);
+    return { ok: false, exit: 2 };
+  }
+  if (result.docs.length === 0) {
     for (const e of result.errors) {
       console.error(`${cross()} ${e.relPath}: ${e.message}`);
     }
     return { ok: false, exit: 2 };
   }
-  // Non-fatal: parse errors on sub-files don't blind the whole query.
-  // Surface them on stderr so they're visible without polluting stdout.
+  // Sub-file parse errors are non-fatal — they're optional architecture
+  // detail. Surface them on stderr so they're visible without polluting
+  // stdout JSON output.
   for (const e of result.errors) {
     console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
   }
   return { ok: true, docs: result.docs };
 }
 
-const isJson = (opts: ParsedOptions): boolean =>
-  getString(opts, "json") === "true";
+/** Match the lenient form used by validate/diff/suggest so `--json`,
+ *  `--json=true`, and `--json=1` all enable JSON mode. */
+const isJson = (opts: ParsedOptions): boolean => {
+  const v = getString(opts, "json");
+  return v !== undefined && v !== "false" && v !== "0";
+};
 
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
@@ -90,6 +105,10 @@ SUBCOMMANDS
 OUTPUT
   Default: human-readable text.
   --json   stable structured output for agents (object on stdout).
+
+GLOBAL FLAGS
+  --doc <path>   query a non-default archik file (defaults to
+                 .archik/main.archik.yaml or architecture.archik.yaml)
 
 EXIT CODES
   0  query found a result
@@ -185,20 +204,24 @@ async function qDeps(opts: ParsedOptions): Promise<number> {
     return 1;
   }
   const result = deps(load.docs, id);
+  // Exit code reflects the data, not the format — agents and shell
+  // scripts must see the same "found / empty" signal regardless of --json.
+  const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {
     printJson({
       ok: true,
       id,
+      count: result.length,
       edges: result.map((e) => ({ edge: e.edge, file: e.relPath })),
     });
-    return 0;
+    return exit;
   }
   if (result.length === 0) {
     console.log(`${tick()} ${id} has no outgoing edges`);
-    return 1;
+    return exit;
   }
   for (const e of result) console.log(fmtEdge(e));
-  return 0;
+  return exit;
 }
 
 async function qDependents(opts: ParsedOptions): Promise<number> {
@@ -219,20 +242,22 @@ async function qDependents(opts: ParsedOptions): Promise<number> {
     return 1;
   }
   const result = dependents(load.docs, id);
+  const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {
     printJson({
       ok: true,
       id,
+      count: result.length,
       edges: result.map((e) => ({ edge: e.edge, file: e.relPath })),
     });
-    return 0;
+    return exit;
   }
   if (result.length === 0) {
     console.log(`${tick()} ${id} has no incoming edges`);
-    return 1;
+    return exit;
   }
   for (const e of result) console.log(fmtEdge(e));
-  return 0;
+  return exit;
 }
 
 async function qList(opts: ParsedOptions): Promise<number> {
@@ -246,20 +271,21 @@ async function qList(opts: ParsedOptions): Promise<number> {
   if (parent !== undefined) filters.parent = parent;
   if (file !== undefined) filters.file = file;
   const result = listNodes(load.docs, filters);
+  const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {
     printJson({
       ok: true,
       count: result.length,
       nodes: result.map((n) => ({ node: n.node, file: n.relPath })),
     });
-    return 0;
+    return exit;
   }
   if (result.length === 0) {
     console.log(`${tick()} no nodes match`);
-    return 1;
+    return exit;
   }
   for (const n of result) console.log(fmtNodeRow(n));
-  return 0;
+  return exit;
 }
 
 async function qEdges(opts: ParsedOptions): Promise<number> {
@@ -273,20 +299,21 @@ async function qEdges(opts: ParsedOptions): Promise<number> {
   if (to !== undefined) filters.to = to;
   if (rel !== undefined) filters.rel = rel as Relationship;
   const result = listEdges(load.docs, filters);
+  const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {
     printJson({
       ok: true,
       count: result.length,
       edges: result.map((e) => ({ edge: e.edge, file: e.relPath })),
     });
-    return 0;
+    return exit;
   }
   if (result.length === 0) {
     console.log(`${tick()} no edges match`);
-    return 1;
+    return exit;
   }
   for (const e of result) console.log(fmtEdge(e));
-  return 0;
+  return exit;
 }
 
 async function qImpact(opts: ParsedOptions): Promise<number> {
