@@ -6,6 +6,7 @@ import {
   projectStatePath,
   readProjectState,
   removeProjectState,
+  runtimeStateFromDaemonState,
   writeProjectState,
 } from "./projectState.ts";
 
@@ -154,5 +155,72 @@ describe("projectState", () => {
     const read = await readProjectState(docPath);
     expect(read?.pid).toBe(2);
     expect(read?.port).toBe(5174);
+  });
+});
+
+/**
+ * Reconstruct a project-runtime entry from the tmpdir DaemonState. Used
+ * when `runtime.json` was deleted out from under a running daemon (e.g.
+ * `git clean -fdX` matching the gitignore line) — `archik status` heals
+ * the gap by rebuilding the file from the canonical tmpdir state.
+ *
+ * The transform is pure: only deals with the field mapping and URL
+ * parsing. The calling code in status.ts owns the alive-check and the
+ * write-back to disk.
+ */
+describe("runtimeStateFromDaemonState", () => {
+  const baseDaemon = {
+    pid: 12345,
+    docPath: "/tmp/proj/.archik/main.archik.yaml",
+    logFile: "/tmp/log",
+    startedAt: "2026-04-29T10:00:00Z",
+    urls: { local: ["http://127.0.0.1:5173/"], network: [] },
+  };
+
+  it("maps daemon URL + pid + startedAt to a runtime entry", () => {
+    expect(runtimeStateFromDaemonState(baseDaemon)).toEqual({
+      pid: 12345,
+      port: 5173,
+      host: "127.0.0.1",
+      url: "http://127.0.0.1:5173/",
+      startedAt: "2026-04-29T10:00:00Z",
+    });
+  });
+
+  it("parses port from a localhost URL", () => {
+    const result = runtimeStateFromDaemonState({
+      ...baseDaemon,
+      urls: { local: ["http://localhost:4173/"], network: [] },
+    });
+    expect(result?.port).toBe(4173);
+    expect(result?.host).toBe("localhost");
+  });
+
+  it("returns null when there is no local URL recorded", () => {
+    expect(
+      runtimeStateFromDaemonState({
+        ...baseDaemon,
+        urls: { local: [], network: [] },
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null when the recorded URL is unparseable", () => {
+    expect(
+      runtimeStateFromDaemonState({
+        ...baseDaemon,
+        urls: { local: ["not a url"], network: [] },
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null when the URL has no port", () => {
+    // No explicit port and not http/https default — can't recover one.
+    expect(
+      runtimeStateFromDaemonState({
+        ...baseDaemon,
+        urls: { local: ["ftp://example/"], network: [] },
+      }),
+    ).toBeNull();
   });
 });
