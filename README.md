@@ -39,14 +39,25 @@ work.
 
 ## Quickstart
 
+Two terminal commands, then talk to Claude:
+
 ```bash
-npx archik init       # scaffolds .archik/main.archik.yaml AND installs the
-                      # Claude skill + /archik:* slash commands by default
-npx archik start      # canvas at http://localhost:5173 (background)
-npx archik stop       # done
+npx archik@latest init       # scaffolds .archik/main.archik.yaml +
+                             # installs the Claude skill + /archik:* slash commands
+npx archik@latest start      # opens the live canvas at http://localhost:5173
 ```
 
-That's the whole onboarding. The canvas saves edits straight back to the YAML; the file is the truth, the canvas is a projection.
+Then in Claude Code, type:
+
+```
+/archik:spawn               # mirror your real source tree as the first diagram
+/archik:evolve              # propose a cleaner bounded-context refactor
+/archik:suggest <feature>   # propose changes for a specific feature
+```
+
+Each `/archik:*` command stages a suggestion sidecar — **Review** in the canvas, then **Accept** or **Reject**. No manual YAML editing on either side: you click in the browser, Claude drives through the CLI.
+
+Done with the canvas? `npx archik stop`.
 
 <p align="center">
   <video src="https://github.com/bacharSalleh/archik/raw/main/docs/record.mp4" poster="https://cdn.jsdelivr.net/gh/bacharSalleh/archik@main/docs/archik.gif" width="780" controls muted autoplay loop playsinline>
@@ -92,28 +103,49 @@ No `x` / `y` / `width` — layout is computed by [ELK](https://eclipse.dev/elk/)
 - **12 relationships** with distinct visual styling — `http_call`, `invokes`, `reads`, `writes`, `publishes`, `subscribes`, `streams_to`, `routes_to`, `implements`, `depends_on`, `has_a`, `uses`.
 - **Drag-to-connect, multi-select, undo/redo, compact view, themed (dark / light), notes per node, color overrides on edges.**
 - **CI-ready CLI** — `validate`, `render` (headless SVG), `watch`, `check` (drift between YAML and source dirs).
-- **AI skill + slash commands** — `archik skill --user` installs the Claude Code skill; `archik commands --user` installs `/archik:suggest`, `/archik:accept`, `/archik:reject`, `/archik:describe`, and `/archik:dev` so Claude drives the diagram entirely through the CLI.
+- **AI skill + slash commands** — `archik init` installs both automatically. Seven `/archik:*` commands (`spawn`, `evolve`, `suggest`, `describe`, `dev`, `accept`, `reject`) drive the diagram entirely through the CLI, so Claude never edits YAML by hand.
 
 ## For Claude Code & other LLMs
 
-The whole reason Archik uses YAML instead of a binary format: **the file is the shared map between you and the model**. Run:
+The whole reason archik uses YAML instead of a binary format: **the file is the shared map between you and the model**. `npx archik@latest init` drops both the Claude skill and the seven slash commands into your project — no separate setup.
+
+The skill enforces a hard rule: **Claude talks to archik only through the `npx archik` CLI** — never `Read`, `Write`, or `Edit` on a YAML directly. Queries go through `npx archik q`, suggestions through `npx archik suggest set`, lifecycle through `npx archik suggest accept | reject`. You own the file; the CLI is the contract.
+
+### The seven slash commands
+
+| Command                     | What it does                                                |
+| --------------------------- | ----------------------------------------------------------- |
+| `/archik:spawn`             | Bootstrap a diagram by mirroring your real source tree      |
+| `/archik:evolve`            | Propose a cleaner bounded-context refactor                  |
+| `/archik:suggest <feature>` | Propose changes for a specific feature                      |
+| `/archik:describe <id>`     | Explain a node and its connections                          |
+| `/archik:dev`               | Open the live canvas                                        |
+| `/archik:accept`            | Apply the pending suggestion                                |
+| `/archik:reject`            | Discard the pending suggestion                              |
+
+A typical first-day flow:
+
+```
+/archik:spawn                     # mirror what's there now
+                                  #   → review on the canvas, accept
+/archik:evolve                    # propose a cleaner shape
+                                  #   → discuss with Claude, accept (or iterate)
+/archik:suggest add Stripe webhook handler
+                                  #   → small, targeted change
+```
+
+Each command stages a sidecar via `npx archik suggest set`. The canvas shows a green/red/amber diff overlay; you click Accept or Reject — or `/archik:accept` / `/archik:reject` from the terminal. Same outcome either way.
+
+### Manual install (existing projects without `archik init`)
+
+If you already have an archik file and just want to add the Claude integration:
 
 ```bash
-archik skill --user        # install the skill into ~/.claude/skills
-archik commands --user     # install the /archik:* slash commands into ~/.claude/commands
+npx archik@latest skill --user        # install skill into ~/.claude/skills (all projects)
+npx archik@latest commands --user     # install /archik:* into ~/.claude/commands (all projects)
 ```
 
-(Or just `archik init` in a fresh project — both land automatically.)
-
-The skill enforces a hard rule: **Claude interacts with archik only through the `npx archik` CLI** — never `Read`, `Write`, or `Edit` on a YAML directly. Queries go through `npx archik q`, suggestions through `npx archik suggest set`, lifecycle through `npx archik suggest accept | reject`. The user owns the file; the CLI is the contract.
-
-Day-to-day this looks like:
-
-```
-/archik:suggest add a payments worker that subscribes to the orders queue
-```
-
-Claude grounds itself with `npx archik q stats`, drafts a full proposal in a temp file, runs `npx archik suggest set` to stage it as the canonical sidecar, and surfaces the canvas URL so you can review the diff overlay and Accept/Reject in the browser. No manual YAML edits, no chance of the canvas and the file disagreeing.
+Drop the `--user` flag to scope to the current project only.
 
 ## Commands
 
