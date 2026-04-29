@@ -1,5 +1,5 @@
 ---
-description: Bootstrap the diagram from the source tree
+description: Mirror the source tree as a diagram
 ---
 
 # /archik:spawn — mirror the codebase as an archik diagram
@@ -102,27 +102,40 @@ archik suggest set` stages it.
    When in doubt, leave the edge out. The user will add it via
    `/archik:suggest` later.
 
-7. **Stage the draft.** Write the full proposed end-state to
-   `/tmp/archik-spawn-<short-id>.yaml`. If you generated sub-files,
-   write each one to its own temp file (`/tmp/archik-spawn-<sub>-<id>.yaml`)
-   and `suggest set` them too — but only the main file becomes a
-   sidecar. The sub-files need to live at their final
-   `.archik/<id>.archik.yaml` paths *before* you stage the main
-   draft, otherwise cross-file validation fails. So:
+7. **Stage the draft.** Pipe the YAML straight into `npx archik
+   suggest set -` via a heredoc — no temp files, no `/tmp/` paths.
+   For sub-files, do them first; the main draft references them
+   via `archikFile`, so they need to exist on disk before the main
+   draft validates.
 
-   a. For each `archikFile: .archik/<id>.archik.yaml` you reference,
-      stage that sub-file first with its own
-      `npx archik suggest set` … then accept it immediately
-      (`npx archik suggest accept`) so the file is on disk under
-      `.archik/<id>.archik.yaml`. Yes, this is a chain of
-      micro-commits — that's the only CLI-blessed way to land
-      sub-files.
-   b. After all sub-files exist, stage the main draft:
+   a. **Each sub-file**: stage with `suggest set -`, then accept
+      it so the file lands at `.archik/<id>.archik.yaml`:
+      ```bash
+      npx archik suggest set --main .archik/<id>.archik.yaml \
+                             --note "spawn: <id> internals" - <<'YAML'
+      version: "1.0"
+      name: <Id> Internals
+      nodes: [ ... ]
+      edges: [ ... ]
+      YAML
+      npx archik suggest accept .archik/<id>.archik.yaml
       ```
-      npx archik suggest set --note "spawn: mirror source tree" /tmp/archik-spawn-<id>.yaml
+      Repeat for every sub-file you reference.
+
+   b. **Main draft**: once all sub-files exist, stage the main one:
+      ```bash
+      npx archik suggest set --note "spawn: mirror source tree" - <<'YAML'
+      version: "1.0"
+      name: My Architecture
+      nodes:
+        # full proposed end-state, with archikFile pointers
+      edges:
+        # ...
+      YAML
       ```
-   c. If `suggest set` reports validation errors, fix the temp
-      file and re-run. Never edit the sidecar by hand.
+
+   c. If `suggest set` reports validation errors, re-run with the
+      corrected YAML. Never edit the sidecar by hand.
 
 8. **Tell the user how to review.** Surface the canvas URL plus:
    - "📝 Initial diagram staged from source tree — open the

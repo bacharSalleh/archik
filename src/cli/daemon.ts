@@ -148,6 +148,76 @@ export function isAlive(state: Pick<DaemonState, "pid" | "startedAt">): boolean 
 }
 
 /**
+ * Whether a URL points at a loopback host we're willing to probe.
+ *
+ * Daemon URLs are always loopback by construction — `devServer`
+ * converts `--host 0.0.0.0` to `localhost` when it builds the URL
+ * to advertise, and the default bind address is `127.0.0.1`. So a
+ * legitimately-written state file always passes this check. Anything
+ * else (a tampered state file, a future change that broadens the
+ * advertised URL) is treated as untrusted and we skip the probe to
+ * avoid a file-controlled outbound request — flagged by CodeQL as
+ * SSRF.
+ */
+function isLoopbackProbeUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "[::1]" ||
+      host === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * HTTP-probe a *known-loopback* URL with a short timeout. Returns
+ * true on any HTTP response (2xx, 3xx, 4xx, 5xx — the server is
+ * *answering*), false on timeout / connection refused / abort.
+ *
+ * The caller MUST gate this on `isLoopbackProbeUrl` — `fetch` here
+ * is intentionally fed only loopback hosts so a file-controlled
+ * URL can never produce an outbound request to an attacker-chosen
+ * destination.
+ */
+async function probeLoopback(url: string, timeoutMs = 1500): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await fetch(url, { method: "HEAD", signal: controller.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * `isAlive` plus an HTTP probe of the recorded URL. Use this when
+ * the answer needs to be ground-truth correct (e.g. `archik
+ * status`); fall back to `isAlive` when speed matters more (e.g.
+ * inside `acquireLock`'s retry loop).
+ *
+ * The probe is restricted to loopback hosts — see
+ * `isLoopbackProbeUrl`. For any non-loopback URL on disk (which
+ * never happens with a legitimately-written state file), we skip
+ * the probe and trust the PID check.
+ */
+export async function isResponsive(state: DaemonState): Promise<boolean> {
+  if (!isAlive(state)) return false;
+  const url = state.urls?.local?.[0];
+  if (!url) return true; // no URL on record — trust the PID check
+  if (!isLoopbackProbeUrl(url)) return true; // refuse non-loopback probes
+  return probeLoopback(url);
+}
+
+/**
  * Atomically claim the state file. Uses O_EXCL so two processes
  * racing for the lock can't both succeed. If the file already
  * exists but its owner is dead, clears it and retries.

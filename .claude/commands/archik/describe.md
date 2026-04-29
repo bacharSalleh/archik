@@ -1,5 +1,5 @@
 ---
-description: Explain a node and its connections
+description: Show a node's connections
 argument-hint: <node-id>
 ---
 

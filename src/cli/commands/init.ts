@@ -118,11 +118,14 @@ function printNextSteps(
     console.log(magenta("Try this in Claude Code") + dim(" (the skill is already wired up):"));
     console.log("");
     if (commandsInstalled) {
+      console.log(cyan("  /archik:spawn"));
       console.log(
-        cyan("  /archik:suggest add a Stripe webhook handler"),
+        dim("    mirror your source tree as a first diagram (start here)"),
       );
+      console.log("");
+      console.log(cyan("  /archik:suggest add a Stripe webhook handler"));
       console.log(
-        dim("  Claude proposes the diagram update via the CLI; review on the canvas."),
+        dim("    propose a specific change for review on the canvas"),
       );
     } else {
       console.log(

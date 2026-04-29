@@ -1,6 +1,6 @@
 ---
-description: Propose a cleaner modular architecture
-argument-hint: [optional focus area, e.g. "payments domain"]
+description: Propose a cleaner modular refactor
+argument-hint: [optional focus area]
 ---
 
 # /archik:evolve — propose a cleaner, bounded architecture
@@ -74,9 +74,22 @@ any file under `.archik/`.
    the highest-impact subset and tell the user the rest is round
    two.
 
-4. **Author the full proposed end-state** in a workspace temp file:
-   `/tmp/archik-evolve-<short-id>.yaml`. Constraints:
+4. **Author + stage in one step.** Pipe the full proposed
+   end-state directly into `npx archik suggest set -` via a
+   heredoc — no temp files, no `/tmp/` paths:
 
+   ```bash
+   npx archik suggest set --note "evolve: <one-line summary>" - <<'YAML'
+   version: "1.0"
+   name: My Architecture
+   nodes:
+     # full proposed end-state — every node, not just the delta
+   edges:
+     # ...
+   YAML
+   ```
+
+   Constraints when authoring the YAML:
    - Preserve every existing node id you keep — only add or remove
      ids, never rename. Renames break diff and require the user to
      manually re-link references in code.
@@ -84,14 +97,10 @@ any file under `.archik/`.
      fields the user authored. Carry them over verbatim.
    - Every change should be motivated by step 3, not by aesthetics.
 
-5. **Stage the draft via the CLI**:
-   ```
-   npx archik suggest set --note "evolve: <one-line summary>" /tmp/archik-evolve-<id>.yaml
-   ```
-   Fix and re-run on validation errors. Never patch the sidecar
-   directly.
+   If `suggest set` reports validation errors, re-run with the
+   corrected YAML. Never patch the sidecar directly.
 
-6. **Open the discussion.** Print, in this order:
+5. **Open the discussion.** Print, in this order:
 
    a. The canvas URL with: *"📝 Evolved diagram staged — open
       <URL> and toggle Review to see green / red / amber overlays."*
@@ -110,9 +119,9 @@ any file under `.archik/`.
 ## Iterating
 
 If the user pushes back on specific items ("keep the orders
-service whole; only fix the Stripe integration"), update the
-draft in the same temp file and re-run `npx archik suggest set` —
-it overwrites the previous sidecar. Acknowledge what you changed
+service whole; only fix the Stripe integration"), re-run
+`npx archik suggest set -` with the revised YAML — it overwrites
+the previous sidecar. Acknowledge what you changed
 since the last round so the user doesn't have to re-read the
 whole diff.
 
