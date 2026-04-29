@@ -90,30 +90,36 @@ No `x` / `y` / `width` — layout is computed by [ELK](https://eclipse.dev/elk/)
 - **12 relationships** with distinct visual styling — `http_call`, `invokes`, `reads`, `writes`, `publishes`, `subscribes`, `streams_to`, `routes_to`, `implements`, `depends_on`, `has_a`, `uses`.
 - **Drag-to-connect, multi-select, undo/redo, compact view, themed (dark / light), notes per node, color overrides on edges.**
 - **CI-ready CLI** — `validate`, `render` (headless SVG), `watch`, `check` (drift between YAML and source dirs).
-- **AI skill** — `archik skill --user` installs a Claude Code skill that teaches Claude the schema, the protocol, and the verification workflow.
+- **AI skill + slash commands** — `archik skill --user` installs the Claude Code skill; `archik commands --user` installs `/archik:suggest`, `/archik:accept`, `/archik:reject`, `/archik:describe`, and `/archik:dev` so Claude drives the diagram entirely through the CLI.
 
 ## For Claude Code & other LLMs
 
 The whole reason Archik uses YAML instead of a binary format: **the file is the shared map between you and the model**. Run:
 
 ```bash
-archik skill --user        # install once into ~/.claude/skills
+archik skill --user        # install the skill into ~/.claude/skills
+archik commands --user     # install the /archik:* slash commands into ~/.claude/commands
 ```
 
-…and Claude Code in any project gets the right vocabulary automatically. The skill defines a 3-rule protocol:
+(Or just `archik init` in a fresh project — both land automatically.)
 
-1. **Read** `architecture.archik.yaml` before answering structural questions.
-2. **Propose** YAML updates whenever new work introduces or rewires components.
-3. **Run `archik validate`** after every edit to fail fast on schema errors.
+The skill enforces a hard rule: **Claude interacts with archik only through the `npx archik` CLI** — never `Read`, `Write`, or `Edit` on a YAML directly. Queries go through `npx archik q`, suggestions through `npx archik suggest set`, lifecycle through `npx archik suggest accept | reject`. The user owns the file; the CLI is the contract.
 
-So conversations like *"add a payments worker that subscribes to the orders queue"* end with both the code change **and** the matching YAML diff — kept in sync without anyone having to remember.
+Day-to-day this looks like:
+
+```
+/archik:suggest add a payments worker that subscribes to the orders queue
+```
+
+Claude grounds itself with `npx archik q stats`, drafts a full proposal in a temp file, runs `npx archik suggest set` to stage it as the canonical sidecar, and surfaces the canvas URL so you can review the diff overlay and Accept/Reject in the browser. No manual YAML edits, no chance of the canvas and the file disagreeing.
 
 ## Commands
 
 ```
 archik init [path]       Scaffold a starter .archik/main.archik.yaml
-                         (also installs the Claude skill by default)
+                         (also installs the Claude skill + /archik:* slash commands by default)
                          --no-skill       skip installing the Claude skill
+                         --no-commands    skip installing the /archik:* slash commands
 
 archik dev [path]        Open the canvas in your browser (foreground, Ctrl+C to stop)
 archik start [path]      Same as dev, but detached — prompt returns immediately
@@ -130,9 +136,22 @@ archik render [path]     Render to a self-contained SVG file
                          --theme <name>   "dark" (default) or "light"
 archik watch [path]      Re-render to SVG on every file change (Ctrl+C to stop)
 
+archik suggest [sub]     Manage Claude's pending architecture suggestion
+                         show             summarise the pending sidecar (default; --json supported)
+                         set <draft>      validate a draft YAML and stage it as the sidecar
+                                          --note '<text>'  set metadata.suggestion.note
+                                          --main <path>    override main file detection
+                                          --json           structured output
+                                          -                read draft from stdin
+                         accept           apply the sidecar over the main file
+                         reject           discard the sidecar
+
 archik skill             Install the Claude skill for AI editing
                          --user           install into ~/.claude/skills (all projects)
                          --force          overwrite an existing skill
+archik commands          Install the /archik:* slash commands for Claude Code
+                         --user           install into ~/.claude/commands (all projects)
+                         --force          overwrite existing commands
 ```
 
 Without a `[path]` argument, archik resolves the file in this order:

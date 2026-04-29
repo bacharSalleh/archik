@@ -3,7 +3,12 @@ import path from "node:path";
 import { arrow, bold, cross, cyan, dim, gray, magenta, tick } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { resolveInitTarget } from "../resolveDocPath.ts";
-import { installSkill, type InstallSkillResult } from "./skill.ts";
+import {
+  installCommands,
+  installSkill,
+  type InstallCommandsResult,
+  type InstallSkillResult,
+} from "./skill.ts";
 
 const STARTER = `version: "1.0"
 name: My Architecture
@@ -68,16 +73,40 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
     }
   }
 
-  printNextSteps(file, skillResult);
+  // Slash commands ship alongside the skill so `/archik:suggest` and
+  // friends light up in the slash menu without a second install step.
+  // Same opt-out + non-fatal failure semantics as the skill.
+  let commandsResult: InstallCommandsResult | null = null;
+  if (getString(opts, "no-commands") !== "true") {
+    commandsResult = await installCommands({ scope: "project", force: false });
+    if (commandsResult.ok) {
+      console.log(
+        `${tick()} Installed ${commandsResult.copied.length} slash commands → ${dim(commandsResult.targetDir)}`,
+      );
+    } else if (commandsResult.reason === "exists") {
+      console.log(
+        `${gray("•")} Slash commands already present at ${dim(commandsResult.targetDir)} ${dim("(refresh with `archik commands --force`)")}`,
+      );
+    } else {
+      console.error(
+        `${cross()} Commands source missing at ${dim(commandsResult.source)} — continuing without it.`,
+      );
+    }
+  }
+
+  printNextSteps(file, skillResult, commandsResult);
   return 0;
 }
 
 function printNextSteps(
   file: string,
   skill: InstallSkillResult | null,
+  commands: InstallCommandsResult | null,
 ): void {
   const skillInstalled =
     skill !== null && (skill.ok || skill.reason === "exists");
+  const commandsInstalled =
+    commands !== null && (commands.ok || commands.reason === "exists");
   console.log("");
   console.log(bold("Next:"));
   console.log(`  ${arrow()} ${bold("archik start")}     ${dim("open the live canvas")}`);
@@ -88,15 +117,24 @@ function printNextSteps(
     console.log("");
     console.log(magenta("Try this in Claude Code") + dim(" (the skill is already wired up):"));
     console.log("");
-    console.log(
-      cyan("  Read " + file + " then scan this codebase and propose 3-5"),
-    );
-    console.log(
-      cyan("  nodes / edges that better capture the actual structure."),
-    );
-    console.log(
-      cyan("  Update the YAML and run `archik validate` to confirm."),
-    );
+    if (commandsInstalled) {
+      console.log(
+        cyan("  /archik:suggest add a Stripe webhook handler"),
+      );
+      console.log(
+        dim("  Claude proposes the diagram update via the CLI; review on the canvas."),
+      );
+    } else {
+      console.log(
+        cyan("  Read " + file + " then scan this codebase and propose 3-5"),
+      );
+      console.log(
+        cyan("  nodes / edges that better capture the actual structure."),
+      );
+      console.log(
+        cyan("  Update the YAML and run `archik validate` to confirm."),
+      );
+    }
     console.log("");
   } else {
     console.log("");
