@@ -71,6 +71,53 @@ describe("validateDocument", () => {
       expect(result.errors.some((e) => e.path.includes("viewport"))).toBe(true);
     }
   });
+
+  it("appends an array hint when `notes` is a single string", () => {
+    // Most common Claude mistake on first-attempt YAML — wrap the
+    // single string and produce a teaching hint that names the
+    // schema CLI for the full picture.
+    const result = validateDocument({
+      ...validDoc,
+      nodes: [
+        {
+          id: "api",
+          kind: "service",
+          name: "API",
+          notes: "single string instead of array",
+        },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const err = result.errors.find((e) => e.path === "nodes.0.notes");
+      expect(err).toBeDefined();
+      expect(err?.message).toMatch(/expected array/i);
+      expect(err?.message).toContain("hint:");
+      expect(err?.message).toContain("notes is an array");
+      expect(err?.message).toContain("npx archik schema");
+    }
+  });
+
+  it("appends an edge.id hint when an edge omits its id", () => {
+    // The other canonical first-attempt mistake — Claude forgets
+    // `id` on edges. The hint points at the schema CLI.
+    const result = validateDocument({
+      ...validDoc,
+      nodes: [
+        { id: "a", kind: "service", name: "A" },
+        { id: "b", kind: "service", name: "B" },
+      ],
+      edges: [{ from: "a", to: "b", relationship: "writes" }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const err = result.errors.find((e) => e.path === "edges.0.id");
+      expect(err).toBeDefined();
+      expect(err?.message).toContain("hint:");
+      expect(err?.message).toContain("every edge requires an `id`");
+      expect(err?.message).toContain("npx archik schema");
+    }
+  });
 });
 
 describe("checkCrossFileReferences", () => {

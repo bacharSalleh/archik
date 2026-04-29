@@ -43,7 +43,18 @@ the contract with the user.
    If `$ARGUMENTS` mentions a specific node by name, also run
    `npx archik q describe <id>` for it.
 
-3. **Author + stage in one step.** Pipe the draft straight into
+3. **Lock in the schema.** Run this before drafting any YAML —
+   the prose in this file describes the workflow, not the field
+   shapes. The CLI is the schema:
+   ```
+   npx archik schema
+   ```
+   Pay attention to which fields are arrays (`notes`,
+   `responsibilities`, `interfaces`) and which are required
+   strings (every edge needs an `id`). Authoring from intuition
+   produces predictable validation errors.
+
+4. **Author + stage in one step.** Pipe the draft straight into
    `npx archik suggest set -` via a heredoc — no temp file, no
    `/tmp/` paths. The CLI validates the schema, checks cross-file
    references, stamps `metadata.suggestion`, and atomically writes
@@ -64,12 +75,17 @@ the contract with the user.
    Never write a draft file under `.archik/` and never edit the
    sidecar directly.
 
-4. **Tell the user how to review**. Surface the canvas URL from
-   step 1 plus the terminal options:
+5. **Tell the user how to review and what's next**. Surface the
+   canvas URL from step 1 plus the terminal options, then offer a
+   concrete follow-up:
    - "📝 Suggestion ready — open the canvas at <URL> and use the
      **Review** banner to see added/removed/changed nodes."
    - "Or from the terminal: `npx archik suggest show` /
      `npx archik suggest accept` / `npx archik suggest reject`."
+   - One follow-up sentence picking from: implement the new
+     node(s) in code, run `/archik:evolve` if the change exposed
+     architectural smells, regenerate `docs/architecture.svg` if
+     the project commits one. Don't end the turn at "done".
 
 ## Notes
 

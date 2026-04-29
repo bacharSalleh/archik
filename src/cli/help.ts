@@ -161,6 +161,30 @@ NOTES
   editing — watch is for "render to disk on save" workflows.
 `,
 
+  schema: `archik schema — print the document schema in agent-readable form
+
+USAGE
+  archik schema
+  archik schema --json
+
+FLAGS
+  --json             structured shape: { document, node, edge, kinds, ... }
+
+NOTES
+  Single source of truth for what a valid Archik document looks
+  like — every field's name, type, and "is it an array?" status,
+  plus the full list of node kinds and relationships.
+
+  Run this BEFORE authoring a YAML draft via \`suggest set\`. The
+  prose in the Claude skill describes the workflow, not the
+  schema; this command is the schema.
+
+EXAMPLES
+  archik schema
+  archik schema --json | jq '.kinds'
+  archik schema --json | jq '.edge[] | select(.required)'
+`,
+
   q: `archik q — query the diagram (agent-friendly, --json supported)
 
 USAGE

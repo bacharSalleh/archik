@@ -4,6 +4,7 @@ import path from "node:path";
 import { initCommand } from "./commands/init.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
+import { schemaCommand } from "./commands/schema.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
@@ -65,6 +66,8 @@ COMMANDS
                     edges              all edges (--from / --to / --rel)
                     impact <id>        what would break if removed
                     stats              counts by kind and relationship
+  schema            Print the document schema (kinds, relationships, fields)
+                    --json           structured shape for agents
   diff <a> <b>      Show what changed between two architecture YAMLs
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
@@ -132,6 +135,8 @@ async function main(): Promise<number> {
       return watchCommand(opts);
     case "q":
       return qCommand(opts);
+    case "schema":
+      return schemaCommand(opts);
     case "skill":
       return skillCommand(opts);
     case "commands":

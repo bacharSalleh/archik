@@ -56,6 +56,47 @@ function pathOf(parts: ReadonlyArray<PropertyKey>): string {
   return parts.length === 0 ? "<root>" : parts.map(String).join(".");
 }
 
+/**
+ * Hints layered on top of Zod's bare error message for shapes
+ * agents repeatedly get wrong on first attempt. The hints are
+ * additive (the original Zod message is preserved); they're a
+ * teaching moment rather than a translation.
+ *
+ * If you add hints here, also reflect the same advice in
+ * `archik schema` so the proactive read and the reactive validate
+ * agree.
+ */
+function hintFor(
+  path: ReadonlyArray<PropertyKey>,
+  message: string,
+): string | null {
+  const last = path[path.length - 1];
+  const expectsArray =
+    /expected array/i.test(message) && /received\s+string/i.test(message);
+  const missingRequired =
+    /received\s+undefined/i.test(message) ||
+    /required/i.test(message);
+
+  if (
+    expectsArray &&
+    (last === "notes" ||
+      last === "responsibilities" ||
+      last === "interfaces")
+  ) {
+    return `${String(last)} is an array — wrap your value, e.g. ${String(last)}: ['first', 'second']. Run \`npx archik schema\` for the full shape.`;
+  }
+  // edges.<n>.id missing → very common Claude mistake.
+  if (
+    missingRequired &&
+    last === "id" &&
+    path.length >= 2 &&
+    path[path.length - 3] === "edges"
+  ) {
+    return `every edge requires an \`id\` (kebab-case, unique within the document), e.g. id: api-writes-db. Run \`npx archik schema\` for the full Edge shape.`;
+  }
+  return null;
+}
+
 function toErrors(zerr: ZodError): ValidationError[] {
   return zerr.issues.flatMap((issue) => {
     if (issue.code === "unrecognized_keys") {
@@ -64,7 +105,10 @@ function toErrors(zerr: ZodError): ValidationError[] {
         message: `unrecognized key`,
       }));
     }
-    return [{ path: pathOf(issue.path), message: issue.message }];
+    const hint = hintFor(issue.path, issue.message);
+    const message =
+      hint === null ? issue.message : `${issue.message}\n    hint: ${hint}`;
+    return [{ path: pathOf(issue.path), message }];
   });
 }
 
