@@ -16,6 +16,26 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.7.6] - 2026-04-30
+
+### Added
+- Four FE-developer node kinds — `page`, `component`, `store`,
+  `hook`. The taxonomy used to collapse the entire client side
+  into a single `frontend` kind; now a React/Vue/Svelte app can
+  be modeled the way FE engineers think — pages (route-level
+  screens, rose), components (reusable UI, violet), stores
+  (client state, yellow), hooks (composable client logic,
+  teal). All four reuse the standard `ServiceNode` card and
+  earn their identity from the kind icon, color, and KIND
+  header label. The pre-existing `frontend` kind stays — still
+  the right choice for "the whole frontend system as one box"
+  in backend-focused diagrams.
+
+### Changed
+- `.archik/main.archik.yaml` — the `canvas` node moves from
+  `kind: frontend` to `kind: page` so the project's own
+  diagram exercises the new kind.
+
 ## [0.7.5] - 2026-04-29
 
 ### Changed
