@@ -91,6 +91,11 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   cloud: { width: 200, height: 120 }, // cumulus bumps need vertical headroom
   // UI
   frontend: CARD_SUBTITLE,
+  // Frontend (client-side)
+  page: CARD,
+  component: CARD,
+  store: CARD,
+  hook: CARD,
   // External
   external: { width: 184, height: 100 },
   // Structural
@@ -129,6 +134,10 @@ const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   observability: CHIP,
   cloud: CHIP,
   frontend: CHIP,
+  page: CHIP,
+  component: CHIP,
+  store: CHIP,
+  hook: CHIP,
   external: { width: 168, height: 40 },
   module: CHIP_CONTAINER,
   custom: CHIP_CONTAINER,

@@ -36,6 +36,11 @@ export const NODE_KINDS = [
   // ui / external
   "frontend",
   "external",
+  // frontend (client-side)
+  "page",
+  "component",
+  "store",
+  "hook",
   // structural
   "module",
   "custom",

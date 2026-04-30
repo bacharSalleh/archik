@@ -65,7 +65,7 @@ nodes:
     description: chokidar tail of the canonical YAML, its sidecar, and the project's .archik/ folder. Pushes archik:doc-changed / archik:suggestion-changed events to all SSE subscribers; sub-file edits flow through too.
     stack: chokidar
   - id: canvas
-    kind: frontend
+    kind: page
     name: Canvas
     description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth. Holds a navigation stack (drill-down via a node's `archikFile`, breadcrumbs to walk back) and toggles an in-canvas diff overlay for pending suggestions instead of opening a separate tab.
     stack: React + Vite (build-time only)
