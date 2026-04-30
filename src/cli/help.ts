@@ -306,4 +306,36 @@ NOTES
   /archik:spawn, /archik:evolve, /archik:suggest, /archik:describe,
   /archik:dev, /archik:accept, /archik:reject.
 `,
+
+  drift: `archik drift — detect when the diagram diverges from source code
+
+USAGE
+  archik drift [path]
+
+FLAGS
+  --json             structured output for agents (JSON)
+  --ignore <file>    custom ignore file (default: .archik/.driftignore)
+
+DESCRIPTION
+  Compares the archik YAML against the actual source tree and reports
+  mismatches. Two drift types are detected:
+
+    ORPHAN   — a node has a sourcePath but that path doesn't exist on disk.
+    UNMAPPED — a source directory exists but no node claims it.
+
+  Nodes with status "proposed" or "deprecated" are skipped.
+  Nodes without sourcePath are skipped (e.g. external services).
+
+  The .archik/.driftignore file lists glob patterns for directories to
+  exclude from unmapped detection (one per line, # comments).
+
+EXIT CODES
+  0 — no drift detected (diagram matches source tree)
+  1 — drift found (orphans or unmapped code)
+
+EXAMPLES
+  archik drift
+  archik drift --json
+  archik drift --ignore .archik/custom-ignore
+`,
 };

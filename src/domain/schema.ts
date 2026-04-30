@@ -2,6 +2,26 @@ import { z } from "zod";
 import { NodeKindSchema } from "./taxonomy.ts";
 import { RelationshipSchema } from "./relationships.ts";
 
+export const NodeStatusSchema = z.enum(["proposed", "active", "deprecated"]);
+
+/**
+ * Relative path from project root to a node's source code.
+ * Constraints: no leading `/`, no `..`, forward slashes only.
+ */
+export const SourcePathSchema = z
+  .string()
+  .min(1)
+  .refine((p) => !p.startsWith("/"), {
+    message: "sourcePath must be a relative path (no leading /)",
+  })
+  .refine((p) => !p.includes("\\"), {
+    message: "sourcePath must use forward slashes",
+  })
+  .refine(
+    (p) => !p.split("/").some((seg) => seg === ".."),
+    { message: "sourcePath must not contain `..` segments" },
+  );
+
 const ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 export const IdSchema = z
@@ -56,6 +76,12 @@ export const NodeSchema = z.strictObject({
    *  node's internal architecture. The canvas shows a "↓ open" affordance
    *  on the node and navigates to that file when the user opens it. */
   archikFile: ArchikFilePathSchema.optional(),
+  /** Relative path to this node's source code on disk. Used by
+   *  `archik drift` to detect when the diagram diverges from reality. */
+  sourcePath: SourcePathSchema.optional(),
+  /** Lifecycle status. `proposed` = not built yet, `deprecated` = being
+   *  phased out. Drift only checks nodes with status `active` (default). */
+  status: NodeStatusSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

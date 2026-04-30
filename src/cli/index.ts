@@ -16,6 +16,7 @@ import { stopCommand } from "./commands/stop.ts";
 import { statusCommand } from "./commands/status.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { suggestCommand } from "./commands/suggest.ts";
+import { driftCommand } from "./commands/drift.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -82,6 +83,9 @@ COMMANDS
                                      --json                 structured output for agents
                     accept           apply the sidecar over the main file
                     reject           discard the sidecar
+  drift [path]      Detect when the diagram diverges from source code
+                    --json           structured output for agents
+                    --ignore <file>  custom ignore file (default: .archik/.driftignore)
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -145,6 +149,8 @@ async function main(): Promise<number> {
       return diffCommand(opts);
     case "suggest":
       return suggestCommand(opts);
+    case "drift":
+      return driftCommand(opts);
     case "--version":
     case "-v":
     case "version":

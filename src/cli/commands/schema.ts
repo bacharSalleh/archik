@@ -109,6 +109,20 @@ function buildSchema(): SchemaSpec {
         notes:
           "relative path under .archik/, ends in .archik.yaml, resolved from project root",
       },
+      {
+        name: "sourcePath",
+        required: false,
+        type: "string",
+        notes:
+          "relative path to source code on disk; used by `archik drift` to detect diagram-code divergence",
+      },
+      {
+        name: "status",
+        required: false,
+        type: "enum",
+        notes:
+          'proposed | active | deprecated — drift only checks active nodes (default when absent)',
+      },
       { name: "metadata", required: false, type: "object" },
     ],
     edge: [
