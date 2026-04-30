@@ -1,10 +1,13 @@
 import {
+  Anchor,
   Bot,
   Box,
+  Boxes,
   Brain,
   Cable,
   Cloud,
   Cog,
+  Component,
   Database,
   DoorOpen,
   ExternalLink,
@@ -13,6 +16,7 @@ import {
   Globe,
   HardDrive,
   Layers,
+  LayoutTemplate,
   Lock,
   MessageSquare,
   Monitor,
@@ -187,6 +191,28 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
     color: "#f472b6",
     icon: Monitor,
     description: "User-facing surface — browser, mobile, CLI.",
+  },
+
+  // Frontend (client-side) ---------------------------------------------
+  page: {
+    color: "#fb7185",
+    icon: LayoutTemplate,
+    description: "Route-level UI screen mapped to a URL.",
+  },
+  component: {
+    color: "#8b5cf6",
+    icon: Component,
+    description: "Reusable UI component / view fragment.",
+  },
+  store: {
+    color: "#facc15",
+    icon: Boxes,
+    description: "Client-side state container — Redux, Zustand, Pinia.",
+  },
+  hook: {
+    color: "#0d9488",
+    icon: Anchor,
+    description: "Reusable client logic — React hook, Vue composable.",
   },
 
   // External -----------------------------------------------------------

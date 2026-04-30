@@ -77,6 +77,10 @@ function Shape({
     case "auth":
     case "observability":
     case "frontend":
+    case "page":
+    case "component":
+    case "store":
+    case "hook":
       return <ServiceNode node={node} selected={selected} />;
     default: {
       const _exhaustive: never = node.kind;
