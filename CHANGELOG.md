@@ -16,6 +16,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.7.7] - 2026-04-30
+
+### Fixed
+- `archik status` now prints an explicit
+  `• No archik server running for this project.` line when cwd
+  resolves to an archik project but no daemon is running for it.
+  Previously the command was silent in that case, so the
+  cross-project "Running" block underneath (e.g. another project's
+  daemon on port 5173) read as if it belonged to the current
+  project — and Claude Code would happily talk to the wrong
+  daemon. The cross-project header is now `Other projects`
+  whenever cwd is inside an archik project (running or not), and
+  a dim subtitle counts the foreign daemons so the two sections
+  can't be conflated.
+- `reportThisProject` now verifies the resolved doc actually
+  exists on disk. `resolveDocPath` returns the default
+  `.archik/main.archik.yaml` even when the file is missing, so
+  the prior `try/catch` never reached the not-in-project branch
+  — every cwd outside an archik project would have printed the
+  new not-running line. Empty / non-archik directories correctly
+  print `• No archik instances running.` again.
+
 ## [0.7.6] - 2026-04-30
 
 ### Added
