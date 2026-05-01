@@ -125,6 +125,55 @@ describe("EdgeRenderer", () => {
     expect(visiblePolyline?.getAttribute("stroke")).toBe("#f97316");
   });
 
+  it("sets --archik-dash-period inline so the marching-dots animation matches the dash pattern", () => {
+    // Bug we're locking down: the keyframe used to advance by a
+    // fixed -16px regardless of relationship, so streams (period
+    // 10), websockets (7), webhooks (15) visibly jumped each cycle.
+    // Now EdgeRenderer derives the period from strokeDasharray and
+    // exposes it as a CSS variable so the keyframe interpolates
+    // exactly one period per cycle.
+    const cases: Array<{ rel: PositionedEdge["relationship"]; period: string }> = [
+      { rel: "streams_to", period: "10" }, // "6 4"
+      { rel: "websocket", period: "7" },   // "4 3"
+      { rel: "webhook", period: "15" },    // "10 5"
+      { rel: "writes", period: "8" },      // "2 6"
+      { rel: "grpc", period: "7" },        // "3 4"
+    ];
+    for (const { rel, period } of cases) {
+      const { container, unmount } = render(
+        <svg>
+          <EdgeRenderer edge={baseEdge({ relationship: rel })} />
+        </svg>,
+      );
+      const visiblePolyline = container.querySelector(
+        "polyline:not([data-archik-edge-hitarea])",
+      ) as SVGPolylineElement | null;
+      // Inline style is the cheapest cross-test way to assert a
+      // CSS custom property — the rendered DOM doesn't expose the
+      // resolved value of the variable, just whether it was set.
+      const styleAttr = visiblePolyline?.getAttribute("style") ?? "";
+      expect(styleAttr).toContain("--archik-dash-period");
+      expect(styleAttr).toContain(period);
+      unmount();
+    }
+  });
+
+  it("does not set --archik-dash-period on non-animated structural edges", () => {
+    // depends_on / implements / has_a / uses don't animate, so
+    // there's no period to set — leaving the variable absent keeps
+    // the DOM clean.
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
+      </svg>,
+    );
+    const visiblePolyline = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    const styleAttr = visiblePolyline?.getAttribute("style") ?? "";
+    expect(styleAttr).not.toContain("--archik-dash-period");
+  });
+
   it("draws writes thicker than reads", () => {
     const reads = render(
       <svg>

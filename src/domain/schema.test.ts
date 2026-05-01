@@ -590,6 +590,59 @@ describe("DocumentSchema", () => {
       expect(r.success).toBe(true);
     });
 
+    it("rejects two edges with the same (from, to, relationship) tuple", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "api-db-1", from: "api", to: "db", relationship: "writes" },
+          { id: "api-db-2", from: "api", to: "db", relationship: "writes" },
+        ],
+      });
+      expect(r.success).toBe(false);
+      if (!r.success) {
+        const msg = JSON.stringify(r.error.issues);
+        // Error points at the second edge and names the first.
+        expect(msg).toContain("api-db-2");
+        expect(msg).toContain("api-db-1");
+        expect(msg).toContain("duplicates");
+      }
+    });
+
+    it("accepts two edges between the same pair when the relationship differs", () => {
+      // service ↔ db with both `reads` and `writes` is a valid
+      // distinction the diagram should be able to express.
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "api-reads", from: "api", to: "db", relationship: "reads" },
+          { id: "api-writes", from: "api", to: "db", relationship: "writes" },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("does not flag a duplicate when one of the edges is cross-file", () => {
+      // A cross-file edge can legitimately mirror a local one — the
+      // remote endpoint isn't loaded so we can't compare honestly.
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: baseNodes,
+        edges: [
+          { id: "local", from: "api", to: "db", relationship: "writes" },
+          {
+            id: "remote",
+            from: "api",
+            to: "db",
+            toFile: ".archik/other.archik.yaml",
+            relationship: "writes",
+          },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
     it("accepts a parent↔child edge when the remote endpoint is cross-file", () => {
       // The parent-chain rule only applies within a single file —
       // a cross-file edge by definition can't be part of this
