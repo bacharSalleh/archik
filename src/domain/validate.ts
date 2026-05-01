@@ -21,6 +21,14 @@ export type ValidationError = {
  *     haven't been created yet). The schema-level format checks
  *     (no `..`, forward slashes, etc.) still apply.
  *
+ * `status: proposed` and `status: deprecated` nodes are exempt
+ * from the requirement at any mode — `proposed` means the code
+ * doesn't exist yet, `deprecated` means it's being phased out and
+ * may already be gone. Drift detection skips both for the same
+ * reason. If such a node DOES declare a `sourcePath`, it still has
+ * to resolve on disk in normal/suggested mode — a stale path on a
+ * proposed node would mislead the diagram quietly.
+ *
  * The `exists` callback is the same shape used by
  * `checkCrossFileReferences` so the caller can wire one resolver
  * for both checks. Returns one error per offending node.
@@ -34,23 +42,33 @@ export function checkSourcePaths(
   const errors: ValidationError[] = [];
   doc.nodes.forEach((node, i) => {
     if (!isCodeBearing(node.kind)) return;
+    const isPlanned = node.status === "proposed" || node.status === "deprecated";
     if (node.sourcePath === undefined || node.sourcePath.length === 0) {
+      // Proposed / deprecated nodes don't have to declare a path —
+      // they're explicitly the "no file expected" lifecycle states.
+      // Active (default) nodes do.
+      if (isPlanned) return;
       errors.push({
         path: `nodes.${i}.sourcePath`,
         message:
           `node "${node.id}" (kind: ${node.kind}) is missing required \`sourcePath\`. ` +
           `Code-bearing kinds must declare where their source lives. ` +
-          `Use a *.archik.discussion.yaml file for greenfield drafts where source doesn't exist yet.`,
+          `Either add a sourcePath, mark the node \`status: proposed\` if the code isn't built yet, ` +
+          `or move this node into a *.archik.discussion.yaml file for greenfield drafts.`,
       });
       return;
     }
     if (!exists(node.sourcePath)) {
+      // Even on a proposed node, a path that's been declared still
+      // has to resolve — otherwise typos / refactor-stragglers slip
+      // through silently.
       errors.push({
         path: `nodes.${i}.sourcePath`,
         message:
           `node "${node.id}" sourcePath "${node.sourcePath}" does not exist on disk ` +
-          `(resolved relative to the project root). Either fix the path, or move ` +
-          `this node into a *.archik.discussion.yaml file if the source isn't built yet.`,
+          `(resolved relative to the project root). Either fix the path, drop it ` +
+          `(if status is proposed/deprecated, sourcePath is optional), or move ` +
+          `this node into a *.archik.discussion.yaml file.`,
       });
     }
   });

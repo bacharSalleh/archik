@@ -314,6 +314,80 @@ describe("checkSourcePaths", () => {
     };
     expect(checkSourcePaths(cleanDoc, "normal", exists)).toEqual([]);
   });
+
+  it("exempts a proposed code-bearing node from the required-sourcePath rule", () => {
+    // status:proposed is the established 'code doesn't exist yet'
+    // signal — drift already skips it; validation must too, otherwise
+    // you can't have a planned node in a normal file.
+    const proposedDoc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        {
+          id: "payments",
+          kind: "service",
+          name: "Payments",
+          status: "proposed",
+        },
+      ],
+      edges: [],
+    };
+    expect(checkSourcePaths(proposedDoc, "normal", exists)).toEqual([]);
+  });
+
+  it("still rejects a proposed node whose declared sourcePath doesn't resolve", () => {
+    // Once a path is declared, even a proposed node has to keep it
+    // honest — otherwise typos / refactor stragglers slip through
+    // silently.
+    const stalePathDoc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        {
+          id: "payments",
+          kind: "service",
+          name: "Payments",
+          status: "proposed",
+          sourcePath: "src/typo",
+        },
+      ],
+      edges: [],
+    };
+    const errors = checkSourcePaths(stalePathDoc, "normal", exists);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.path).toBe("nodes.0.sourcePath");
+    expect(errors[0]!.message).toMatch(/does not exist on disk/);
+  });
+
+  it("exempts deprecated nodes too — they may already be gone", () => {
+    const deprecatedDoc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        {
+          id: "legacy",
+          kind: "module",
+          name: "Legacy",
+          status: "deprecated",
+        },
+      ],
+      edges: [],
+    };
+    expect(checkSourcePaths(deprecatedDoc, "normal", exists)).toEqual([]);
+  });
+
+  it("hint on missing sourcePath mentions both proposed and discussion as escape valves", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [{ id: "svc", kind: "service", name: "Svc" }],
+      edges: [],
+    };
+    const errors = checkSourcePaths(doc, "normal", exists);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain("status: proposed");
+    expect(errors[0]!.message).toContain("discussion.yaml");
+  });
 });
 
 describe("formatErrors", () => {

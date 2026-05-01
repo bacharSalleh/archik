@@ -143,6 +143,9 @@ export function NodeRenderer({
     <g
       data-archik-node-id={node.id}
       {...(isSelected ? { "data-archik-selected": "true" } : {})}
+      {...(node.status !== undefined && node.status !== "active"
+        ? { "data-archik-status": node.status }
+        : {})}
       transform={`translate(${node.x}, ${node.y})`}
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}

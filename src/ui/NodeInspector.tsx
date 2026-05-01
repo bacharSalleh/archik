@@ -106,6 +106,53 @@ export function NodeInspector({
         </select>
       </Field>
 
+      <Field label="Source path" htmlFor="ni-sourcepath">
+        <input
+          id="ni-sourcepath"
+          type="text"
+          value={node.sourcePath ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            update(v === "" ? { sourcePath: undefined } : { sourcePath: v });
+          }}
+          disabled={readOnly}
+          placeholder="e.g. src/orders or src/payments/api.ts"
+          className="archik-input archik-mono w-full"
+        />
+        <div
+          className="mt-1 text-xs"
+          style={{ color: "var(--archik-fg-muted)" }}
+        >
+          Relative to project root. Required for code-bearing kinds in
+          normal/suggested files; optional when status is proposed or
+          deprecated.
+        </div>
+      </Field>
+
+      <Field label="Lifecycle status" htmlFor="ni-status">
+        <select
+          id="ni-status"
+          value={node.status ?? "active"}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Schema convention: absent === "active". Round-trip the
+            // default to undefined so unchanged nodes don't grow a
+            // redundant `status: active` line on every edit.
+            update(
+              v === "active"
+                ? { status: undefined }
+                : { status: v as "proposed" | "deprecated" },
+            );
+          }}
+          disabled={readOnly}
+          className="archik-input w-full"
+        >
+          <option value="active">active (default — built and live)</option>
+          <option value="proposed">proposed (planned, not built yet)</option>
+          <option value="deprecated">deprecated (being phased out)</option>
+        </select>
+      </Field>
+
       <NotesField
         notes={node.notes ?? []}
         onChange={(next) => update({ notes: next.length > 0 ? next : undefined })}
