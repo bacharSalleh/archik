@@ -262,63 +262,60 @@ body,
 }
 
 /* ---------------------------------------------------------------------------
-   Lifecycle status — visual signal for nodes that aren't `active`.
+   Lifecycle status — visual signal for nodes and edges that aren't `active`.
    Active is the default and gets no extra styling.
 
-   - proposed: dashed stroke + reduced opacity. Mirrors the FileSwitcher's
-     "(pending)" idiom — same dashed-border vocabulary across the canvas
-     so "doesn't exist yet" reads consistently.
-   - deprecated: dashed stroke + amber tint. Distinct from proposed so
-     "going away" doesn't get confused with "not built yet".
-   The container `<g>` carries `data-archik-status`; descendant selectors
-   apply the treatment to every shape primitive (rect/path/ellipse) the
-   per-kind components draw without each shape having to opt in.
+   Visual contract:
+   - NODES: dashed border + reduced opacity + coloured stroke. The dashed
+     pattern + opacity reads as "doesn't exist yet" the same way the
+     FileSwitcher's "(pending)" idiom does, and the colour distinguishes
+     proposed (indigo, forward-looking) from deprecated (amber, going away).
+   - EDGES: coloured stroke only — no dasharray override and no opacity
+     reduction. Edges already use stroke-dasharray to encode the
+     relationship (writes / reads / publishes / streams_to / …); piling a
+     status dash on top either smashes the relationship signal or reads
+     as a "border around the edge" which looks silly. The colour change
+     alone is unambiguous because edges sit against the canvas, not
+     against a node body.
+
+   The wrapper `<g>` carries both `data-archik-node-id` (or
+   `data-archik-edge-id`) and `data-archik-status`, so we scope each
+   block by chaining the two attributes.
    --------------------------------------------------------------------------- */
-[data-archik-status="proposed"] {
+
+/* --- Nodes ------------------------------------------------------------- */
+[data-archik-node-id][data-archik-status="proposed"] {
   opacity: 0.82;
 }
-/* Colour the border hex / rect / cylinder / cloud + the polyline
-   for edges — every shape primitive the per-kind / per-relationship
-   components draw — so "planned but not real" reads at a glance
-   regardless of node kind or edge relationship. The CSS rule beats
-   the SVG presentation attribute set inline. */
-[data-archik-status="proposed"] rect,
-[data-archik-status="proposed"] path,
-[data-archik-status="proposed"] ellipse,
-[data-archik-status="proposed"] line,
-[data-archik-status="proposed"] polyline {
+[data-archik-node-id][data-archik-status="proposed"] rect,
+[data-archik-node-id][data-archik-status="proposed"] path,
+[data-archik-node-id][data-archik-status="proposed"] ellipse,
+[data-archik-node-id][data-archik-status="proposed"] line {
   stroke: var(--archik-status-proposed);
-}
-/* Nodes get a chunky dashed border to read as "planned". Edges
-   carry the dasharray as a relationship signal already, so we
-   leave their dash pattern alone — the colour change carries the
-   status. */
-[data-archik-status="proposed"] rect,
-[data-archik-status="proposed"] path:not([data-archik-edge-id] *),
-[data-archik-status="proposed"] ellipse,
-[data-archik-status="proposed"] line {
   stroke-dasharray: 5 3;
 }
-[data-archik-status="deprecated"] {
+[data-archik-node-id][data-archik-status="deprecated"] {
   opacity: 0.7;
 }
-[data-archik-status="deprecated"] rect,
-[data-archik-status="deprecated"] path,
-[data-archik-status="deprecated"] ellipse,
-[data-archik-status="deprecated"] line,
-[data-archik-status="deprecated"] polyline {
+[data-archik-node-id][data-archik-status="deprecated"] rect,
+[data-archik-node-id][data-archik-status="deprecated"] path,
+[data-archik-node-id][data-archik-status="deprecated"] ellipse,
+[data-archik-node-id][data-archik-status="deprecated"] line {
   stroke: var(--archik-status-deprecated);
-}
-[data-archik-status="deprecated"] rect,
-[data-archik-status="deprecated"] path:not([data-archik-edge-id] *),
-[data-archik-status="deprecated"] ellipse,
-[data-archik-status="deprecated"] line {
   stroke-dasharray: 2 4;
 }
-[data-archik-status="deprecated"] text {
+[data-archik-node-id][data-archik-status="deprecated"] text {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   text-decoration-color: var(--archik-status-deprecated);
+}
+
+/* --- Edges (colour only, no border / opacity) -------------------------- */
+[data-archik-edge-id][data-archik-status="proposed"] polyline {
+  stroke: var(--archik-status-proposed);
+}
+[data-archik-edge-id][data-archik-status="deprecated"] polyline {
+  stroke: var(--archik-status-deprecated);
 }
 @keyframes archikPulse {
   0%, 100% {
