@@ -7,7 +7,7 @@ describe("parseJson", () => {
     const text = JSON.stringify({
       version: "1.0",
       name: "Demo",
-      nodes: [{ id: "api", kind: "service", name: "API" }],
+      nodes: [{ id: "api", kind: "service", name: "API", description: "test fixture" }],
       edges: [],
     });
     const doc = parseJson(text);

@@ -84,7 +84,7 @@ describe("NodeInspector", () => {
   it("offers other nodes as parent options", () => {
     const allNodes = [
       apiNode,
-      { id: "platform", kind: "custom" as const, name: "Platform" },
+      { id: "platform", kind: "custom" as const, name: "Platform", description: "test fixture" },
     ];
     render(
       <NodeInspector
@@ -104,7 +104,7 @@ describe("NodeInspector", () => {
     const dispatch = vi.fn();
     const allNodes = [
       apiNode,
-      { id: "platform", kind: "custom" as const, name: "Platform" },
+      { id: "platform", kind: "custom" as const, name: "Platform", description: "test fixture" },
     ];
     render(
       <NodeInspector
@@ -140,7 +140,7 @@ describe("NodeInspector", () => {
     const child: Node = { ...apiNode, parentId: "platform" };
     const allNodes = [
       child,
-      { id: "platform", kind: "custom" as const, name: "Platform" },
+      { id: "platform", kind: "custom" as const, name: "Platform", description: "test fixture" },
     ];
     render(
       <NodeInspector node={child} dispatch={dispatch} allNodes={allNodes} />,

@@ -7,6 +7,7 @@ const node: PositionedNode = {
   id: "web",
   kind: "frontend",
   name: "Web",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 180,

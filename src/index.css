@@ -277,15 +277,26 @@ body,
 [data-archik-status="proposed"] {
   opacity: 0.82;
 }
-/* Colour the border hex / rect / cylinder / cloud — every shape primitive
-   the per-kind components draw — so "planned but not real" reads at a
-   glance regardless of node kind. The CSS rule beats the SVG presentation
-   attribute the shape components set inline. */
+/* Colour the border hex / rect / cylinder / cloud + the polyline
+   for edges — every shape primitive the per-kind / per-relationship
+   components draw — so "planned but not real" reads at a glance
+   regardless of node kind or edge relationship. The CSS rule beats
+   the SVG presentation attribute set inline. */
 [data-archik-status="proposed"] rect,
 [data-archik-status="proposed"] path,
 [data-archik-status="proposed"] ellipse,
-[data-archik-status="proposed"] line {
+[data-archik-status="proposed"] line,
+[data-archik-status="proposed"] polyline {
   stroke: var(--archik-status-proposed);
+}
+/* Nodes get a chunky dashed border to read as "planned". Edges
+   carry the dasharray as a relationship signal already, so we
+   leave their dash pattern alone — the colour change carries the
+   status. */
+[data-archik-status="proposed"] rect,
+[data-archik-status="proposed"] path:not([data-archik-edge-id] *),
+[data-archik-status="proposed"] ellipse,
+[data-archik-status="proposed"] line {
   stroke-dasharray: 5 3;
 }
 [data-archik-status="deprecated"] {
@@ -294,8 +305,14 @@ body,
 [data-archik-status="deprecated"] rect,
 [data-archik-status="deprecated"] path,
 [data-archik-status="deprecated"] ellipse,
-[data-archik-status="deprecated"] line {
+[data-archik-status="deprecated"] line,
+[data-archik-status="deprecated"] polyline {
   stroke: var(--archik-status-deprecated);
+}
+[data-archik-status="deprecated"] rect,
+[data-archik-status="deprecated"] path:not([data-archik-edge-id] *),
+[data-archik-status="deprecated"] ellipse,
+[data-archik-status="deprecated"] line {
   stroke-dasharray: 2 4;
 }
 [data-archik-status="deprecated"] text {
@@ -360,8 +377,20 @@ body,
   from { stroke-dashoffset: 0; }
   to   { stroke-dashoffset: calc(-1 * var(--archik-dash-period, 8) * 1px); }
 }
+/* Reverse variant — same period, opposite sign on the offset. Used
+   by relationships where data flows from `to` → `from` (subscribes,
+   reads): the arrow points at the source-of-data per the semantic
+   convention, but the dots should travel from that source TO the
+   consumer. Without this the animation contradicts the meaning. */
+@keyframes archikEdgeFlowReverse {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: calc(var(--archik-dash-period, 8) * 1px); }
+}
 .archik-edge-flowing {
   animation: archikEdgeFlow 1.4s linear infinite;
+}
+.archik-edge-flowing-reverse {
+  animation: archikEdgeFlowReverse 1.4s linear infinite;
 }
 /* Faster variant — used by streams_to and websocket where the
    intuition is "lots of small messages, all the time." Same period
@@ -369,9 +398,14 @@ body,
 .archik-edge-flowing-fast {
   animation: archikEdgeFlow 0.6s linear infinite;
 }
+.archik-edge-flowing-fast-reverse {
+  animation: archikEdgeFlowReverse 0.6s linear infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .archik-edge-flowing,
-  .archik-edge-flowing-fast {
+  .archik-edge-flowing-reverse,
+  .archik-edge-flowing-fast,
+  .archik-edge-flowing-fast-reverse {
     animation: none;
   }
 }

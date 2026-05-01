@@ -24,28 +24,27 @@ export function suggestionPath(mainPath: string): string {
 }
 
 /**
- * Three modes an archik file can be in. Validation strictness varies:
+ * Two modes an archik file can be in. Validation strictness varies:
  *
  *   - `normal`     — `*.archik.yaml`. The canonical architecture.
  *                    Code-bearing nodes MUST declare a `sourcePath`
- *                    and that path MUST exist on disk.
+ *                    that exists on disk, except when the node is
+ *                    `status: proposed` or `status: deprecated`
+ *                    (lifecycle states explicitly meaning "code may
+ *                    not exist on disk").
  *   - `suggested`  — `*.archik.suggested.yaml`. A pending change to
- *                    a normal file. Same rules as normal — it'll
- *                    become normal on accept.
- *   - `discussion` — `*.archik.discussion.yaml`. Greenfield /
- *                    exploratory drafts (e.g., a not-yet-built
- *                    project, an architectural option). `sourcePath`
- *                    is optional and may point at paths that don't
- *                    exist yet.
+ *                    a normal file. Same rules — it'll become normal
+ *                    on `suggest accept`.
  *
- * Mode is determined purely by filename — no metadata flag to forget.
+ * Mode is determined purely by filename. Greenfield drafts of
+ * not-yet-built work are expressed via `status: proposed` on the
+ * affected nodes/edges, not a separate file mode.
  */
-export type ArchikFileMode = "normal" | "suggested" | "discussion";
+export type ArchikFileMode = "normal" | "suggested";
 
 export function archikFileMode(filePath: string): ArchikFileMode {
   const base = path.basename(filePath);
   if (base.endsWith(".archik.suggested.yaml")) return "suggested";
-  if (base.endsWith(".archik.discussion.yaml")) return "discussion";
   return "normal";
 }
 

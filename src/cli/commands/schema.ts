@@ -76,7 +76,13 @@ function buildSchema(): SchemaSpec {
         notes: "see KINDS below",
       },
       { name: "name", required: true, type: "string" },
-      { name: "description", required: false, type: "string" },
+      {
+        name: "description",
+        required: true,
+        type: "string",
+        notes:
+          "REQUIRED — explain what the node does (its responsibility / behaviour), not just what kind it is. Empty strings rejected.",
+      },
       { name: "stack", required: false, type: "string" },
       {
         name: "responsibilities",
@@ -162,6 +168,13 @@ function buildSchema(): SchemaSpec {
         notes: "any CSS color (hex, named, var())",
       },
       {
+        name: "status",
+        required: false,
+        type: "enum",
+        notes:
+          'proposed | active | deprecated — same enum as Node. Default (absent) is active. The renderer dashes + colours non-active edges with the same status palette as nodes.',
+      },
+      {
         name: "fromFile",
         required: false,
         type: "string",
@@ -212,8 +225,10 @@ function buildSchema(): SchemaSpec {
       "Coordinates (x, y, width, height, viewport) are REJECTED — layout is computed by ELK.",
       "Empty arrays are allowed; empty strings on required fields are not.",
       "Cross-file paths (archikFile, fromFile, toFile) end in .archik.yaml, no `..`, forward slashes only, resolved from project root.",
-      "File modes (by filename suffix): *.archik.yaml = normal; *.archik.suggested.yaml = pending suggestion; *.archik.discussion.yaml = greenfield/exploratory draft.",
-      "In normal/suggested files, every code-bearing node (service/function/worker/module/page/component/store/hook) MUST declare sourcePath, and that path MUST exist on disk. Discussion files relax this rule.",
+      "File modes (by filename suffix): *.archik.yaml = normal; *.archik.suggested.yaml = pending suggestion (no separate \"discussion\" mode — use status: proposed on individual nodes/edges for greenfield work).",
+      "Every code-bearing node (service/function/worker/module/page/component/store/hook) MUST declare sourcePath, and that path MUST exist on disk — UNLESS the node has status proposed or deprecated (those are explicitly \"code may not exist\" lifecycle states).",
+      "Every node MUST have a non-empty `description` explaining what it does. Empty / omitted descriptions are rejected.",
+      "Edges may carry a `status` field with the same enum (proposed / active / deprecated). The renderer applies the same dashed + coloured-border treatment used for node status.",
     ],
   };
 }

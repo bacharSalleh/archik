@@ -82,9 +82,19 @@ export async function saveDocumentToUrl(
     body: text,
   });
   if (!res.ok) {
-    throw new Error(
-      `Failed to save ${url}: ${res.status} ${res.statusText}`,
-    );
+    // Read the body so the server's structured validation message
+    // (the "node X is missing required sourcePath" hint, etc.)
+    // reaches the user. Without this the canvas surfaces a bare
+    // "400 Bad Request" and the agent has no signal about what
+    // actually broke.
+    let detail = "";
+    try {
+      detail = (await res.text()).trim();
+    } catch {
+      // If the body can't be read, fall back to status text.
+    }
+    const lead = `Failed to save ${url}: ${res.status} ${res.statusText}`;
+    throw new Error(detail.length > 0 ? `${lead}\n\n${detail}` : lead);
   }
   return { text };
 }

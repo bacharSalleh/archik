@@ -27,41 +27,41 @@ You MUST NOT use `Read`, `Write`, or `Edit` against any file under `.archik/`, a
 
 If `npx archik` is unreachable (offline, sandboxed, missing), STOP and tell the user. Do NOT fall back to reading or editing YAML by hand.
 
-## File modes — pick the right one before authoring
-
-Archik files have **three modes**, selected by filename suffix. Validation strictness differs per mode — picking the wrong one will either reject your draft or pollute the canonical architecture with greenfield speculation.
+## File modes — two modes, picked by filename
 
 | Suffix                             | Mode         | When to use                                                                                          | sourcePath rule                                                                 |
 | ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `*.archik.yaml`                    | **normal**   | The canonical architecture of code that exists.                                                      | Required for code-bearing kinds; **must exist on disk** (validated).            |
 | `*.archik.suggested.yaml`          | **suggested**| A pending change to a normal file. Owned by `suggest set`. Becomes normal on `suggest accept`.       | Same rules as normal — it'll become normal when accepted.                       |
-| `*.archik.discussion.yaml`         | **discussion**| Greenfield / exploratory drafts: a brand-new project, an "what if we built X?" sketch, an option.   | `sourcePath` is **optional**, and may point at paths that don't exist yet.      |
 
-**Code-bearing kinds** (those that must declare `sourcePath` in normal/suggested files): `service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`. Other kinds (`external`, `cloud`, `prompt`, `llm`, `route`, `interface`, `adapter`, `port`, `database`, `cache`, `queue`, `topic`, `stream`, `gateway`, `cdn`, `agent`, `frontend`, `vectordb`, `storage`, `auth`, `observability`, `tool`, `custom`) are exempt.
+There is **no separate "discussion" file mode**. Greenfield / exploratory work — a node you want in the diagram before its code exists — is expressed via `status: proposed` on the affected nodes (and edges); see the next section. The diagram stays the canonical architecture.
 
-**Picking the mode:**
-- Are you describing real code that exists in this repo? → **normal** (or **suggested** if proposing a change).
-- Are you sketching a not-yet-built system, or proposing an architecture for a new project? → **discussion**. Don't pollute the main file with speculation.
-- Are you adding a `sourcePath` for a node whose code is going to be created soon? → **discussion**, then move to **normal** once the code exists.
+**Code-bearing kinds** (those that must declare `sourcePath`): `service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`. Other kinds (`external`, `cloud`, `prompt`, `llm`, `route`, `interface`, `adapter`, `port`, `database`, `cache`, `queue`, `topic`, `stream`, `gateway`, `cdn`, `agent`, `frontend`, `vectordb`, `storage`, `auth`, `observability`, `tool`, `custom`) are exempt.
 
-If `suggest set` rejects your draft with a `sourcePath` error, the right answer is usually one of: (a) fix the path to point at real code, (b) move the work into `*.archik.discussion.yaml`, (c) use a non-code-bearing kind (e.g., `external` for a third-party service), or (d) mark the node `status: proposed` if it's a planned-but-not-built component (see "Lifecycle status" below).
+If `suggest set` rejects your draft with a `sourcePath` error, the right answer is usually one of: (a) fix the path to point at real code, (b) use a non-code-bearing kind (e.g., `external` for a third-party service), or (c) mark the node `status: proposed` if it's a planned-but-not-built component (see "Lifecycle status" below).
 
-## Lifecycle status — `proposed`, `active`, `deprecated`
+## Required `description` — every node, every time
 
-Nodes carry an optional `status` field. Use it to keep the canonical diagram honest about what's built vs. what's planned vs. what's going away — without dropping nodes from the file or shoving them into a discussion sketch.
+`description` is **required** on every node — empty strings rejected, missing values rejected. The description must explain **what the node does** — its responsibility, the work it performs, why it exists — not just restate its `kind` or `name`.
 
-| status                    | When                                                                                          | sourcePath rule                                            | Visual                                |
+> Bad: *"A service."*  *"The orders module."*  *"Frontend."*
+> Good: *"Owns order placement and status — accepts cart payloads, validates inventory, writes to `orders` and emits `order.placed` to the stream."*
+
+Two reasons it's enforced:
+1. The diagram is the shared map between you and the user. A node without a description is a black box neither of you can reason about.
+2. When the user asks *"what does X do?"*, you should be answering from `npx archik q describe X`, not from intuition. That answer is only useful if the description was written with care.
+
+## Lifecycle status — `proposed`, `active`, `deprecated` (nodes AND edges)
+
+Both **nodes and edges** carry an optional `status` field — same enum, same defaults, same visual treatment. Use it to keep the canonical diagram honest about what's built vs. what's planned vs. what's going away.
+
+| status                    | When                                                                                          | sourcePath rule (nodes only)                               | Visual                                |
 | ------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------- |
 | absent / `active`         | Built and live (default).                                                                     | Required for code-bearing kinds, must exist on disk.       | Standard solid stroke.                |
-| `proposed`                | Planned for the next iteration — node belongs in the canonical map but the code isn't there yet. | Optional. If you supply one, it must still exist on disk. | Dashed stroke + reduced opacity.      |
-| `deprecated`              | Being phased out; reads/writes shouldn't depend on it going forward.                          | Optional. Same on-disk rule as `proposed` if you set one.  | Dashed stroke + amber + strikethrough name. |
+| `proposed`                | Planned for the next iteration — belongs in the canonical map but isn't built yet.            | Optional. If you supply one, it must still exist on disk.  | Dashed indigo border, reduced opacity. |
+| `deprecated`              | Being phased out; reads/writes shouldn't depend on it going forward.                          | Optional. Same on-disk rule as `proposed` if you set one.  | Dashed amber border + strikethrough on the name. |
 
-**`proposed` vs. a discussion file.** They're complementary, not interchangeable:
-
-- A `*.archik.discussion.yaml` file is for **whole hypothetical architectures** — a sketch the team is exploring, a diagram for a not-yet-started project, a "what if we built X?" option. The whole file is a draft.
-- `status: proposed` on a node lives inside the **canonical normal file**. The architecture as a whole is real; this one node is the next thing to build. `archik drift` skips proposed nodes so they don't trigger orphan warnings before their code lands.
-
-When in doubt: if the user is adding a single planned component to a real project, use `status: proposed` in the normal file. If they're sketching something with no anchor in the existing codebase, use a discussion file.
+For edges, `status: proposed` expresses "this dependency is planned" (e.g. *"orders-api will start subscribing to `payments.completed` next sprint"* — set the new edge's `status: proposed` until the code lands). `archik drift` and the validator both respect the lifecycle so proposed nodes don't trigger missing-source warnings before they're built.
 
 ## Other validation rules worth pre-empting
 
@@ -109,7 +109,7 @@ Then `ls -F . src/ services/ packages/ apps/ 2>/dev/null` for the source tree. B
 
 When the user asks "where would I add X?", you should already have the answer because you ran the queries above.
 
-**Every code-bearing node you propose for a normal/suggested file must declare a `sourcePath` that you have verified exists on disk** (e.g. `ls src/payments/worker.ts` before authoring `sourcePath: src/payments/worker.ts`). The validator rejects fabricated paths — and the rejection is non-negotiable, exactly so hallucinated nodes can't slip into the canonical architecture. If the source doesn't exist yet, draft in `*.archik.discussion.yaml` first.
+**Every code-bearing node you propose for a normal/suggested file must declare a `sourcePath` that you have verified exists on disk** (e.g. `ls src/payments/worker.ts` before authoring `sourcePath: src/payments/worker.ts`). The validator rejects fabricated paths — and the rejection is non-negotiable, exactly so hallucinated nodes can't slip into the canonical architecture. If the source doesn't exist yet, mark the node `status: proposed` and omit `sourcePath` (or set one that points where the code WILL live, but it has to actually exist by the time you flip the status to active).
 
 ## Authoring drafts (sidecar workflow)
 

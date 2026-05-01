@@ -7,6 +7,7 @@ const make = (overrides: Partial<PositionedNode>): PositionedNode => ({
   id: "x",
   kind: "service",
   name: "X",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 180,

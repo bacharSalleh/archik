@@ -66,7 +66,11 @@ archik suggest set` stages it.
    - **Manifest files**: `package.json` `name`, `Cargo.toml`,
      `go.mod`, `pyproject.toml` give canonical component names.
    - **`README` / `description`**: pull a one-line summary if
-     present; otherwise omit `description` rather than fabricate.
+     present. Description is REQUIRED on every node — if there's
+     no README and no obvious one-liner in code comments, write
+     a short sentence yourself describing what the directory /
+     module does (its responsibility, not just its name). The
+     validator rejects nodes without a description.
    - **Stack hints**: `package.json` deps (Next.js, Express, Fastify,
      Hono → service/frontend), `go.mod`, `requirements.txt`,
      `Gemfile`. Set `stack` only when the signal is clear.

@@ -16,9 +16,14 @@ type Props = {
   commandError?: string | undefined;
   reloadError?: string | undefined;
   saveStatus?: SaveStatus;
+  /** Server-side validation message when a PUT was rejected (e.g.
+   *  "missing required sourcePath"). Surfaced via title=tooltip on
+   *  the Save-failed pill so the user can read why the save was
+   *  refused without opening devtools. */
+  saveError?: string | undefined;
   isDirty?: boolean;
   onSave?: () => void;
-  onAddNode?: (kind: NodeKind, name: string) => void;
+  onAddNode?: (kind: NodeKind, name: string, description: string) => void;
   connectingFromName?: string;
   onCancelConnect?: () => void;
   density?: number;
@@ -53,6 +58,7 @@ export function Toolbar({
   commandError,
   reloadError,
   saveStatus = "idle",
+  saveError,
   isDirty = false,
   onSave,
   onAddNode,
@@ -122,7 +128,30 @@ export function Toolbar({
         </span>
       )}
       {saveLabel !== null && (
-        <span className={SAVE_VARIANT[saveStatus]}>{saveLabel}</span>
+        <span
+          className={SAVE_VARIANT[saveStatus]}
+          {...(saveStatus === "error" && saveError !== undefined
+            ? { title: saveError }
+            : {})}
+        >
+          {saveLabel}
+        </span>
+      )}
+      {saveStatus === "error" && saveError !== undefined && (
+        <span
+          className="archik-pill archik-pill--danger"
+          style={{
+            maxWidth: 480,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 11,
+          }}
+          title={saveError}
+        >
+          {firstLine(saveError)}
+        </span>
       )}
       <div className="ml-auto flex items-center gap-2">
         {onUndo !== undefined && (
@@ -196,4 +225,12 @@ export function Toolbar({
       </div>
     </header>
   );
+}
+
+/** Strip everything after the first newline so a multi-line server
+ *  validation message fits in the toolbar pill; the full message
+ *  remains accessible via the title=tooltip. */
+function firstLine(s: string): string {
+  const i = s.indexOf("\n");
+  return i === -1 ? s : s.slice(0, i);
 }

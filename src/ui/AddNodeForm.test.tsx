@@ -17,24 +17,34 @@ describe("AddNodeForm", () => {
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
 
-  it("calls onAdd with the chosen kind + trimmed name", () => {
+  it("calls onAdd with the chosen kind + trimmed name + trimmed description", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
     fireEvent.click(screen.getByLabelText(/kind/i));
     fireEvent.click(screen.getByRole("button", { name: /^database/i }));
-    fireEvent.change(screen.getByLabelText(/name/i), {
+    fireEvent.change(screen.getByLabelText(/^name$/i), {
       target: { value: "  Orders DB  " },
     });
+    fireEvent.change(screen.getByLabelText(/^description$/i), {
+      target: { value: "  Persists order rows.  " },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    expect(onAdd).toHaveBeenCalledWith("database", "Orders DB");
+    expect(onAdd).toHaveBeenCalledWith(
+      "database",
+      "Orders DB",
+      "Persists order rows.",
+    );
   });
 
   it("closes the modal after a successful add and resets fields", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
-    fireEvent.change(screen.getByLabelText(/name/i), {
+    fireEvent.change(screen.getByLabelText(/^name$/i), {
       target: { value: "X" },
+    });
+    fireEvent.change(screen.getByLabelText(/^description$/i), {
+      target: { value: "Y" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -43,7 +53,7 @@ describe("AddNodeForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not call onAdd when name is empty", () => {
+  it("does not call onAdd when name or description is empty (both required)", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
     fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
@@ -51,6 +61,12 @@ describe("AddNodeForm", () => {
     expect((submit as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(submit);
     expect(onAdd).not.toHaveBeenCalled();
+    // Filling only the name still keeps the button disabled — the
+    // schema requires description, so the form does too.
+    fireEvent.change(screen.getByLabelText(/^name$/i), {
+      target: { value: "X" },
+    });
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("closes the modal when Cancel is clicked", () => {

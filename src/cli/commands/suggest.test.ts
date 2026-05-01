@@ -28,10 +28,12 @@ nodes:
   - id: api
     kind: service
     name: API
+    description: HTTP API for orders
     sourcePath: src/api
   - id: db
     kind: database
     name: DB
+    description: Postgres database for orders
 edges:
   - id: api-db
     from: api
@@ -46,6 +48,7 @@ nodes:
   - id: api
     kind: service
     name: API
+    description: HTTP API for orders
     sourcePath: src/api
 edges: []
 `.trimStart();
@@ -140,6 +143,8 @@ nodes:
   - id: api
     kind: service
     name: API
+    description: HTTP API for orders
+    sourcePath: src/api
     archikFile: .archik/missing.archik.yaml
 edges: []
 `.trimStart(),

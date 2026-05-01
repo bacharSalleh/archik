@@ -7,6 +7,7 @@ const node: PositionedNode = {
   id: "fn",
   kind: "function",
   name: "Resize Image",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 180,

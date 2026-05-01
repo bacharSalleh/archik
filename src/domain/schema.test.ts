@@ -70,7 +70,7 @@ describe("IdSchema", () => {
 });
 
 describe("NodeSchema", () => {
-  const minimal = { id: "api", kind: "service", name: "API" };
+  const minimal = { id: "api", kind: "service", name: "API", description: "test fixture" };
 
   it("accepts the minimal valid node", () => {
     expect(NodeSchema.safeParse(minimal).success).toBe(true);
@@ -281,8 +281,8 @@ describe("DocumentSchema", () => {
       name: "Orders Platform",
       description: "End-to-end order pipeline",
       nodes: [
-        { id: "api", kind: "service", name: "API" },
-        { id: "db", kind: "database", name: "Orders DB" },
+        { id: "api", kind: "service", name: "API", description: "test fixture" },
+        { id: "db", kind: "database", name: "Orders DB", description: "test fixture" },
       ],
       edges: [
         {
@@ -335,8 +335,8 @@ describe("DocumentSchema", () => {
 
   describe("cross-reference rules", () => {
     const baseNodes = [
-      { id: "api", kind: "service", name: "API" },
-      { id: "db", kind: "database", name: "DB" },
+      { id: "api", kind: "service", name: "API", description: "test fixture" },
+      { id: "db", kind: "database", name: "DB", description: "test fixture" },
     ];
 
     it("rejects an edge whose `from` references a missing node", () => {
@@ -442,8 +442,8 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "api", kind: "service", name: "A" },
-          { id: "api", kind: "service", name: "B" },
+          { id: "api", kind: "service", name: "A", description: "test fixture" },
+          { id: "api", kind: "service", name: "B", description: "test fixture" },
         ],
       });
       expect(r.success).toBe(false);
@@ -466,7 +466,7 @@ describe("DocumentSchema", () => {
         ...minimal,
         nodes: [
           ...baseNodes,
-          { id: "child", kind: "service", name: "C", parentId: "ghost" },
+          { id: "child", kind: "service", name: "C", parentId: "ghost", description: "test fixture" },
         ],
       });
       expect(r.success).toBe(false);
@@ -475,7 +475,7 @@ describe("DocumentSchema", () => {
     it("rejects a node whose parentId is itself", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
-        nodes: [{ id: "loop", kind: "service", name: "L", parentId: "loop" }],
+        nodes: [{ id: "loop", kind: "service", name: "L", parentId: "loop", description: "test fixture" }],
       });
       expect(r.success).toBe(false);
     });
@@ -484,8 +484,8 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "a", kind: "module", name: "A", parentId: "b" },
-          { id: "b", kind: "module", name: "B", parentId: "a" },
+          { id: "a", kind: "module", name: "A", parentId: "b", description: "test fixture" },
+          { id: "b", kind: "module", name: "B", parentId: "a", description: "test fixture" },
         ],
       });
       expect(r.success).toBe(false);
@@ -495,9 +495,9 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "root", kind: "module", name: "Root" },
-          { id: "mid", kind: "module", name: "Mid", parentId: "root" },
-          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid" },
+          { id: "root", kind: "module", name: "Root", description: "test fixture" },
+          { id: "mid", kind: "module", name: "Mid", parentId: "root", description: "test fixture" },
+          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid", description: "test fixture" },
         ],
       });
       expect(r.success).toBe(true);
@@ -507,11 +507,12 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "container", kind: "module", name: "Container" },
+          { id: "container", kind: "module", name: "Container", description: "test fixture" },
           {
             id: "child",
             kind: "service",
             name: "Child",
+            description: "test fixture",
             parentId: "container",
           },
         ],
@@ -535,11 +536,12 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "container", kind: "module", name: "Container" },
+          { id: "container", kind: "module", name: "Container", description: "test fixture" },
           {
             id: "child",
             kind: "service",
             name: "Child",
+            description: "test fixture",
             parentId: "container",
           },
         ],
@@ -559,9 +561,9 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "root", kind: "module", name: "Root" },
-          { id: "mid", kind: "module", name: "Mid", parentId: "root" },
-          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid" },
+          { id: "root", kind: "module", name: "Root", description: "test fixture" },
+          { id: "mid", kind: "module", name: "Mid", parentId: "root", description: "test fixture" },
+          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid", description: "test fixture" },
         ],
         edges: [
           {
@@ -579,9 +581,9 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "container", kind: "module", name: "Container" },
-          { id: "a", kind: "service", name: "A", parentId: "container" },
-          { id: "b", kind: "service", name: "B", parentId: "container" },
+          { id: "container", kind: "module", name: "Container", description: "test fixture" },
+          { id: "a", kind: "service", name: "A", parentId: "container", description: "test fixture" },
+          { id: "b", kind: "service", name: "B", parentId: "container", description: "test fixture" },
         ],
         edges: [
           { id: "a-b", from: "a", to: "b", relationship: "http_call" },
@@ -650,11 +652,12 @@ describe("DocumentSchema", () => {
       const r = DocumentSchema.safeParse({
         ...minimal,
         nodes: [
-          { id: "container", kind: "module", name: "Container" },
+          { id: "container", kind: "module", name: "Container", description: "test fixture" },
           {
             id: "child",
             kind: "service",
             name: "Child",
+            description: "test fixture",
             parentId: "container",
           },
         ],

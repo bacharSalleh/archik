@@ -43,9 +43,13 @@ describe("archikFileMode", () => {
     expect(archikFileMode("/abs/foo.archik.suggested.yaml")).toBe("suggested");
   });
 
-  it("returns discussion for *.archik.discussion.yaml", () => {
-    expect(archikFileMode(".archik/greenfield.archik.discussion.yaml")).toBe(
-      "discussion",
+  it("treats *.archik.discussion.yaml as normal — discussion mode was removed", () => {
+    // The suffix used to map to a third mode with relaxed rules.
+    // We now drive lifecycle entirely off node/edge `status`, so a
+    // file that still happens to use the old suffix gets the same
+    // strict treatment as any other normal file.
+    expect(archikFileMode(".archik/legacy.archik.discussion.yaml")).toBe(
+      "normal",
     );
   });
 

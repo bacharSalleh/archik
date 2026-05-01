@@ -157,6 +157,11 @@ export function App(): React.ReactElement {
     undefined,
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  // Latest server-side validation message when a PUT was rejected
+  // (e.g. "node X is missing required sourcePath"). Cleared on the
+  // next successful save / status change. Shown in Toolbar so the
+  // user sees WHY the save failed rather than an opaque "error".
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   // Pending Claude-authored suggestion sidecar. Banner shows when
   // present; user picks Review (opens server-rendered diff in a new
@@ -489,6 +494,7 @@ export function App(): React.ReactElement {
     const text = stringifyYaml(docToSave);
     lastTextRef.current = text;
     setSaveStatus("saving");
+    setSaveError(null);
     try {
       await saveDocumentToUrl(currentFile.docUrl, docToSave);
       setSaveStatus("saved");
@@ -513,8 +519,9 @@ export function App(): React.ReactElement {
         () => setSaveStatus("idle"),
         SAVED_INDICATOR_MS,
       );
-    } catch {
+    } catch (err) {
       setSaveStatus("error");
+      setSaveError(err instanceof Error ? err.message : String(err));
     }
   }, [currentFile.docUrl]);
 
@@ -714,7 +721,7 @@ export function App(): React.ReactElement {
   );
 
   const addNode = useCallback(
-    (kind: NodeKind, name: string) => {
+    (kind: NodeKind, name: string, description: string) => {
       setState((current) => {
         if (current.status !== "ready") return current;
         const taken = new Set(current.document.nodes.map((n) => n.id));
@@ -722,7 +729,7 @@ export function App(): React.ReactElement {
         try {
           const next = applyCommand(current.document, {
             type: "add_node",
-            node: { id, kind, name },
+            node: { id, kind, name, description },
           });
           setCommandError(undefined);
           setIsDirty(true);
@@ -928,6 +935,7 @@ export function App(): React.ReactElement {
         document={doc}
         commandError={commandError}
         saveStatus={saveStatus}
+        {...(saveError !== null ? { saveError } : {})}
         isDirty={isDirty}
         onSave={() => void save()}
         onAddNode={addNode}

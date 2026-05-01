@@ -16,6 +16,66 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.10.0] - 2026-05-01
+
+### Added
+- **Edges carry a lifecycle status now too.** `EdgeSchema.status`
+  takes the same `proposed | active | deprecated` enum nodes
+  already use, defaults to active, and the renderer applies the
+  same dashed + coloured-border treatment used for node status —
+  so "this dependency is planned for next sprint" reads at a
+  glance. EdgeInspector gets a Lifecycle status select, and
+  `data-archik-status` lands on the edge wrapper just as it does
+  on nodes.
+- **`description` is required on every node.** Empty strings and
+  missing values are rejected by `archik validate`,
+  `archik suggest set`, and the dev-server PUT handler. The skill
+  + slash commands now explicitly say the description must
+  explain WHAT the node does (its responsibility / behaviour) —
+  not just restate its kind or name. AddNodeForm grew a required
+  `Description` textarea so the canvas can't create an
+  unauthorable node.
+- **Save errors surface in the canvas toolbar.** When the dev
+  server rejects a PUT (e.g. missing required sourcePath, missing
+  description, parent↔child edge), the validation message now
+  reaches the user via a danger pill with the first line of the
+  server response and the full message in the tooltip. Previously
+  the canvas swallowed the 400 and showed a bare "Save failed"
+  with no detail.
+
+### Changed
+- **Subscribe (and reads) edges animate from the data source to
+  the consumer.** The marching-dots animation used to run in the
+  arrow direction (subscriber → topic), which contradicted the
+  semantic — data flows topic → subscriber. EdgeRenderer now sets
+  `animatedReverse` on `subscribes` and `reads`, and the keyframe
+  interpolates to the *positive* dash period so the dots travel
+  toward the consumer end. Every other animated relationship is
+  unchanged.
+
+### Removed
+- **Discussion file mode (`*.archik.discussion.yaml`)**. The
+  separate file mode added in 0.9.0 is replaced by the existing
+  node/edge `status` field — `status: proposed` covers the same
+  "code may not exist yet" use case without a parallel file
+  convention, and you don't have to choose between two ways of
+  expressing the same idea. `archikFileMode` returns only `normal`
+  | `suggested` now; `safeResolveProjectFile` and
+  `listArchikFiles` no longer accept the `.discussion.yaml`
+  suffix. The skill, slash commands, and `archik schema`
+  constraint output are all updated to point exclusively at
+  `status: proposed` for greenfield work.
+
+### Fixed
+- **`status: proposed` actually works as the "no code yet"
+  escape valve.** When the strict `sourcePath` rule shipped in
+  0.9.0 it bypassed the existing lifecycle states, so a planned
+  node in the canonical file failed validation regardless of
+  status. Both proposed and deprecated nodes are now exempt from
+  the required-sourcePath rule (matching what `archik drift` has
+  always done). If they DO declare a sourcePath, the on-disk
+  check still runs.
+
 ## [0.9.2] - 2026-05-01
 
 ### Added

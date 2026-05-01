@@ -19,6 +19,7 @@ const validBody = (extra = ""): string =>
     "  - id: orders",
     "    kind: service",
     "    name: Orders",
+    "    description: test fixture",
     extra,
     "edges: []",
     "",

@@ -10,7 +10,9 @@ import type { Document } from "./types.ts";
 const validDoc = {
   version: "1.0",
   name: "Demo",
-  nodes: [{ id: "api", kind: "service", name: "API" }],
+  nodes: [
+    { id: "api", kind: "service", name: "API", description: "test fixture" },
+  ],
   edges: [],
 };
 
@@ -84,6 +86,7 @@ describe("validateDocument", () => {
           id: "api",
           kind: "service",
           name: "API",
+          description: "test fixture",
           notes: "single string instead of array",
         },
       ],
@@ -130,12 +133,14 @@ describe("checkCrossFileReferences", () => {
         id: "agent",
         kind: "agent",
         name: "Agent",
+        description: "test fixture",
         archikFile: ".archik/agent-loop.archik.yaml",
       },
       {
         id: "api",
         kind: "service",
         name: "API",
+        description: "test fixture",
       },
     ],
     edges: [
@@ -172,6 +177,7 @@ describe("checkCrossFileReferences", () => {
           id: "agent",
           kind: "agent",
           name: "Agent",
+          description: "test fixture",
           archikFile: "agent-loop.archik.yaml", // missing `.archik/`
         },
       ],
@@ -236,17 +242,20 @@ describe("checkSourcePaths", () => {
         id: "good-service",
         kind: "service",
         name: "Good",
+        description: "test fixture",
         sourcePath: "src/good",
       },
       {
         id: "missing-path",
         kind: "function",
         name: "Missing",
+        description: "test fixture",
       },
       {
         id: "bad-path",
         kind: "module",
         name: "Bad",
+        description: "test fixture",
         sourcePath: "src/does-not-exist",
       },
       {
@@ -255,6 +264,7 @@ describe("checkSourcePaths", () => {
         id: "stripe",
         kind: "external",
         name: "Stripe",
+        description: "test fixture",
       },
     ],
     edges: [],
@@ -262,11 +272,6 @@ describe("checkSourcePaths", () => {
 
   const onDisk = new Set(["src/good"]);
   const exists = (p: string): boolean => onDisk.has(p);
-
-  it("returns no errors for a discussion file (sourcePath rules are relaxed)", () => {
-    const errors = checkSourcePaths(docWithMixedNodes, "discussion", exists);
-    expect(errors).toEqual([]);
-  });
 
   it("flags missing sourcePath on a code-bearing node in normal mode", () => {
     const errors = checkSourcePaths(docWithMixedNodes, "normal", exists);
@@ -276,8 +281,9 @@ describe("checkSourcePaths", () => {
     expect(missing).toBeDefined();
     expect(missing?.message).toContain("missing-path");
     expect(missing?.message).toContain("function");
-    // Hint pointing the agent at discussion mode.
-    expect(missing?.message).toContain("discussion.yaml");
+    // Hint should point the agent at status: proposed (the only
+    // remaining escape valve now that discussion files are gone).
+    expect(missing?.message).toContain("status: proposed");
   });
 
   it("flags an on-disk-missing sourcePath in normal mode", () => {
@@ -307,6 +313,7 @@ describe("checkSourcePaths", () => {
           id: "svc",
           kind: "service",
           name: "Svc",
+          description: "test fixture",
           sourcePath: "src/good",
         },
       ],
@@ -327,6 +334,7 @@ describe("checkSourcePaths", () => {
           id: "payments",
           kind: "service",
           name: "Payments",
+          description: "test fixture",
           status: "proposed",
         },
       ],
@@ -347,6 +355,7 @@ describe("checkSourcePaths", () => {
           id: "payments",
           kind: "service",
           name: "Payments",
+          description: "test fixture",
           status: "proposed",
           sourcePath: "src/typo",
         },
@@ -368,6 +377,7 @@ describe("checkSourcePaths", () => {
           id: "legacy",
           kind: "module",
           name: "Legacy",
+          description: "test fixture",
           status: "deprecated",
         },
       ],
@@ -376,7 +386,7 @@ describe("checkSourcePaths", () => {
     expect(checkSourcePaths(deprecatedDoc, "normal", exists)).toEqual([]);
   });
 
-  it("hint on missing sourcePath mentions both proposed and discussion as escape valves", () => {
+  it("hint on missing sourcePath points the agent at status: proposed", () => {
     const doc: Document = {
       version: "1.0",
       name: "Demo",
@@ -386,7 +396,6 @@ describe("checkSourcePaths", () => {
     const errors = checkSourcePaths(doc, "normal", exists);
     expect(errors).toHaveLength(1);
     expect(errors[0]!.message).toContain("status: proposed");
-    expect(errors[0]!.message).toContain("discussion.yaml");
   });
 
   describe("parent / child sourcePath containment", () => {
@@ -410,12 +419,14 @@ describe("checkSourcePaths", () => {
           id: "orders",
           kind: "module",
           name: "Orders",
+          description: "test fixture",
           sourcePath: parentPath,
         },
         {
           id: "orders-api",
           kind: "function",
           name: "API",
+          description: "test fixture",
           parentId: "orders",
           sourcePath: childPath,
         },
@@ -465,12 +476,14 @@ describe("checkSourcePaths", () => {
             id: "canvas",
             kind: "page",
             name: "Canvas",
+            description: "test fixture",
             sourcePath: "src/render/Canvas.tsx",
           },
           {
             id: "inspector",
             kind: "module",
             name: "Inspector",
+            description: "test fixture",
             parentId: "canvas",
             sourcePath: "src/ui/Inspector.tsx",
           },
@@ -494,6 +507,7 @@ describe("checkSourcePaths", () => {
             id: "child",
             kind: "function",
             name: "Child",
+            description: "test fixture",
             parentId: "external-thing",
             sourcePath: "src/orders/api",
           },
@@ -513,12 +527,14 @@ describe("checkSourcePaths", () => {
             id: "outer",
             kind: "module",
             name: "Outer",
+            description: "test fixture",
             sourcePath: "src/orders",
           },
           {
             id: "inner",
             kind: "module",
             name: "Inner",
+            description: "test fixture",
             parentId: "outer",
             sourcePath: "src/orders",
           },
