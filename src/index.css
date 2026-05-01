@@ -248,6 +248,44 @@ body,
     drop-shadow(0 0 2px var(--archik-selected-glow));
   animation: archikPulse 1.8s ease-in-out infinite;
 }
+
+/* ---------------------------------------------------------------------------
+   Lifecycle status — visual signal for nodes that aren't `active`.
+   Active is the default and gets no extra styling.
+
+   - proposed: dashed stroke + reduced opacity. Mirrors the FileSwitcher's
+     "(pending)" idiom — same dashed-border vocabulary across the canvas
+     so "doesn't exist yet" reads consistently.
+   - deprecated: dashed stroke + amber tint. Distinct from proposed so
+     "going away" doesn't get confused with "not built yet".
+   The container `<g>` carries `data-archik-status`; descendant selectors
+   apply the treatment to every shape primitive (rect/path/ellipse) the
+   per-kind components draw without each shape having to opt in.
+   --------------------------------------------------------------------------- */
+[data-archik-status="proposed"] {
+  opacity: 0.78;
+}
+[data-archik-status="proposed"] rect,
+[data-archik-status="proposed"] path,
+[data-archik-status="proposed"] ellipse,
+[data-archik-status="proposed"] line {
+  stroke-dasharray: 5 3;
+}
+[data-archik-status="deprecated"] {
+  opacity: 0.7;
+}
+[data-archik-status="deprecated"] rect,
+[data-archik-status="deprecated"] path,
+[data-archik-status="deprecated"] ellipse,
+[data-archik-status="deprecated"] line {
+  stroke-dasharray: 2 4;
+  stroke: var(--archik-status-deprecated, #d97706);
+}
+[data-archik-status="deprecated"] text {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--archik-status-deprecated, #d97706);
+}
 @keyframes archikPulse {
   0%, 100% {
     filter: drop-shadow(0 0 4px var(--archik-selected-glow))

@@ -154,4 +154,43 @@ describe("NodeRenderer", () => {
         ?.getAttribute("data-archik-selected"),
     ).not.toBe("true");
   });
+
+  it("emits data-archik-status='proposed' so CSS can style planned nodes", () => {
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api", status: "proposed" })} />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-node-id='api']")
+        ?.getAttribute("data-archik-status"),
+    ).toBe("proposed");
+  });
+
+  it("emits data-archik-status='deprecated' for nodes being phased out", () => {
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api", status: "deprecated" })} />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-node-id='api']")
+        ?.getAttribute("data-archik-status"),
+    ).toBe("deprecated");
+  });
+
+  it("omits data-archik-status for active (default) nodes — keeps the DOM clean", () => {
+    const { container } = render(
+      <svg>
+        <NodeRenderer node={make({ id: "api" })} />
+      </svg>,
+    );
+    expect(
+      container
+        .querySelector("[data-archik-node-id='api']")
+        ?.hasAttribute("data-archik-status"),
+    ).toBe(false);
+  });
 });

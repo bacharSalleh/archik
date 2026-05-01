@@ -16,6 +16,46 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.9.1] - 2026-05-01
+
+### Added
+- **Lifecycle-status visuals on the canvas.** Nodes with
+  `status: proposed` now render with a dashed stroke and reduced
+  opacity so "planned but not built yet" reads at a glance —
+  matches the dashed-border idiom the file switcher already uses
+  for orphan suggestions. `deprecated` nodes get a dashed amber
+  stroke + strikethrough on the name. Active (default) is
+  unchanged. Implemented as `data-archik-status` on the node's
+  wrapping `<g>` so every shape primitive picks up the styling
+  via descendant selectors in `index.css`.
+- **`Source path` and `Lifecycle status` fields in the
+  NodeInspector sidebar.** The user can now see and edit which
+  file/folder a node maps to (with a hint that the field is
+  required for code-bearing kinds in normal/suggested files) and
+  flip a node between `active` / `proposed` / `deprecated`
+  without leaving the canvas.
+- **SKILL.md "Lifecycle status" subsection** describing when to
+  reach for `status: proposed` vs. a discussion file. They're
+  complementary: `proposed` lives inside the canonical normal
+  file for a single planned component; discussion files are for
+  whole hypothetical architectures. `archik drift` already
+  excludes proposed nodes; the new validation rule does too.
+- 4 new tests (renderer attribute emission for proposed /
+  deprecated / active, plus the inspector's data attribute) and
+  4 new validate tests covering proposed/deprecated exemption
+  and the still-honored on-disk check for declared paths.
+
+### Fixed
+- `archik validate` and `archik suggest set` no longer reject
+  code-bearing nodes in normal/suggested files solely because
+  they lack a `sourcePath` when their `status` is `proposed` or
+  `deprecated`. Both lifecycle states explicitly mean "code may
+  not exist on disk" — `archik drift` already skipped them, but
+  the validation rule introduced in 0.9.0 didn't, so a planned
+  node in the canonical file was unauthorable. If a proposed
+  node DOES declare a sourcePath, that path is still verified on
+  disk so a stale path doesn't slip through silently.
+
 ## [0.9.0] - 2026-05-01
 
 ### Added

@@ -44,7 +44,24 @@ Archik files have **three modes**, selected by filename suffix. Validation stric
 - Are you sketching a not-yet-built system, or proposing an architecture for a new project? → **discussion**. Don't pollute the main file with speculation.
 - Are you adding a `sourcePath` for a node whose code is going to be created soon? → **discussion**, then move to **normal** once the code exists.
 
-If `suggest set` rejects your draft with a `sourcePath` error, the right answer is usually one of: (a) fix the path to point at real code, (b) move the work into `*.archik.discussion.yaml`, or (c) use a non-code-bearing kind (e.g., `external` for a third-party service).
+If `suggest set` rejects your draft with a `sourcePath` error, the right answer is usually one of: (a) fix the path to point at real code, (b) move the work into `*.archik.discussion.yaml`, (c) use a non-code-bearing kind (e.g., `external` for a third-party service), or (d) mark the node `status: proposed` if it's a planned-but-not-built component (see "Lifecycle status" below).
+
+## Lifecycle status — `proposed`, `active`, `deprecated`
+
+Nodes carry an optional `status` field. Use it to keep the canonical diagram honest about what's built vs. what's planned vs. what's going away — without dropping nodes from the file or shoving them into a discussion sketch.
+
+| status                    | When                                                                                          | sourcePath rule                                            | Visual                                |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------- |
+| absent / `active`         | Built and live (default).                                                                     | Required for code-bearing kinds, must exist on disk.       | Standard solid stroke.                |
+| `proposed`                | Planned for the next iteration — node belongs in the canonical map but the code isn't there yet. | Optional. If you supply one, it must still exist on disk. | Dashed stroke + reduced opacity.      |
+| `deprecated`              | Being phased out; reads/writes shouldn't depend on it going forward.                          | Optional. Same on-disk rule as `proposed` if you set one.  | Dashed stroke + amber + strikethrough name. |
+
+**`proposed` vs. a discussion file.** They're complementary, not interchangeable:
+
+- A `*.archik.discussion.yaml` file is for **whole hypothetical architectures** — a sketch the team is exploring, a diagram for a not-yet-started project, a "what if we built X?" option. The whole file is a draft.
+- `status: proposed` on a node lives inside the **canonical normal file**. The architecture as a whole is real; this one node is the next thing to build. `archik drift` skips proposed nodes so they don't trigger orphan warnings before their code lands.
+
+When in doubt: if the user is adding a single planned component to a real project, use `status: proposed` in the normal file. If they're sketching something with no anchor in the existing codebase, use a discussion file.
 
 ## Slash commands (user-facing entry points)
 
