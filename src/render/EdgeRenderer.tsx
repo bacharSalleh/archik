@@ -230,6 +230,23 @@ export function EdgeRenderer({
         ? "archik-edge-flowing"
         : undefined;
 
+  // The marching-dots animation needs to advance exactly one dash
+  // period per cycle, otherwise the dots visibly jump. We derive
+  // the period from the same strokeDasharray we apply to the
+  // polyline so streams (period 10), websockets (7), webhooks (15)
+  // animate as smoothly as the http_call/writes/reads family (8).
+  const dashPeriod =
+    style.strokeDasharray !== undefined
+      ? style.strokeDasharray
+          .trim()
+          .split(/\s+/)
+          .reduce((sum, n) => sum + Number(n), 0)
+      : 0;
+  const polylineStyle =
+    polylineClass !== undefined && dashPeriod > 0
+      ? ({ "--archik-dash-period": String(dashPeriod) } as React.CSSProperties)
+      : undefined;
+
   const handleClick = onSelectEdge
     ? (e: React.MouseEvent<SVGGElement>) => {
         e.stopPropagation();
@@ -272,6 +289,7 @@ export function EdgeRenderer({
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}
+        {...(polylineStyle !== undefined ? { style: polylineStyle } : {})}
       />
       {edge.label !== undefined && labelAt !== undefined && (
         <g

@@ -285,6 +285,35 @@ export const DocumentSchema = z
         });
       }
     }
+
+    // Duplicate-edge detection. Two edges with the same (from, to,
+    // relationship) tuple aren't an error per se (the second one
+    // gets a unique edge id, so the schema's id-uniqueness check
+    // doesn't fire) but they render as overlapping strokes and
+    // bloat the diagram silently. Reject the second occurrence and
+    // point at the first by id so the agent knows which one to drop.
+    // Cross-file edges are exempt — the remote endpoint can be
+    // duplicated harmlessly across files, and we can't compare
+    // against edges we haven't loaded.
+    const seenEdges = new Map<string, string>(); // tuple → existing edge id
+    for (let i = 0; i < doc.edges.length; i++) {
+      const edge = doc.edges[i]!;
+      if (edge.fromFile !== undefined || edge.toFile !== undefined) continue;
+      const tuple = `${edge.from} ${edge.to} ${edge.relationship}`;
+      const prior = seenEdges.get(tuple);
+      if (prior !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i],
+          message:
+            `edge "${edge.id}" duplicates "${prior}" — same from/to/relationship ` +
+            `(${edge.from} → ${edge.to} via ${edge.relationship}). The diagram already ` +
+            `expresses this connection; remove one of them.`,
+        });
+        continue;
+      }
+      seenEdges.set(tuple, edge.id);
+    }
   });
 
 export const DOCUMENT_VERSION = "1.0" as const;

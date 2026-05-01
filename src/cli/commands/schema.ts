@@ -206,6 +206,8 @@ function buildSchema(): SchemaSpec {
       "Edges reference existing node ids (unless fromFile/toFile are set).",
       "No self-loop edges (from === to).",
       "No edges between a node and any of its parent-chain ancestors — the parent already CONTAINS the child visually, so an edge between them is a duplicate.",
+      "No duplicate edges by (from, to, relationship) — silent dupes render as overlapping strokes; remove one.",
+      "When a parent and a code-bearing child both declare sourcePath and the parent's path is a directory, the child's sourcePath MUST be inside the parent's. Catches diagram structure that contradicts the source layout.",
       "parentId references an existing node, with no cycles.",
       "Coordinates (x, y, width, height, viewport) are REJECTED — layout is computed by ELK.",
       "Empty arrays are allowed; empty strings on required fields are not.",

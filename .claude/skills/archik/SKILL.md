@@ -63,6 +63,11 @@ Nodes carry an optional `status` field. Use it to keep the canonical diagram hon
 
 When in doubt: if the user is adding a single planned component to a real project, use `status: proposed` in the normal file. If they're sketching something with no anchor in the existing codebase, use a discussion file.
 
+## Other validation rules worth pre-empting
+
+- **No duplicate edges by `(from, to, relationship)`**. Two edges between the same pair with the same relationship render as overlapping strokes and bloat the diagram silently. The validator rejects the second occurrence and points at the first by id. If you genuinely need to express two different concerns between the same pair (e.g. `service → db` for both `reads` and `writes`), use distinct relationships.
+- **Parent / child `sourcePath` containment**. When a parent and a child both declare `sourcePath` and the parent's path is a directory, the child's `sourcePath` MUST be inside the parent's. `module: src/orders` → `function: src/orders/api.ts` is fine; `module: src/orders` → `function: src/payments/api.ts` is rejected because the diagram's containment claim contradicts the source tree. The check skips parents whose `sourcePath` is a single file (a file can't contain anything on disk) and parents without `sourcePath` at all.
+
 ## Slash commands (user-facing entry points)
 
 | Command                     | Purpose                                       |

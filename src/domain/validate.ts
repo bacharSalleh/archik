@@ -40,6 +40,14 @@ export function checkSourcePaths(
 ): ValidationError[] {
   if (mode === "discussion") return [];
   const errors: ValidationError[] = [];
+  // Build a parent → sourcePath lookup once so each child's
+  // containment check is O(1).
+  const sourcePathOf = new Map<string, string>();
+  for (const n of doc.nodes) {
+    if (n.sourcePath !== undefined && n.sourcePath.length > 0) {
+      sourcePathOf.set(n.id, n.sourcePath);
+    }
+  }
   doc.nodes.forEach((node, i) => {
     if (!isCodeBearing(node.kind)) return;
     const isPlanned = node.status === "proposed" || node.status === "deprecated";
@@ -70,9 +78,73 @@ export function checkSourcePaths(
           `(if status is proposed/deprecated, sourcePath is optional), or move ` +
           `this node into a *.archik.discussion.yaml file.`,
       });
+      return;
+    }
+    // Containment: the diagram's parent → child structure has to
+    // agree with the source layout. If the parent declares
+    // `sourcePath: src/orders` and the child declares
+    // `sourcePath: src/payments/api`, the diagram is claiming a
+    // hierarchy the filesystem doesn't share — which is exactly
+    // the "no accuracy in nodes" failure mode the validator exists
+    // to prevent. Skipped when the parent has no sourcePath (e.g.
+    // the parent is `kind: external` or `kind: prompt`) — there's
+    // nothing on disk to contain anything.
+    if (node.parentId !== undefined) {
+      const parentPath = sourcePathOf.get(node.parentId);
+      // The check only applies when the parent's sourcePath looks
+      // like a directory. A parent that points at a single file
+      // (e.g. `src/render/Canvas.tsx`) can't logically *contain*
+      // anything on disk — the parenting in the diagram is then
+      // an organisational grouping rather than a directory claim,
+      // and forcing every child path to live under that file would
+      // be wrong. Heuristic: any final segment with an extension
+      // is a file.
+      if (
+        parentPath !== undefined &&
+        looksLikeDirectory(parentPath) &&
+        !isUnderPath(node.sourcePath, parentPath)
+      ) {
+        errors.push({
+          path: `nodes.${i}.sourcePath`,
+          message:
+            `node "${node.id}" sourcePath "${node.sourcePath}" is not inside its parent's ` +
+            `sourcePath "${parentPath}". The diagram says "${node.id}" lives inside ` +
+            `"${node.parentId}", but the source tree disagrees. ` +
+            `Either fix the path, change the parentId, or drop one of the sourcePaths.`,
+        });
+      }
     }
   });
   return errors;
+}
+
+/**
+ * True when `child` is the same as `parent` or sits inside the
+ * `parent` directory (segment-wise prefix match). Operates on the
+ * normalised forward-slash form the schema enforces — no path
+ * normalisation needed beyond a trailing-slash trim.
+ *
+ *   src/orders         contains src/orders             → true
+ *   src/orders         contains src/orders/api         → true
+ *   src/orders         contains src/orders-legacy      → false (segment boundary)
+ *   src/orders         contains src/payments           → false
+ */
+function isUnderPath(child: string, parent: string): boolean {
+  const c = child.replace(/\/+$/, "");
+  const p = parent.replace(/\/+$/, "");
+  if (c === p) return true;
+  return c.startsWith(p + "/");
+}
+
+/**
+ * Heuristic: a path looks like a directory when its final segment
+ * has no file extension. `src/orders` → directory; `src/orders/api.ts`
+ * → file; `src/orders.legacy` → file (any extension counts). Avoids
+ * a stat call so the validator stays pure.
+ */
+function looksLikeDirectory(p: string): boolean {
+  const last = p.split("/").pop() ?? "";
+  return !/\.[^./]+$/.test(last);
 }
 
 /**

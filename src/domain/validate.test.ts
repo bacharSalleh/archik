@@ -388,6 +388,146 @@ describe("checkSourcePaths", () => {
     expect(errors[0]!.message).toContain("status: proposed");
     expect(errors[0]!.message).toContain("discussion.yaml");
   });
+
+  describe("parent / child sourcePath containment", () => {
+    // Parent's sourcePath is a directory. Same fixture, different
+    // child paths per test.
+    const present = new Set([
+      "src/orders",
+      "src/orders/api",
+      "src/payments/api",
+    ]);
+    const exists = (p: string): boolean => present.has(p);
+
+    const docWith = (
+      childPath: string,
+      parentPath = "src/orders",
+    ): Document => ({
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        {
+          id: "orders",
+          kind: "module",
+          name: "Orders",
+          sourcePath: parentPath,
+        },
+        {
+          id: "orders-api",
+          kind: "function",
+          name: "API",
+          parentId: "orders",
+          sourcePath: childPath,
+        },
+      ],
+      edges: [],
+    });
+
+    it("accepts a child sourcePath inside the parent's directory", () => {
+      expect(checkSourcePaths(docWith("src/orders/api"), "normal", exists))
+        .toEqual([]);
+    });
+
+    it("rejects a child sourcePath outside the parent's directory", () => {
+      const errors = checkSourcePaths(docWith("src/payments/api"), "normal", exists);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.path).toBe("nodes.1.sourcePath");
+      expect(errors[0]!.message).toMatch(/not inside its parent's sourcePath/);
+      expect(errors[0]!.message).toContain("src/payments/api");
+      expect(errors[0]!.message).toContain("src/orders");
+    });
+
+    it("rejects sibling-prefix collisions (segment boundary check)", () => {
+      // src/orders does NOT contain src/orders-legacy/api — the
+      // shared prefix must end at a / boundary.
+      const present2 = new Set(["src/orders", "src/orders-legacy/api"]);
+      const errors = checkSourcePaths(
+        docWith("src/orders-legacy/api"),
+        "normal",
+        (p) => present2.has(p),
+      );
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.message).toMatch(/not inside/);
+    });
+
+    it("skips the check when the parent's sourcePath is a single file (can't contain anything)", () => {
+      // Parent canvas is `src/render/Canvas.tsx` — children living
+      // anywhere are fine because a file isn't a container.
+      const present2 = new Set([
+        "src/render/Canvas.tsx",
+        "src/ui/Inspector.tsx",
+      ]);
+      const doc: Document = {
+        version: "1.0",
+        name: "Demo",
+        nodes: [
+          {
+            id: "canvas",
+            kind: "page",
+            name: "Canvas",
+            sourcePath: "src/render/Canvas.tsx",
+          },
+          {
+            id: "inspector",
+            kind: "module",
+            name: "Inspector",
+            parentId: "canvas",
+            sourcePath: "src/ui/Inspector.tsx",
+          },
+        ],
+        edges: [],
+      };
+      expect(checkSourcePaths(doc, "normal", (p) => present2.has(p))).toEqual([]);
+    });
+
+    it("skips the check when the parent has no sourcePath at all", () => {
+      // Parent (e.g. kind: external or an interface) has no path —
+      // there's no claim to contradict, so the child can live
+      // anywhere on disk.
+      const present2 = new Set(["src/orders/api"]);
+      const doc: Document = {
+        version: "1.0",
+        name: "Demo",
+        nodes: [
+          { id: "external-thing", kind: "external", name: "Stripe" },
+          {
+            id: "child",
+            kind: "function",
+            name: "Child",
+            parentId: "external-thing",
+            sourcePath: "src/orders/api",
+          },
+        ],
+        edges: [],
+      };
+      expect(checkSourcePaths(doc, "normal", (p) => present2.has(p))).toEqual([]);
+    });
+
+    it("treats parent path and child path as equal as contained (same node)", () => {
+      const present2 = new Set(["src/orders"]);
+      const doc: Document = {
+        version: "1.0",
+        name: "Demo",
+        nodes: [
+          {
+            id: "outer",
+            kind: "module",
+            name: "Outer",
+            sourcePath: "src/orders",
+          },
+          {
+            id: "inner",
+            kind: "module",
+            name: "Inner",
+            parentId: "outer",
+            sourcePath: "src/orders",
+          },
+        ],
+        edges: [],
+      };
+      expect(checkSourcePaths(doc, "normal", (p) => present2.has(p))).toEqual([]);
+    });
+  });
 });
 
 describe("formatErrors", () => {

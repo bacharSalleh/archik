@@ -49,6 +49,13 @@
   --archik-selected:         #2563eb;
   --archik-selected-glow:    rgba(37, 99, 235, 0.18);
 
+  /* Lifecycle status borders — distinct hues for "not currently
+     real code" so the visual reads at a glance even before you
+     notice the dashed stroke. Indigo for proposed (in design /
+     forward-looking), amber for deprecated (going away). */
+  --archik-status-proposed:  #6366f1;
+  --archik-status-deprecated: #d97706;
+
   color-scheme: light;
 }
 
@@ -93,6 +100,11 @@
 
   --archik-selected:         #22d3ee;
   --archik-selected-glow:    rgba(34, 211, 238, 0.28);
+
+  /* Lifecycle status — brighter variants so the dashed border
+     reads against the dark canvas. */
+  --archik-status-proposed:  #818cf8;
+  --archik-status-deprecated: #fbbf24;
 
   color-scheme: dark;
 }
@@ -263,12 +275,17 @@ body,
    per-kind components draw without each shape having to opt in.
    --------------------------------------------------------------------------- */
 [data-archik-status="proposed"] {
-  opacity: 0.78;
+  opacity: 0.82;
 }
+/* Colour the border hex / rect / cylinder / cloud — every shape primitive
+   the per-kind components draw — so "planned but not real" reads at a
+   glance regardless of node kind. The CSS rule beats the SVG presentation
+   attribute the shape components set inline. */
 [data-archik-status="proposed"] rect,
 [data-archik-status="proposed"] path,
 [data-archik-status="proposed"] ellipse,
 [data-archik-status="proposed"] line {
+  stroke: var(--archik-status-proposed);
   stroke-dasharray: 5 3;
 }
 [data-archik-status="deprecated"] {
@@ -278,13 +295,13 @@ body,
 [data-archik-status="deprecated"] path,
 [data-archik-status="deprecated"] ellipse,
 [data-archik-status="deprecated"] line {
+  stroke: var(--archik-status-deprecated);
   stroke-dasharray: 2 4;
-  stroke: var(--archik-status-deprecated, #d97706);
 }
 [data-archik-status="deprecated"] text {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
-  text-decoration-color: var(--archik-status-deprecated, #d97706);
+  text-decoration-color: var(--archik-status-deprecated);
 }
 @keyframes archikPulse {
   0%, 100% {
@@ -334,17 +351,21 @@ body,
 }
 
 /* Animated "data on wire" edges — marching dots flowing toward the
-   target. The dash period below matches the stroke-dasharray; offset
-   moves one full period per cycle so the dots glide smoothly. */
+   target. EdgeRenderer sets `--archik-dash-period` inline to match
+   each relationship's stroke-dasharray sum (e.g. "6 4" → 10) so the
+   offset advances exactly one period per cycle and the dots glide
+   without jumping. The fallback (8) matches the most common dash
+   pattern (`2 6`) so unstyled edges still animate cleanly. */
 @keyframes archikEdgeFlow {
   from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: -16; }
+  to   { stroke-dashoffset: calc(-1 * var(--archik-dash-period, 8) * 1px); }
 }
 .archik-edge-flowing {
   animation: archikEdgeFlow 1.4s linear infinite;
 }
 /* Faster variant — used by streams_to and websocket where the
-   intuition is "lots of small messages, all the time." */
+   intuition is "lots of small messages, all the time." Same period
+   variable; only the duration changes. */
 .archik-edge-flowing-fast {
   animation: archikEdgeFlow 0.6s linear infinite;
 }

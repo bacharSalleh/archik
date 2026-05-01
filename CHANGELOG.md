@@ -16,6 +16,55 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.9.2] - 2026-05-01
+
+### Added
+- **Coloured borders for non-active lifecycle states.** `proposed`
+  nodes now render with an indigo dashed border (light theme
+  `#6366f1`, dark `#818cf8`); `deprecated` nodes get an amber
+  dashed border with a strikethrough on the name. Both colours
+  live as CSS variables (`--archik-status-proposed`,
+  `--archik-status-deprecated`) so themes can override them.
+  Active is unchanged. CSS rules apply to every shape primitive
+  (rect / path / ellipse / line) so the treatment works
+  uniformly regardless of node kind.
+- **Two new validator rules** that close common "no accuracy in
+  nodes" failure modes:
+  - **Duplicate edges by `(from, to, relationship)`** are
+    rejected. Two edges with the same tuple render as overlapping
+    strokes today and bloat the diagram silently. The error
+    points at the second edge by id and names the first.
+    Cross-file edges are exempt — the remote endpoint can mirror
+    a local one harmlessly.
+  - **Parent / child `sourcePath` containment.** When a parent
+    and a code-bearing child both declare `sourcePath` and the
+    parent's path is a directory, the child's `sourcePath` MUST
+    be inside the parent's. Catches the case where the diagram's
+    structural claim contradicts the source layout
+    (`module: src/orders` → `function: src/payments/api.ts` is
+    rejected). The check uses segment-boundary matching so
+    `src/orders` does not contain `src/orders-legacy/api`.
+    Skipped when the parent's `sourcePath` is a single file (a
+    file can't logically contain anything on disk) or when the
+    parent has no `sourcePath` at all.
+- **SKILL.md "Other validation rules worth pre-empting"
+  subsection** documenting both rules so agents know to expect
+  them before authoring.
+
+### Fixed
+- **Marching-dots edge animation now matches the dash period of
+  every relationship.** The keyframe used a fixed `-16px` offset
+  per cycle, which only happens to be a clean multiple of the
+  `2 6` dash family (period 8 — used by `http_call`, `writes`,
+  `reads`, `publishes`, `subscribes`, `invokes`). Streams (period
+  10), websockets (7), webhooks (15), and gRPC (7) visibly
+  jumped each cycle because the offset and the period
+  disagreed. `EdgeRenderer.tsx` now derives the period from
+  `strokeDasharray` and exposes it as `--archik-dash-period`
+  inline; the keyframe in `index.css` interpolates to
+  `calc(-1 * var(--archik-dash-period) * 1px)` so every
+  relationship animates smoothly.
+
 ## [0.9.1] - 2026-05-01
 
 ### Added
