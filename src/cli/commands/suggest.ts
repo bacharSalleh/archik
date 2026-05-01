@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { access, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  archikFileMode,
   isSuggestion,
   stripSuggestionMarker,
   suggestionPath,
@@ -9,7 +10,9 @@ import {
 import { diffDocuments } from "../../domain/diff.ts";
 import {
   checkCrossFileReferences,
+  checkSourcePaths,
   formatErrors,
+  validateDocument,
 } from "../../domain/validate.ts";
 import { parseYaml, stringifyYaml } from "../../io/yaml.ts";
 import type { Document } from "../../domain/types.ts";
@@ -267,20 +270,39 @@ async function set(opts: ParsedOptions): Promise<number> {
     return fail(json, `Cannot read draft: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  let doc: Document;
+  let parsed: Document;
   try {
-    doc = parseYaml(text);
+    parsed = parseYaml(text);
   } catch (err) {
     return fail(json, err instanceof Error ? err.message : String(err));
   }
+
+  // Full schema validation — without this, the draft can carry
+  // structural violations (parent↔child edges, duplicate ids, parent
+  // cycles, edges to unknown nodes) that the dev server then writes
+  // straight to disk. parseYaml's own check catches type errors but
+  // not the document-level superRefine rules.
+  const validated = validateDocument(parsed);
+  if (!validated.ok) {
+    if (json) {
+      console.error(
+        JSON.stringify({ ok: false, errors: validated.errors }, null, 2),
+      );
+    } else {
+      console.error(`✗ Draft fails schema validation:`);
+      console.error(formatErrors(validated.errors));
+    }
+    return 1;
+  }
+  const doc = validated.value;
 
   // Cross-file existence — same rule as `archik validate`. A draft
   // that references a missing peer file would render as a 404 in the
   // canvas, so catch it here.
   const root = projectRoot(mainPath);
-  const crossErrors = checkCrossFileReferences(doc, (rel) =>
-    existsSync(path.resolve(root, rel)),
-  );
+  const fileExists = (rel: string): boolean =>
+    existsSync(path.resolve(root, rel));
+  const crossErrors = checkCrossFileReferences(doc, fileExists);
   if (crossErrors.length > 0) {
     if (json) {
       console.error(
@@ -289,6 +311,24 @@ async function set(opts: ParsedOptions): Promise<number> {
     } else {
       console.error(`✗ Draft references missing files:`);
       console.error(formatErrors(crossErrors));
+    }
+    return 1;
+  }
+
+  // sourcePath rules. The sidecar will become the new main file on
+  // accept, so we apply the *target file*'s mode to the draft — i.e.,
+  // a suggestion proposing changes to a `*.archik.discussion.yaml`
+  // gets the relaxed rules; a suggestion to a normal file is strict.
+  const targetMode = archikFileMode(mainPath);
+  const sourcePathErrors = checkSourcePaths(doc, targetMode, fileExists);
+  if (sourcePathErrors.length > 0) {
+    if (json) {
+      console.error(
+        JSON.stringify({ ok: false, errors: sourcePathErrors }, null, 2),
+      );
+    } else {
+      console.error(`✗ Draft fails sourcePath validation:`);
+      console.error(formatErrors(sourcePathErrors));
     }
     return 1;
   }

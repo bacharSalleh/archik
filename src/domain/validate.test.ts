@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   checkCrossFileReferences,
+  checkSourcePaths,
   validateDocument,
   formatErrors,
 } from "./validate.ts";
@@ -220,6 +221,98 @@ describe("checkCrossFileReferences", () => {
     };
     const errors = checkCrossFileReferences(doc, () => false);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("checkSourcePaths", () => {
+  // A node fixture for each "shape" we care about: code-bearing
+  // with valid path, code-bearing with no path, code-bearing with
+  // a path that doesn't exist, and a non-code-bearing kind.
+  const docWithMixedNodes: Document = {
+    version: "1.0",
+    name: "Demo",
+    nodes: [
+      {
+        id: "good-service",
+        kind: "service",
+        name: "Good",
+        sourcePath: "src/good",
+      },
+      {
+        id: "missing-path",
+        kind: "function",
+        name: "Missing",
+      },
+      {
+        id: "bad-path",
+        kind: "module",
+        name: "Bad",
+        sourcePath: "src/does-not-exist",
+      },
+      {
+        // Non-code-bearing kinds are exempt — sourcePath isn't even
+        // expected for an external service.
+        id: "stripe",
+        kind: "external",
+        name: "Stripe",
+      },
+    ],
+    edges: [],
+  };
+
+  const onDisk = new Set(["src/good"]);
+  const exists = (p: string): boolean => onDisk.has(p);
+
+  it("returns no errors for a discussion file (sourcePath rules are relaxed)", () => {
+    const errors = checkSourcePaths(docWithMixedNodes, "discussion", exists);
+    expect(errors).toEqual([]);
+  });
+
+  it("flags missing sourcePath on a code-bearing node in normal mode", () => {
+    const errors = checkSourcePaths(docWithMixedNodes, "normal", exists);
+    const missing = errors.find(
+      (e) => e.path === "nodes.1.sourcePath" && /missing required/.test(e.message),
+    );
+    expect(missing).toBeDefined();
+    expect(missing?.message).toContain("missing-path");
+    expect(missing?.message).toContain("function");
+    // Hint pointing the agent at discussion mode.
+    expect(missing?.message).toContain("discussion.yaml");
+  });
+
+  it("flags an on-disk-missing sourcePath in normal mode", () => {
+    const errors = checkSourcePaths(docWithMixedNodes, "normal", exists);
+    const dangling = errors.find((e) => e.path === "nodes.2.sourcePath");
+    expect(dangling).toBeDefined();
+    expect(dangling?.message).toMatch(/does not exist on disk/);
+    expect(dangling?.message).toContain("src/does-not-exist");
+  });
+
+  it("does not flag non-code-bearing kinds even when sourcePath is absent", () => {
+    const errors = checkSourcePaths(docWithMixedNodes, "normal", exists);
+    expect(errors.find((e) => e.path === "nodes.3.sourcePath")).toBeUndefined();
+  });
+
+  it("applies the same strict rules to a suggested file (it'll become normal on accept)", () => {
+    const errors = checkSourcePaths(docWithMixedNodes, "suggested", exists);
+    expect(errors.length).toBeGreaterThanOrEqual(2); // missing + bad path
+  });
+
+  it("returns no errors when every code-bearing node has a valid existing path", () => {
+    const cleanDoc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        {
+          id: "svc",
+          kind: "service",
+          name: "Svc",
+          sourcePath: "src/good",
+        },
+      ],
+      edges: [],
+    };
+    expect(checkSourcePaths(cleanDoc, "normal", exists)).toEqual([]);
   });
 });
 

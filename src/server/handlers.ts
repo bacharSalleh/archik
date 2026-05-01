@@ -8,17 +8,74 @@
  * only way to keep dogfooding honest — otherwise the two paths
  * drift and bugs surface in one but not the other.
  */
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
-import { stripSuggestionMarker, suggestionPath } from "../domain/suggestion.ts";
+import {
+  archikFileMode,
+  stripSuggestionMarker,
+  suggestionPath,
+} from "../domain/suggestion.ts";
+import {
+  checkCrossFileReferences,
+  checkSourcePaths,
+  formatErrors,
+  validateDocument,
+} from "../domain/validate.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
+
+/**
+ * Validate a YAML payload destined for `targetPath` (the file the
+ * canvas is about to PUT). Strictness depends on the file mode
+ * (normal/suggested = strict, discussion = relaxed). Returns null
+ * on success or a human-readable error block on failure — callers
+ * surface it as a 400 so the canvas knows the write was rejected
+ * (e.g. parent↔child edge, missing sourcePath).
+ *
+ * Accepts the project root so cross-file / sourcePath existence
+ * checks resolve from the same place validate / suggest set use.
+ */
+function validateYamlPayload(
+  body: string,
+  targetPath: string,
+  projectRoot: string,
+): string | null {
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(body);
+  } catch (err) {
+    return `Invalid YAML: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  const result = validateDocument(parsed);
+  if (!result.ok) {
+    return `Schema validation failed:\n${formatErrors(result.errors)}`;
+  }
+  const exists = (rel: string): boolean =>
+    existsSync(path.resolve(projectRoot, rel));
+  const cross = checkCrossFileReferences(result.value, exists);
+  if (cross.length > 0) {
+    return `Cross-file reference errors:\n${formatErrors(cross)}`;
+  }
+  // Sidecar files validate under the rules of the file they propose
+  // changes to (the main file), not their own filename mode — the
+  // sidecar will become the main file on accept.
+  const baseName = path.basename(targetPath);
+  const targetForMode = baseName.endsWith(".archik.suggested.yaml")
+    ? targetPath.replace(/\.archik\.suggested\.yaml$/, ".archik.yaml")
+    : targetPath;
+  const mode = archikFileMode(targetForMode);
+  const sp = checkSourcePaths(result.value, mode, exists);
+  if (sp.length > 0) {
+    return `sourcePath validation failed:\n${formatErrors(sp)}`;
+  }
+  return null;
+}
 
 /**
  * Defends mutating endpoints against DNS-rebinding / cross-origin
@@ -77,6 +134,7 @@ async function atomicWrite(target: string, data: string): Promise<void> {
 
 export async function handleYaml(
   docPath: string,
+  projectRoot: string,
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
@@ -88,7 +146,30 @@ export async function handleYaml(
       res.setHeader("cache-control", "no-store");
       if (req.method === "HEAD") res.end();
       else res.end(text);
+      return;
     } catch (err) {
+      // Orphan-suggestion fallback: when the main file doesn't exist
+      // but its sidecar does (i.e., a `--allow-orphan` suggest set
+      // proposed a brand-new sub-architecture that hasn't been
+      // accepted), serve the sidecar so the canvas can drill into
+      // the pending file. The X-Archik-Source header tells the UI
+      // it's viewing a suggestion, not a saved file, so it can show
+      // a banner instead of pretending the file is real.
+      if (docPath.endsWith(".archik.yaml")) {
+        const sidecar = suggestionPath(docPath);
+        try {
+          const text = await fs.readFile(sidecar, "utf-8");
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/yaml; charset=utf-8");
+          res.setHeader("cache-control", "no-store");
+          res.setHeader("x-archik-source", "suggested-orphan");
+          if (req.method === "HEAD") res.end();
+          else res.end(text);
+          return;
+        } catch {
+          // Fall through to 404 below.
+        }
+      }
       res.statusCode = 404;
       res.end(err instanceof Error ? err.message : String(err));
     }
@@ -103,6 +184,13 @@ export async function handleYaml(
     }
     try {
       const body = await readBody(req);
+      const validationError = validateYamlPayload(body, docPath, projectRoot);
+      if (validationError !== null) {
+        res.statusCode = 400;
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.end(validationError);
+        return;
+      }
       await atomicWrite(docPath, body);
       res.statusCode = 204;
       res.end();
@@ -119,6 +207,7 @@ export async function handleYaml(
 
 export async function handleSidecar(
   sidecarPath: string,
+  projectRoot: string,
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
@@ -145,6 +234,13 @@ export async function handleSidecar(
     }
     try {
       const body = await readBody(req);
+      const validationError = validateYamlPayload(body, sidecarPath, projectRoot);
+      if (validationError !== null) {
+        res.statusCode = 400;
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.end(validationError);
+        return;
+      }
       await atomicWrite(sidecarPath, body);
       res.statusCode = 204;
       res.end();
@@ -260,7 +356,8 @@ export function safeResolveProjectFile(
   }
   if (
     !candidate.endsWith(".archik.yaml") &&
-    !candidate.endsWith(".archik.suggested.yaml")
+    !candidate.endsWith(".archik.suggested.yaml") &&
+    !candidate.endsWith(".archik.discussion.yaml")
   ) {
     return null;
   }
@@ -292,12 +389,18 @@ export async function listArchikFiles(
      *  distinctly ("(pending)") so the user can review and accept
      *  before they become real architecture files. */
     isOrphanSuggestion?: boolean;
+    /** True when this entry is a `*.archik.discussion.yaml` file —
+     *  exploratory / greenfield drafts where sourcePath rules are
+     *  relaxed. The canvas renders these distinctly so the user
+     *  knows they aren't the canonical architecture. */
+    isDiscussion?: boolean;
   }>
 > {
   const root = path.resolve(projectRoot);
   const canonicalRoot =
     rootDocPath !== undefined ? path.resolve(rootDocPath) : null;
   const found = new Set<string>();
+  const discussions = new Set<string>();
 
   // The convention is: the canonical root file lives either at the
   // project root (legacy `architecture.archik.yaml`) or under
@@ -309,7 +412,8 @@ export async function listArchikFiles(
   // the user about what their actual map is.
   const isArchikYaml = (name: string): boolean =>
     name.endsWith(".archik.yaml") &&
-    !name.endsWith(".archik.suggested.yaml");
+    !name.endsWith(".archik.suggested.yaml") &&
+    !name.endsWith(".archik.discussion.yaml");
 
   // 1. Legacy root file, if present.
   try {
@@ -346,6 +450,11 @@ export async function listArchikFiles(
         entry.name.endsWith(".archik.suggested.yaml")
       ) {
         orphanSidecars.add(full);
+      } else if (
+        entry.isFile() &&
+        entry.name.endsWith(".archik.discussion.yaml")
+      ) {
+        discussions.add(full);
       }
     }
   };
@@ -365,6 +474,7 @@ export async function listArchikFiles(
     hasSuggestion: boolean;
     isRoot: boolean;
     isOrphanSuggestion?: boolean;
+    isDiscussion?: boolean;
   }> = [];
   for (const abs of found) {
     const rel = path.relative(root, abs).split(path.sep).join("/");
@@ -398,6 +508,22 @@ export async function listArchikFiles(
       hasSuggestion: true,
       isRoot: false,
       isOrphanSuggestion: true,
+    });
+  }
+  // Append discussion files. They're standalone (no sibling main /
+  // sidecar pairing) and load via the same per-file endpoint as
+  // normal files.
+  for (const abs of discussions) {
+    const rel = path.relative(root, abs).split(path.sep).join("/");
+    const base = path
+      .basename(rel)
+      .replace(/\.archik\.discussion\.yaml$/, "");
+    out.push({
+      path: rel,
+      name: base,
+      hasSuggestion: false,
+      isRoot: false,
+      isDiscussion: true,
     });
   }
   // Stable order: legacy root file first (if any), then alphabetical.
@@ -466,9 +592,9 @@ export async function handleArchikFile(
     return;
   }
   if (abs.endsWith(".archik.suggested.yaml")) {
-    return handleSidecar(abs, req, res);
+    return handleSidecar(abs, projectRoot, req, res);
   }
-  return handleYaml(abs, req, res);
+  return handleYaml(abs, projectRoot, req, res);
 }
 
 /**

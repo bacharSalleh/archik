@@ -252,6 +252,39 @@ export const DocumentSchema = z
         steps++;
       }
     }
+
+    // Parent-chain edges: a node's parent already CONTAINS the node
+    // visually (it's drawn as a container), so an edge between them
+    // is a structural duplicate that confuses the layout and reads
+    // as "this thing depends on its own bag." Reject any edge whose
+    // endpoints sit on the same parent chain (parent ↔ child, or
+    // grandparent ↔ grandchild). Cross-file edges are exempt — the
+    // remote endpoint isn't local, so containment doesn't apply.
+    function isAncestor(ancestor: string, descendant: string): boolean {
+      let cursor = parentOf.get(descendant);
+      let steps = 0;
+      while (cursor !== undefined && steps <= doc.nodes.length) {
+        if (cursor === ancestor) return true;
+        cursor = parentOf.get(cursor);
+        steps++;
+      }
+      return false;
+    }
+    for (let i = 0; i < doc.edges.length; i++) {
+      const edge = doc.edges[i]!;
+      if (edge.fromFile !== undefined || edge.toFile !== undefined) continue;
+      if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+      if (isAncestor(edge.from, edge.to) || isAncestor(edge.to, edge.from)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", i],
+          message:
+            `edge "${edge.id}" connects "${edge.from}" and "${edge.to}" but one is an ancestor of the other ` +
+            `— the parent already contains the child, so an edge between them is a duplicate. ` +
+            `Either remove the edge or change the parentId.`,
+        });
+      }
+    }
   });
 
 export const DOCUMENT_VERSION = "1.0" as const;

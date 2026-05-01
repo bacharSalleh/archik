@@ -58,7 +58,16 @@ the contract with the user.
    `npx archik suggest set -` via a heredoc — no temp file, no
    `/tmp/` paths. The CLI validates the schema, checks cross-file
    references, stamps `metadata.suggestion`, and atomically writes
-   `.archik/main.archik.suggested.yaml`:
+   `.archik/main.archik.suggested.yaml`.
+
+   **Every new code-bearing node** (`service`, `function`, `worker`,
+   `module`, `page`, `component`, `store`, `hook`) must declare a
+   `sourcePath:` that you have verified exists on disk. The
+   validator rejects fabricated paths. If the source doesn't exist
+   yet (you're proposing a not-yet-built component), suggest the
+   user run with `--main .archik/<name>.archik.discussion.yaml`
+   instead — discussion files relax the sourcePath rule for
+   greenfield drafts.
 
    ```bash
    npx archik suggest set --note "$ARGUMENTS" - <<'YAML'

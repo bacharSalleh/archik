@@ -4,10 +4,12 @@ import path from "node:path";
 import YAML from "yaml";
 import {
   checkCrossFileReferences,
+  checkSourcePaths,
   formatErrors,
   validateDocument,
   type ValidationError,
 } from "../../domain/validate.ts";
+import { archikFileMode } from "../../domain/suggestion.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 
@@ -78,14 +80,27 @@ export async function validateCommand(
 
   // Cross-file references — same project root the dev server uses.
   const root = projectRoot(abs);
-  const crossFileErrors = checkCrossFileReferences(validated.value, (rel) =>
-    existsSync(path.resolve(root, rel)),
-  );
+  const fileExists = (rel: string): boolean =>
+    existsSync(path.resolve(root, rel));
+  const crossFileErrors = checkCrossFileReferences(validated.value, fileExists);
   if (crossFileErrors.length > 0) {
     if (json) emitJson({ ok: false, file, errors: crossFileErrors });
     else {
       console.error(`✗ ${file}`);
       console.error(formatErrors(crossFileErrors));
+    }
+    return 1;
+  }
+
+  // sourcePath presence + on-disk existence. Strictness depends on the
+  // file mode (normal/suggested = strict, discussion = relaxed).
+  const mode = archikFileMode(abs);
+  const sourcePathErrors = checkSourcePaths(validated.value, mode, fileExists);
+  if (sourcePathErrors.length > 0) {
+    if (json) emitJson({ ok: false, file, errors: sourcePathErrors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(sourcePathErrors));
     }
     return 1;
   }
