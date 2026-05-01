@@ -8,6 +8,7 @@ nodes:
   - id: api
     kind: service
     name: API
+    description: test fixture
 edges: []
 `;
 
@@ -39,6 +40,7 @@ nodes:
   - id: api
     kind: service
     name: API
+    description: test fixture
     x: 100
 edges: []
 `),

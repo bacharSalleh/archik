@@ -19,6 +19,15 @@ type EdgeStyle = {
   animated?: boolean;
   /** Faster variant of the marching-dots animation. */
   animatedFast?: boolean;
+  /**
+   * When true, the marching-dots animation runs *opposite* to the
+   * arrow direction. Used for relationships where the conceptual
+   * data flow is from `to` → `from` (e.g. `subscribes`: the arrow
+   * points at the topic to express the subscription, but the data
+   * actually flows from the topic to the subscriber). Without this
+   * the animation contradicts the semantic and confuses readers.
+   */
+  animatedReverse?: boolean;
   /** Marker on the *target* end of the edge (always set). */
   markerId: string;
   /**
@@ -86,10 +95,14 @@ const STYLES: Record<Relationship, EdgeStyle> = {
 
   // -------- Data access ------------------------------------------------
   reads: {
+    // Arrow points at the database (the "I read FROM you" semantic),
+    // but the data flows database → service. Reverse the marching
+    // dots so the animation matches the data direction.
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.2,
     strokeDasharray: "2 6",
     animated: true,
+    animatedReverse: true,
     markerId: ARROW_MARKER_OPEN,
   },
   writes: {
@@ -109,10 +122,16 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     markerId: ARROW_MARKER_CIRCLE,
   },
   subscribes: {
+    // Arrow points at the topic (the subscription declaration),
+    // but messages flow topic → subscriber. Reverse the animation
+    // so the dots travel from the data source to the consumer —
+    // matches what the user mentally pictures when they read the
+    // edge.
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
+    animatedReverse: true,
     markerId: ARROW_MARKER_FILLED,
   },
   streams_to: {
@@ -225,9 +244,13 @@ export function EdgeRenderer({
   const polylineClass = isSelected
     ? undefined
     : style.animatedFast
-      ? "archik-edge-flowing-fast"
+      ? style.animatedReverse
+        ? "archik-edge-flowing-fast-reverse"
+        : "archik-edge-flowing-fast"
       : style.animated
-        ? "archik-edge-flowing"
+        ? style.animatedReverse
+          ? "archik-edge-flowing-reverse"
+          : "archik-edge-flowing"
         : undefined;
 
   // The marching-dots animation needs to advance exactly one dash
@@ -259,6 +282,9 @@ export function EdgeRenderer({
       data-archik-edge-id={edge.id}
       data-archik-edge-relationship={edge.relationship}
       {...(isSelected ? { "data-archik-selected": "true" } : {})}
+      {...(edge.status !== undefined && edge.status !== "active"
+        ? { "data-archik-status": edge.status }
+        : {})}
       className={`archik-edge archik-edge--${edge.relationship}`}
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectEdge ? { cursor: "pointer" } : undefined}

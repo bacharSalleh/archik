@@ -109,9 +109,14 @@ any file under `.archik/`.
      `sourcePath:` that exists on disk — the validator rejects
      fabricated paths. If the refactor proposes a not-yet-built
      module (e.g. extracting a `payments` context that doesn't have
-     a directory yet), describe it in prose for the user to
-     consider, then either skip that node or move the work to a
-     `*.archik.discussion.yaml` file via `--main`.
+     a directory yet), mark the node `status: proposed` and omit
+     `sourcePath` — the validator exempts proposed nodes from the
+     requirement. The canvas renders proposed nodes with a dashed
+     indigo border so the user sees they're planned. Edges into /
+     out of a proposed node should also carry `status: proposed`
+     until the code lands.
+   - Every node MUST have a non-empty `description` explaining
+     what it does. Don't introduce a node without one.
    - Every change should be motivated by step 3, not by aesthetics.
 
    If `suggest set` reports validation errors, re-run with the

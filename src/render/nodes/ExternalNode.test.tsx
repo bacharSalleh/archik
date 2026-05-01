@@ -7,6 +7,7 @@ const node: PositionedNode = {
   id: "stripe",
   kind: "external",
   name: "Stripe",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 160,

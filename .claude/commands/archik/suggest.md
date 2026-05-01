@@ -63,11 +63,17 @@ the contract with the user.
    **Every new code-bearing node** (`service`, `function`, `worker`,
    `module`, `page`, `component`, `store`, `hook`) must declare a
    `sourcePath:` that you have verified exists on disk. The
-   validator rejects fabricated paths. If the source doesn't exist
-   yet (you're proposing a not-yet-built component), suggest the
-   user run with `--main .archik/<name>.archik.discussion.yaml`
-   instead — discussion files relax the sourcePath rule for
-   greenfield drafts.
+   validator rejects fabricated paths. If the source doesn't
+   exist yet (you're proposing a not-yet-built component), mark
+   the node `status: proposed` and omit `sourcePath` — the
+   validator exempts proposed nodes from the requirement and the
+   canvas renders them with a dashed indigo border so the user
+   sees they're planned.
+
+   **Every node must also declare a non-empty `description`** that
+   explains what the node DOES (its responsibility / behaviour),
+   not just its kind or name. Empty / missing descriptions are
+   rejected by the validator.
 
    ```bash
    npx archik suggest set --note "$ARGUMENTS" - <<'YAML'

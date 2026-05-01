@@ -7,6 +7,7 @@ const dbNode: PositionedNode = {
   id: "db",
   kind: "database",
   name: "Orders DB",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 140,

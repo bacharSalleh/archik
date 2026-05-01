@@ -16,10 +16,6 @@ export type FileEntry = {
    *  no sibling main file yet. The canvas renders these distinctly
    *  ("(pending)" label) so the user can review before accepting. */
   isOrphanSuggestion?: boolean;
-  /** True for `*.archik.discussion.yaml` files — exploratory /
-   *  greenfield drafts. Rendered with a distinct badge so the user
-   *  knows they're not the canonical architecture. */
-  isDiscussion?: boolean;
 };
 
 type Props = {
@@ -105,7 +101,6 @@ export function FileSwitcher({
           {files.map((file) => {
             const isCurrent = file.path === current.path;
             const isOrphan = file.isOrphanSuggestion === true;
-            const isDiscussion = file.isDiscussion === true;
             return (
               <button
                 key={file.path}
@@ -113,9 +108,7 @@ export function FileSwitcher({
                 title={
                   isOrphan
                     ? `Pending sub-architecture (sidecar only — no main file yet). Click to view; accept via \`npx archik suggest accept ${file.path.replace(/\.archik\.suggested\.yaml$/, ".archik.yaml")}\` to promote it, or /archik:accept.`
-                    : isDiscussion
-                      ? "Discussion file — exploratory / greenfield draft. sourcePath rules are relaxed."
-                      : undefined
+                    : undefined
                 }
                 onClick={() => {
                   close();
@@ -161,19 +154,6 @@ export function FileSwitcher({
                       }}
                     >
                       (pending)
-                    </span>
-                  )}
-                  {isDiscussion && (
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        fontSize: 10,
-                        fontWeight: 500,
-                        color: "var(--archik-fg-muted)",
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      (discussion)
                     </span>
                   )}
                 </span>

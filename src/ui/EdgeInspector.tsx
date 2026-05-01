@@ -145,6 +145,30 @@ export function EdgeInspector({
         </div>
       </Field>
 
+      <Field label="Lifecycle status" htmlFor="ei-status">
+        <select
+          id="ei-status"
+          value={edge.status ?? "active"}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Schema convention: absent === "active". Round-trip the
+            // default to undefined so unchanged edges don't grow a
+            // redundant `status: active` line.
+            update(
+              v === "active"
+                ? { status: undefined }
+                : { status: v as "proposed" | "deprecated" },
+            );
+          }}
+          disabled={readOnly}
+          className="archik-input w-full"
+        >
+          <option value="active">active (default — built and live)</option>
+          <option value="proposed">proposed (planned, not built yet)</option>
+          <option value="deprecated">deprecated (being phased out)</option>
+        </select>
+      </Field>
+
       {!readOnly && (
         <div className="mt-auto pt-4 archik-divider">
           <button

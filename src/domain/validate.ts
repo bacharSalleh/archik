@@ -10,35 +10,36 @@ export type ValidationError = {
 };
 
 /**
- * Per-mode sourcePath rules.
+ * sourcePath rules. Normal and suggested files share them — the
+ * sidecar will become the canonical file on accept, so it has to
+ * pass the same bar.
  *
- *   - normal / suggested: every code-bearing node MUST declare a
- *     non-empty `sourcePath`, and that path MUST exist on disk.
- *     Suggested files use the same rules because they'll become
- *     normal on accept.
- *   - discussion: `sourcePath` is optional. If present, it doesn't
- *     have to exist (greenfield drafts may reference paths that
- *     haven't been created yet). The schema-level format checks
- *     (no `..`, forward slashes, etc.) still apply.
- *
- * `status: proposed` and `status: deprecated` nodes are exempt
- * from the requirement at any mode — `proposed` means the code
- * doesn't exist yet, `deprecated` means it's being phased out and
- * may already be gone. Drift detection skips both for the same
- * reason. If such a node DOES declare a `sourcePath`, it still has
- * to resolve on disk in normal/suggested mode — a stale path on a
- * proposed node would mislead the diagram quietly.
+ *   - Every code-bearing node MUST declare a non-empty `sourcePath`,
+ *     and that path MUST exist on disk.
+ *   - Exception: `status: proposed` and `status: deprecated` are
+ *     exempt from the required-sourcePath check. `proposed` means
+ *     the code doesn't exist yet; `deprecated` means it's being
+ *     phased out and may already be gone. Drift detection skips
+ *     both for the same reason. If such a node DOES declare a
+ *     `sourcePath`, it still has to resolve on disk — a stale
+ *     path on a proposed node would mislead the diagram quietly.
+ *   - Containment: when a parent and a code-bearing child both
+ *     declare `sourcePath` and the parent's path is a directory,
+ *     the child's `sourcePath` MUST be inside the parent's. Catches
+ *     diagram structure that contradicts the source layout.
  *
  * The `exists` callback is the same shape used by
  * `checkCrossFileReferences` so the caller can wire one resolver
- * for both checks. Returns one error per offending node.
+ * for both checks. Returns one error per offending node. The `mode`
+ * parameter is kept for API symmetry (callers pass it from
+ * `archikFileMode`) but the rules are identical for both modes.
  */
 export function checkSourcePaths(
   doc: Document,
-  mode: ArchikFileMode,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _mode: ArchikFileMode,
   exists: (relPath: string) => boolean,
 ): ValidationError[] {
-  if (mode === "discussion") return [];
   const errors: ValidationError[] = [];
   // Build a parent → sourcePath lookup once so each child's
   // containment check is O(1).
@@ -61,8 +62,8 @@ export function checkSourcePaths(
         message:
           `node "${node.id}" (kind: ${node.kind}) is missing required \`sourcePath\`. ` +
           `Code-bearing kinds must declare where their source lives. ` +
-          `Either add a sourcePath, mark the node \`status: proposed\` if the code isn't built yet, ` +
-          `or move this node into a *.archik.discussion.yaml file for greenfield drafts.`,
+          `Either add a sourcePath, or mark the node \`status: proposed\` if ` +
+          `the code isn't built yet (proposed/deprecated nodes are exempt).`,
       });
       return;
     }
@@ -75,8 +76,8 @@ export function checkSourcePaths(
         message:
           `node "${node.id}" sourcePath "${node.sourcePath}" does not exist on disk ` +
           `(resolved relative to the project root). Either fix the path, drop it ` +
-          `(if status is proposed/deprecated, sourcePath is optional), or move ` +
-          `this node into a *.archik.discussion.yaml file.`,
+          `(if status is proposed/deprecated, sourcePath is optional), or change ` +
+          `the node's status to proposed.`,
       });
       return;
     }

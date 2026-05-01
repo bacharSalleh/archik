@@ -32,11 +32,10 @@ import { DiffSvg } from "../render/DiffSvg.tsx";
 
 /**
  * Validate a YAML payload destined for `targetPath` (the file the
- * canvas is about to PUT). Strictness depends on the file mode
- * (normal/suggested = strict, discussion = relaxed). Returns null
- * on success or a human-readable error block on failure — callers
- * surface it as a 400 so the canvas knows the write was rejected
- * (e.g. parent↔child edge, missing sourcePath).
+ * canvas is about to PUT). Returns null on success or a
+ * human-readable error block on failure — callers surface it as
+ * a 400 so the canvas knows the write was rejected (e.g.
+ * parent↔child edge, missing sourcePath, missing description).
  *
  * Accepts the project root so cross-file / sourcePath existence
  * checks resolve from the same place validate / suggest set use.
@@ -356,8 +355,7 @@ export function safeResolveProjectFile(
   }
   if (
     !candidate.endsWith(".archik.yaml") &&
-    !candidate.endsWith(".archik.suggested.yaml") &&
-    !candidate.endsWith(".archik.discussion.yaml")
+    !candidate.endsWith(".archik.suggested.yaml")
   ) {
     return null;
   }
@@ -389,18 +387,12 @@ export async function listArchikFiles(
      *  distinctly ("(pending)") so the user can review and accept
      *  before they become real architecture files. */
     isOrphanSuggestion?: boolean;
-    /** True when this entry is a `*.archik.discussion.yaml` file —
-     *  exploratory / greenfield drafts where sourcePath rules are
-     *  relaxed. The canvas renders these distinctly so the user
-     *  knows they aren't the canonical architecture. */
-    isDiscussion?: boolean;
   }>
 > {
   const root = path.resolve(projectRoot);
   const canonicalRoot =
     rootDocPath !== undefined ? path.resolve(rootDocPath) : null;
   const found = new Set<string>();
-  const discussions = new Set<string>();
 
   // The convention is: the canonical root file lives either at the
   // project root (legacy `architecture.archik.yaml`) or under
@@ -412,8 +404,7 @@ export async function listArchikFiles(
   // the user about what their actual map is.
   const isArchikYaml = (name: string): boolean =>
     name.endsWith(".archik.yaml") &&
-    !name.endsWith(".archik.suggested.yaml") &&
-    !name.endsWith(".archik.discussion.yaml");
+    !name.endsWith(".archik.suggested.yaml");
 
   // 1. Legacy root file, if present.
   try {
@@ -450,11 +441,6 @@ export async function listArchikFiles(
         entry.name.endsWith(".archik.suggested.yaml")
       ) {
         orphanSidecars.add(full);
-      } else if (
-        entry.isFile() &&
-        entry.name.endsWith(".archik.discussion.yaml")
-      ) {
-        discussions.add(full);
       }
     }
   };
@@ -474,7 +460,6 @@ export async function listArchikFiles(
     hasSuggestion: boolean;
     isRoot: boolean;
     isOrphanSuggestion?: boolean;
-    isDiscussion?: boolean;
   }> = [];
   for (const abs of found) {
     const rel = path.relative(root, abs).split(path.sep).join("/");
@@ -508,22 +493,6 @@ export async function listArchikFiles(
       hasSuggestion: true,
       isRoot: false,
       isOrphanSuggestion: true,
-    });
-  }
-  // Append discussion files. They're standalone (no sibling main /
-  // sidecar pairing) and load via the same per-file endpoint as
-  // normal files.
-  for (const abs of discussions) {
-    const rel = path.relative(root, abs).split(path.sep).join("/");
-    const base = path
-      .basename(rel)
-      .replace(/\.archik\.discussion\.yaml$/, "");
-    out.push({
-      path: rel,
-      name: base,
-      hasSuggestion: false,
-      isRoot: false,
-      isDiscussion: true,
     });
   }
   // Stable order: legacy root file first (if any), then alphabetical.

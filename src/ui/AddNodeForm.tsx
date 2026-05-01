@@ -3,24 +3,30 @@ import type { NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
 
 export type AddNodeFormProps = {
-  onAdd: (kind: NodeKind, name: string) => void;
+  onAdd: (kind: NodeKind, name: string, description: string) => void;
 };
 
 export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<NodeKind>("service");
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
   const close = (): void => {
     setOpen(false);
     setName("");
+    setDescription("");
     setKind("service");
   };
 
   const submit = (): void => {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) return;
-    onAdd(kind, trimmed);
+    const trimmedName = name.trim();
+    const trimmedDesc = description.trim();
+    // description is required by the schema — keep the canvas in
+    // sync so the user gets the prompt up front instead of a PUT
+    // 400 after the optimistic add.
+    if (trimmedName.length === 0 || trimmedDesc.length === 0) return;
+    onAdd(kind, trimmedName, trimmedDesc);
     close();
   };
 
@@ -100,7 +106,19 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
               placeholder="e.g. Inventory Service"
               autoFocus
               className="archik-input"
-              style={{ width: "100%", marginBottom: 16 }}
+              style={{ width: "100%", marginBottom: 12 }}
+            />
+            <label className="archik-label" htmlFor="add-node-desc">
+              Description
+            </label>
+            <textarea
+              id="add-node-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What does it do? (required by the schema)"
+              rows={2}
+              className="archik-input"
+              style={{ width: "100%", marginBottom: 16, resize: "vertical" }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button
@@ -112,7 +130,10 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
               </button>
               <button
                 type="submit"
-                disabled={name.trim().length === 0}
+                disabled={
+                  name.trim().length === 0 ||
+                  description.trim().length === 0
+                }
                 className="archik-btn archik-btn-primary"
               >
                 Add

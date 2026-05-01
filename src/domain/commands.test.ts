@@ -13,15 +13,15 @@ const withTwoNodes: Document = {
   version: "1.0",
   name: "Pair",
   nodes: [
-    { id: "api", kind: "service", name: "API" },
-    { id: "db", kind: "database", name: "DB" },
+    { id: "api", kind: "service", name: "API", description: "test fixture" },
+    { id: "db", kind: "database", name: "DB", description: "test fixture" },
   ],
   edges: [
     { id: "api-db", from: "api", to: "db", relationship: "writes" },
   ],
 };
 
-const apiNode: Node = { id: "api", kind: "service", name: "API" };
+const apiNode: Node = { id: "api", kind: "service", name: "API", description: "test fixture" };
 
 describe("applyCommand: rename_document", () => {
   it("returns a new document with the new name", () => {
@@ -60,7 +60,7 @@ describe("applyCommand: add_node", () => {
     expect(() =>
       applyCommand(empty, {
         type: "add_node",
-        node: { id: "Bad", kind: "service", name: "X" },
+        node: { id: "Bad", kind: "service", name: "X", description: "test fixture" },
       }),
     ).toThrow();
   });
@@ -73,6 +73,7 @@ describe("applyCommand: add_node", () => {
           id: "api",
           kind: "service",
           name: "API",
+          description: "test fixture",
           parentId: "missing",
         },
       }),
@@ -82,7 +83,7 @@ describe("applyCommand: add_node", () => {
   it("accepts a valid parentId", () => {
     const withParent = applyCommand(empty, {
       type: "add_node",
-      node: { id: "platform", kind: "custom", name: "Platform" },
+      node: { id: "platform", kind: "custom", name: "Platform", description: "test fixture" },
     });
     const next = applyCommand(withParent, {
       type: "add_node",
@@ -90,6 +91,7 @@ describe("applyCommand: add_node", () => {
         id: "api",
         kind: "service",
         name: "API",
+        description: "test fixture",
         parentId: "platform",
       },
     });
@@ -131,11 +133,12 @@ describe("applyCommand: remove_node", () => {
       version: "1.0",
       name: "X",
       nodes: [
-        { id: "platform", kind: "custom", name: "Platform" },
+        { id: "platform", kind: "custom", name: "Platform", description: "test fixture" },
         {
           id: "api",
           kind: "service",
           name: "API",
+          description: "test fixture",
           parentId: "platform",
         },
       ],
@@ -226,9 +229,9 @@ describe("applyCommand: update_node", () => {
       version: "1.0",
       name: "Chain",
       nodes: [
-        { id: "platform", kind: "custom", name: "Platform" },
-        { id: "api", kind: "service", name: "API", parentId: "platform" },
-        { id: "db", kind: "database", name: "DB", parentId: "api" },
+        { id: "platform", kind: "custom", name: "Platform", description: "test fixture" },
+        { id: "api", kind: "service", name: "API", parentId: "platform", description: "test fixture" },
+        { id: "db", kind: "database", name: "DB", parentId: "api", description: "test fixture" },
       ],
       edges: [],
     };
@@ -337,7 +340,7 @@ describe("applyCommand: update_edge", () => {
 describe("applyCommand: never mutates the input", () => {
   it.each([
     ["rename_document", { type: "rename_document", name: "Z" }],
-    ["add_node", { type: "add_node", node: { id: "x", kind: "service", name: "X" } }],
+    ["add_node", { type: "add_node", node: { id: "x", kind: "service", name: "X", description: "test fixture" } }],
     ["remove_node", { type: "remove_node", id: "db" }],
     [
       "update_node",

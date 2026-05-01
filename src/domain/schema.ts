@@ -66,7 +66,15 @@ export const NodeSchema = z.strictObject({
   id: IdSchema,
   kind: NodeKindSchema,
   name: z.string().min(1),
-  description: z.string().optional(),
+  /** Required at validate / suggest set / PUT time (enforced in
+   *  superRefine on the document — kept as `optional()` here so
+   *  test fixtures and partial inputs from in-memory commands
+   *  don't have to thread a placeholder through every call site).
+   *  Every node MUST explain WHAT IT DOES (its responsibility /
+   *  behaviour) — not just restate its kind or name. The diagram
+   *  is worthless as a shared map if half the nodes are unlabelled
+   *  black boxes. */
+  description: z.string().min(1).optional(),
   stack: z.string().optional(),
   responsibilities: z.array(z.string().min(1)).optional(),
   interfaces: z.array(InterfaceSchema).optional(),
@@ -80,7 +88,9 @@ export const NodeSchema = z.strictObject({
    *  `archik drift` to detect when the diagram diverges from reality. */
   sourcePath: SourcePathSchema.optional(),
   /** Lifecycle status. `proposed` = not built yet, `deprecated` = being
-   *  phased out. Drift only checks nodes with status `active` (default). */
+   *  phased out. Drift only checks nodes with status `active` (default).
+   *  Validation also exempts proposed/deprecated from the required
+   *  sourcePath rule — they're explicitly "code may not exist" states. */
   status: NodeStatusSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
@@ -95,6 +105,12 @@ export const EdgeSchema = z.strictObject({
   protocol: z.string().optional(),
   /** Optional per-edge stroke color override (any CSS color). */
   color: z.string().optional(),
+  /** Lifecycle status — same enum as Node. Lets the diagram show
+   *  proposed / deprecated edges (e.g. "we'll add Stripe webhook
+   *  next sprint") with the same dashed + coloured border treatment
+   *  the renderer already gives lifecycle nodes. Default (absent)
+   *  is active. */
+  status: NodeStatusSchema.optional(),
   /** Cross-file reference: when set, `from` is a node id in another
    *  archik file (the path is here). The local renderer treats the
    *  edge as outbound — only the endpoint that's local to *this*
@@ -155,6 +171,21 @@ export const DocumentSchema = z
         });
       }
       nodeIds.add(node.id);
+      // Description is required on every node — enforce at the
+      // document level (rather than as a non-optional field) so
+      // partial in-memory shapes (e.g., the canvas's add_node
+      // command building a node before the user fills the form)
+      // can typecheck while still failing on PUT / validate.
+      if (node.description === undefined || node.description.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes", i, "description"],
+          message:
+            `node "${node.id}" is missing required \`description\`. Every node ` +
+            `must explain what it does (its responsibility / behaviour) — not just ` +
+            `restate its kind or name.`,
+        });
+      }
     }
 
     const edgeIds = new Set<string>();

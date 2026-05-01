@@ -7,6 +7,7 @@ const positioned = (overrides: Partial<PositionedNode> = {}): PositionedNode => 
   id: "api",
   kind: "service",
   name: "Orders API",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 180,

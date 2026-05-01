@@ -7,6 +7,7 @@ const node: PositionedNode = {
   id: "events",
   kind: "queue",
   name: "Order Events",
+  description: "test fixture",
   x: 0,
   y: 0,
   width: 200,
