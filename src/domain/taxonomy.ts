@@ -48,3 +48,30 @@ export const NODE_KINDS = [
 
 export const NodeKindSchema = z.enum(NODE_KINDS);
 export type NodeKind = z.infer<typeof NodeKindSchema>;
+
+/**
+ * Kinds that represent code in THIS repo. In `normal` (and `suggested`)
+ * archik files, every node of a code-bearing kind must declare a
+ * `sourcePath` pointing at the directory or file it represents — and
+ * the path must exist on disk. The remaining kinds (`external`, infra,
+ * abstract architecture, AI artifacts, route, etc.) are exempt because
+ * they typically map to third-party systems, deployment concerns, or
+ * conceptual contracts rather than checked-in files.
+ *
+ * Use `isCodeBearing(kind)` instead of comparing to this set directly
+ * so the rule stays in one place.
+ */
+export const CODE_BEARING_KINDS: ReadonlySet<NodeKind> = new Set([
+  "service",
+  "function",
+  "worker",
+  "module",
+  "page",
+  "component",
+  "store",
+  "hook",
+]);
+
+export function isCodeBearing(kind: NodeKind): boolean {
+  return CODE_BEARING_KINDS.has(kind);
+}

@@ -502,5 +502,120 @@ describe("DocumentSchema", () => {
       });
       expect(r.success).toBe(true);
     });
+
+    it("rejects an edge from a parent to its direct child (container already contains it)", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "container", kind: "module", name: "Container" },
+          {
+            id: "child",
+            kind: "service",
+            name: "Child",
+            parentId: "container",
+          },
+        ],
+        edges: [
+          {
+            id: "container-child",
+            from: "container",
+            to: "child",
+            relationship: "uses",
+          },
+        ],
+      });
+      expect(r.success).toBe(false);
+      if (!r.success) {
+        const msg = JSON.stringify(r.error.issues);
+        expect(msg).toContain("ancestor");
+      }
+    });
+
+    it("rejects an edge from a child up to its parent", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "container", kind: "module", name: "Container" },
+          {
+            id: "child",
+            kind: "service",
+            name: "Child",
+            parentId: "container",
+          },
+        ],
+        edges: [
+          {
+            id: "child-container",
+            from: "child",
+            to: "container",
+            relationship: "depends_on",
+          },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("rejects an edge between grandparent and grandchild (full parent chain)", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "root", kind: "module", name: "Root" },
+          { id: "mid", kind: "module", name: "Mid", parentId: "root" },
+          { id: "leaf", kind: "service", name: "Leaf", parentId: "mid" },
+        ],
+        edges: [
+          {
+            id: "root-leaf",
+            from: "root",
+            to: "leaf",
+            relationship: "uses",
+          },
+        ],
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it("accepts edges between siblings under the same container", () => {
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "container", kind: "module", name: "Container" },
+          { id: "a", kind: "service", name: "A", parentId: "container" },
+          { id: "b", kind: "service", name: "B", parentId: "container" },
+        ],
+        edges: [
+          { id: "a-b", from: "a", to: "b", relationship: "http_call" },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it("accepts a parent↔child edge when the remote endpoint is cross-file", () => {
+      // The parent-chain rule only applies within a single file —
+      // a cross-file edge by definition can't be part of this
+      // file's parent hierarchy, so the check is skipped.
+      const r = DocumentSchema.safeParse({
+        ...minimal,
+        nodes: [
+          { id: "container", kind: "module", name: "Container" },
+          {
+            id: "child",
+            kind: "service",
+            name: "Child",
+            parentId: "container",
+          },
+        ],
+        edges: [
+          {
+            id: "child-remote",
+            from: "child",
+            to: "container",
+            toFile: ".archik/other.archik.yaml",
+            relationship: "http_call",
+          },
+        ],
+      });
+      expect(r.success).toBe(true);
+    });
   });
 });

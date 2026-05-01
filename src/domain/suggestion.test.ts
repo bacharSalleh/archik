@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  archikFileMode,
   isSuggestion,
   stripSuggestionMarker,
   suggestionPath,
@@ -25,6 +26,35 @@ describe("suggestionPath", () => {
 
   it("works when there is no extension", () => {
     expect(suggestionPath("/file")).toBe("/file.suggested");
+  });
+});
+
+describe("archikFileMode", () => {
+  it("returns normal for *.archik.yaml", () => {
+    expect(archikFileMode(".archik/main.archik.yaml")).toBe("normal");
+    expect(archikFileMode("/abs/path/foo.archik.yaml")).toBe("normal");
+    expect(archikFileMode("architecture.archik.yaml")).toBe("normal");
+  });
+
+  it("returns suggested for *.archik.suggested.yaml", () => {
+    expect(archikFileMode(".archik/main.archik.suggested.yaml")).toBe(
+      "suggested",
+    );
+    expect(archikFileMode("/abs/foo.archik.suggested.yaml")).toBe("suggested");
+  });
+
+  it("returns discussion for *.archik.discussion.yaml", () => {
+    expect(archikFileMode(".archik/greenfield.archik.discussion.yaml")).toBe(
+      "discussion",
+    );
+  });
+
+  it("treats unrelated names as normal (no false positives)", () => {
+    // The check is suffix-based; a yaml that isn't named *.archik.*
+    // still validates as normal so legacy / off-convention layouts
+    // don't silently change strictness.
+    expect(archikFileMode("/some/other.yaml")).toBe("normal");
+    expect(archikFileMode("README.md")).toBe("normal");
   });
 });
 

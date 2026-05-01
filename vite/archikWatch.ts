@@ -52,12 +52,12 @@ export function archikWatch(): Plugin {
 
       server.middlewares.use(YAML_URL, (req, res, next) => {
         if (req.method === undefined) return next();
-        void handleYaml(docPath, req, res);
+        void handleYaml(docPath, root, req, res);
       });
 
       server.middlewares.use(SIDECAR_URL, (req, res, next) => {
         if (req.method === undefined) return next();
-        void handleSidecar(sidecarPath, req, res);
+        void handleSidecar(sidecarPath, root, req, res);
       });
 
       server.middlewares.use(ACCEPT_URL, (req, res, next) => {

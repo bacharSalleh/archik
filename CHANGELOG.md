@@ -16,6 +16,63 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.9.0] - 2026-05-01
+
+### Added
+- **Three archik file modes, picked by filename suffix.**
+  - `*.archik.yaml` — normal: the canonical architecture.
+  - `*.archik.suggested.yaml` — pending change to a normal file.
+  - `*.archik.discussion.yaml` — greenfield / exploratory drafts
+    where validation is relaxed for paths that don't exist yet.
+  Mode is detected purely from the filename via a new
+  `archikFileMode(path)` helper. The dev server, file switcher,
+  validate command, and `suggest set` all branch on it.
+- **Code-bearing-kind concept** in the taxonomy: `service`,
+  `function`, `worker`, `module`, `page`, `component`, `store`,
+  `hook`. These are the kinds that map to checked-in source
+  rather than infra / external systems / abstract contracts.
+- **Sub-file fallback for orphan suggestions.** When a node's
+  `archikFile` references a main file that doesn't exist yet but
+  a sibling `*.archik.suggested.yaml` does, the canvas drill-down
+  transparently serves the sidecar and the response carries an
+  `X-Archik-Source: suggested-orphan` header. The file switcher
+  no longer suppresses clicks on orphans.
+- **Discussion files surfaced** in the file switcher with a
+  "(discussion)" badge so they read as exploratory rather than
+  canonical.
+- **`archik schema` constraints output** now lists the three new
+  rules so the agent's first call surfaces them.
+- 14 new tests covering the parent-chain edge rule, sourcePath
+  enforcement across all three modes, and `archikFileMode`.
+
+### Changed
+- **Hard-fail on missing / non-existent `sourcePath` for
+  code-bearing kinds in normal and suggested files.** Schema
+  already had an optional `sourcePath` field; nothing validated
+  it. Now `archik validate` and `archik suggest set` reject
+  drafts that fabricate paths or omit them on code-bearing
+  nodes. Discussion files relax the rule. **This is a breaking
+  change for existing diagrams** — the project's own
+  `.archik/main.archik.yaml` was swept to add `sourcePath` to
+  its 22 code-bearing nodes.
+- **Parent ↔ child edges rejected** by
+  `DocumentSchema.superRefine`. The container already CONTAINS
+  the child visually, so an edge between a node and any of its
+  parent-chain ancestors is a structural duplicate. Cross-file
+  edges are exempt — the remote endpoint can't be part of this
+  file's hierarchy.
+- **Dev-server PUT handlers now run full `validateDocument()`
+  before writing.** Previously the HTTP API accepted any valid
+  YAML, so an agent could sneak invalid drafts past the schema
+  by going through the dev server instead of `archik suggest
+  set`. The same path also runs cross-file and sourcePath
+  checks, mode-aware.
+- **SKILL.md** gains a "File modes" table and an explicit
+  grounding rule: every code-bearing node proposal must declare
+  a `sourcePath` verified on disk, or move to a discussion file.
+  `spawn.md` adds a new step 6 codifying sourcePath authoring;
+  `suggest.md` and `evolve.md` echo the rule.
+
 ## [0.7.7] - 2026-04-30
 
 ### Fixed

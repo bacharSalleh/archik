@@ -228,12 +228,12 @@ export async function startDevServer(
     const url = req.url ?? "/";
 
     if (url === YAML_URL || url.startsWith(YAML_URL + "?")) {
-      void handleYaml(docPath, req, res);
+      void handleYaml(docPath, root, req, res);
       return;
     }
 
     if (url === SIDECAR_URL || url.startsWith(SIDECAR_URL + "?")) {
-      void handleSidecar(sidecarPath, req, res);
+      void handleSidecar(sidecarPath, root, req, res);
       return;
     }
 

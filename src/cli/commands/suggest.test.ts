@@ -28,6 +28,7 @@ nodes:
   - id: api
     kind: service
     name: API
+    sourcePath: src/api
   - id: db
     kind: database
     name: DB
@@ -45,6 +46,7 @@ nodes:
   - id: api
     kind: service
     name: API
+    sourcePath: src/api
 edges: []
 `.trimStart();
 
@@ -57,6 +59,11 @@ describe("suggestCommand set", () => {
   beforeEach(async () => {
     cwd = await mkdtemp(path.join(tmpdir(), "archik-suggest-set-"));
     await mkdir(path.join(cwd, ".archik"));
+    // The strict sourcePath rule resolves paths relative to the
+    // project root and requires they exist on disk. Create the
+    // directory the fixture references so suggest set can stage
+    // the draft.
+    await mkdir(path.join(cwd, "src/api"), { recursive: true });
     await writeFile(path.join(cwd, ".archik/main.archik.yaml"), mainBody);
     originalCwd = process.cwd();
     process.chdir(cwd);

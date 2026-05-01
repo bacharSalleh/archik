@@ -114,7 +114,7 @@ function buildSchema(): SchemaSpec {
         required: false,
         type: "string",
         notes:
-          "relative path to source code on disk; used by `archik drift` to detect diagram-code divergence",
+          "relative path to source code on disk. REQUIRED in normal/suggested files for code-bearing kinds (service, function, worker, module, page, component, store, hook); MUST exist on disk. Optional in *.archik.discussion.yaml files. Used by `archik drift`.",
       },
       {
         name: "status",
@@ -205,10 +205,13 @@ function buildSchema(): SchemaSpec {
       "Every node.id and edge.id is unique within the document.",
       "Edges reference existing node ids (unless fromFile/toFile are set).",
       "No self-loop edges (from === to).",
+      "No edges between a node and any of its parent-chain ancestors — the parent already CONTAINS the child visually, so an edge between them is a duplicate.",
       "parentId references an existing node, with no cycles.",
       "Coordinates (x, y, width, height, viewport) are REJECTED — layout is computed by ELK.",
       "Empty arrays are allowed; empty strings on required fields are not.",
       "Cross-file paths (archikFile, fromFile, toFile) end in .archik.yaml, no `..`, forward slashes only, resolved from project root.",
+      "File modes (by filename suffix): *.archik.yaml = normal; *.archik.suggested.yaml = pending suggestion; *.archik.discussion.yaml = greenfield/exploratory draft.",
+      "In normal/suggested files, every code-bearing node (service/function/worker/module/page/component/store/hook) MUST declare sourcePath, and that path MUST exist on disk. Discussion files relax this rule.",
     ],
   };
 }

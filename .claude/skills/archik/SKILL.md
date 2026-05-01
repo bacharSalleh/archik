@@ -27,6 +27,25 @@ You MUST NOT use `Read`, `Write`, or `Edit` against any file under `.archik/`, a
 
 If `npx archik` is unreachable (offline, sandboxed, missing), STOP and tell the user. Do NOT fall back to reading or editing YAML by hand.
 
+## File modes — pick the right one before authoring
+
+Archik files have **three modes**, selected by filename suffix. Validation strictness differs per mode — picking the wrong one will either reject your draft or pollute the canonical architecture with greenfield speculation.
+
+| Suffix                             | Mode         | When to use                                                                                          | sourcePath rule                                                                 |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `*.archik.yaml`                    | **normal**   | The canonical architecture of code that exists.                                                      | Required for code-bearing kinds; **must exist on disk** (validated).            |
+| `*.archik.suggested.yaml`          | **suggested**| A pending change to a normal file. Owned by `suggest set`. Becomes normal on `suggest accept`.       | Same rules as normal — it'll become normal when accepted.                       |
+| `*.archik.discussion.yaml`         | **discussion**| Greenfield / exploratory drafts: a brand-new project, an "what if we built X?" sketch, an option.   | `sourcePath` is **optional**, and may point at paths that don't exist yet.      |
+
+**Code-bearing kinds** (those that must declare `sourcePath` in normal/suggested files): `service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`. Other kinds (`external`, `cloud`, `prompt`, `llm`, `route`, `interface`, `adapter`, `port`, `database`, `cache`, `queue`, `topic`, `stream`, `gateway`, `cdn`, `agent`, `frontend`, `vectordb`, `storage`, `auth`, `observability`, `tool`, `custom`) are exempt.
+
+**Picking the mode:**
+- Are you describing real code that exists in this repo? → **normal** (or **suggested** if proposing a change).
+- Are you sketching a not-yet-built system, or proposing an architecture for a new project? → **discussion**. Don't pollute the main file with speculation.
+- Are you adding a `sourcePath` for a node whose code is going to be created soon? → **discussion**, then move to **normal** once the code exists.
+
+If `suggest set` rejects your draft with a `sourcePath` error, the right answer is usually one of: (a) fix the path to point at real code, (b) move the work into `*.archik.discussion.yaml`, or (c) use a non-code-bearing kind (e.g., `external` for a third-party service).
+
 ## Slash commands (user-facing entry points)
 
 | Command                     | Purpose                                       |
@@ -67,6 +86,8 @@ npx archik q edges     # every edge with relationship and endpoints
 Then `ls -F . src/ services/ packages/ apps/ 2>/dev/null` for the source tree. Build the mapping in your head; mismatches are where new code most often needs a YAML update.
 
 When the user asks "where would I add X?", you should already have the answer because you ran the queries above.
+
+**Every code-bearing node you propose for a normal/suggested file must declare a `sourcePath` that you have verified exists on disk** (e.g. `ls src/payments/worker.ts` before authoring `sourcePath: src/payments/worker.ts`). The validator rejects fabricated paths — and the rejection is non-negotiable, exactly so hallucinated nodes can't slip into the canonical architecture. If the source doesn't exist yet, draft in `*.archik.discussion.yaml` first.
 
 ## Authoring drafts (sidecar workflow)
 

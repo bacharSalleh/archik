@@ -89,7 +89,28 @@ archik suggest set` stages it.
    When unsure, pick the closest fit and add a `notes:` entry
    explaining the inference rather than picking `custom`.
 
-6. **Nest by structure**, mirroring the directories.
+6. **Attach `sourcePath` to every code-bearing node.** This is
+   non-negotiable in a normal/suggested file — the validator rejects
+   any `service`, `function`, `worker`, `module`, `page`, `component`,
+   `store`, or `hook` without a `sourcePath` that points at an
+   existing file or directory. The whole point of `spawn` is "mirror
+   the source tree", so the path you used to discover the node is
+   exactly what goes into `sourcePath:`. Verify each path with `ls`
+   before authoring; do not paste a path you haven't seen on disk.
+
+   ```yaml
+   - id: orders-api
+     kind: service
+     name: Orders API
+     stack: Fastify
+     sourcePath: services/orders/api   # must exist on disk
+   ```
+
+   For non-code-bearing kinds (`external`, `database`, `queue`,
+   `cloud`, etc.) `sourcePath` is optional — they typically map to
+   third-party systems or infra rather than checked-in files.
+
+7. **Nest by structure**, mirroring the directories.
    - Top-level grouping dir (e.g. `services/`) → a `module` container.
    - Each child dir → a node with `parentId` pointing at the container.
    - If a node has substantial internal structure (e.g.
@@ -98,7 +119,7 @@ archik suggest set` stages it.
      sub-file. Don't nest beyond two levels in the main file —
      drill-down is what `archikFile` is for.
 
-7. **Wire the edges.** Be conservative — only add an edge when you
+8. **Wire the edges.** Be conservative — only add an edge when you
    have actual evidence:
    - Cross-package imports → `depends_on` or a more specific
      relationship (`uses`, `invokes`).
@@ -112,7 +133,7 @@ archik suggest set` stages it.
    When in doubt, leave the edge out. The user will add it via
    `/archik:suggest` later.
 
-8. **Stage the draft.** Pipe the YAML straight into `npx archik
+9. **Stage the draft.** Pipe the YAML straight into `npx archik
    suggest set -` via a heredoc — no temp files, no `/tmp/` paths.
    Sub-files come first because the main draft references them via
    `archikFile`, and `suggest set` validates that those targets
@@ -172,7 +193,7 @@ archik suggest set` stages it.
    c. If `suggest set` reports validation errors, re-run with the
       corrected YAML. Never edit the sidecar by hand.
 
-9. **Tell the user how to review and what's next.** Surface the
+10. **Tell the user how to review and what's next.** Surface the
    canvas URL plus the natural follow-up:
    - "📝 Initial diagram staged from source tree — open the
      canvas at <URL> and use Review to see the proposed nodes."

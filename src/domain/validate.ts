@@ -1,11 +1,61 @@
 import type { ZodError } from "zod";
 import { DocumentSchema } from "./schema.ts";
+import { isCodeBearing } from "./taxonomy.ts";
+import type { ArchikFileMode } from "./suggestion.ts";
 import type { Document } from "./types.ts";
 
 export type ValidationError = {
   path: string;
   message: string;
 };
+
+/**
+ * Per-mode sourcePath rules.
+ *
+ *   - normal / suggested: every code-bearing node MUST declare a
+ *     non-empty `sourcePath`, and that path MUST exist on disk.
+ *     Suggested files use the same rules because they'll become
+ *     normal on accept.
+ *   - discussion: `sourcePath` is optional. If present, it doesn't
+ *     have to exist (greenfield drafts may reference paths that
+ *     haven't been created yet). The schema-level format checks
+ *     (no `..`, forward slashes, etc.) still apply.
+ *
+ * The `exists` callback is the same shape used by
+ * `checkCrossFileReferences` so the caller can wire one resolver
+ * for both checks. Returns one error per offending node.
+ */
+export function checkSourcePaths(
+  doc: Document,
+  mode: ArchikFileMode,
+  exists: (relPath: string) => boolean,
+): ValidationError[] {
+  if (mode === "discussion") return [];
+  const errors: ValidationError[] = [];
+  doc.nodes.forEach((node, i) => {
+    if (!isCodeBearing(node.kind)) return;
+    if (node.sourcePath === undefined || node.sourcePath.length === 0) {
+      errors.push({
+        path: `nodes.${i}.sourcePath`,
+        message:
+          `node "${node.id}" (kind: ${node.kind}) is missing required \`sourcePath\`. ` +
+          `Code-bearing kinds must declare where their source lives. ` +
+          `Use a *.archik.discussion.yaml file for greenfield drafts where source doesn't exist yet.`,
+      });
+      return;
+    }
+    if (!exists(node.sourcePath)) {
+      errors.push({
+        path: `nodes.${i}.sourcePath`,
+        message:
+          `node "${node.id}" sourcePath "${node.sourcePath}" does not exist on disk ` +
+          `(resolved relative to the project root). Either fix the path, or move ` +
+          `this node into a *.archik.discussion.yaml file if the source isn't built yet.`,
+      });
+    }
+  });
+  return errors;
+}
 
 /**
  * Walks every cross-file reference (`archikFile` on a node, `fromFile`

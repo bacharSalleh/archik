@@ -102,8 +102,16 @@ any file under `.archik/`.
    - Preserve every existing node id you keep — only add or remove
      ids, never rename. Renames break diff and require the user to
      manually re-link references in code.
-   - Don't drop `description`, `responsibilities`, or `notes`
-     fields the user authored. Carry them over verbatim.
+   - Don't drop `description`, `responsibilities`, `notes`, or
+     `sourcePath` fields the user authored. Carry them over verbatim.
+   - Every new code-bearing node (`service`, `function`, `worker`,
+     `module`, `page`, `component`, `store`, `hook`) needs a
+     `sourcePath:` that exists on disk — the validator rejects
+     fabricated paths. If the refactor proposes a not-yet-built
+     module (e.g. extracting a `payments` context that doesn't have
+     a directory yet), describe it in prose for the user to
+     consider, then either skip that node or move the work to a
+     `*.archik.discussion.yaml` file via `--main`.
    - Every change should be motivated by step 3, not by aesthetics.
 
    If `suggest set` reports validation errors, re-run with the
