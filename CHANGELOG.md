@@ -16,6 +16,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.10.1] - 2026-05-01
+
+### Changed
+- **Edges no longer get a dashed border or reduced opacity for
+  non-active lifecycle status — only the stroke colour changes.**
+  The dashed-border + opacity treatment was correct for nodes
+  (matches the FileSwitcher's "pending" idiom and reads against
+  the node body) but on edges it competed with the relationship
+  dasharray (writes / reads / publishes / streams_to / …) and
+  read as a "border around the edge", which looked silly.
+  Proposed edges are now solid indigo, deprecated edges solid
+  amber. Nodes are unchanged. The CSS is now scoped via
+  `[data-archik-node-id][data-archik-status="…"]` and
+  `[data-archik-edge-id][data-archik-status="…"]` so node and
+  edge rules can't bleed into each other.
+
 ## [0.10.0] - 2026-05-01
 
 ### Added
