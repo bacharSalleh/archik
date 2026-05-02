@@ -16,6 +16,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.1] - 2026-05-02
+
+### Fixed
+- **Diff-overlay frame for cloud nodes** now matches the new cloud
+  silhouette. The review frame in `diffOverlay.tsx` had its own
+  copy of the previous cloud path and went un-updated in 0.11.0,
+  so added/removed/changed cloud nodes drew a frame that didn't
+  match the rendered shape.
+
 ## [0.11.0] - 2026-05-02
 
 ### Added

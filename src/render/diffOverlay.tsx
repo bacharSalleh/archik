@@ -221,24 +221,42 @@ function cylinderPath(
 
 /** Mirrors CloudNode's cloudPath, offset to (x, y). */
 function cloudPath(x: number, y: number, w: number, h: number): string {
-  const top = h * 0.18;
-  const bottom = h - 4;
-  const leftBump = w * 0.22;
-  const midBumpL = w * 0.42;
-  const midBumpR = w * 0.62;
-  const rightBump = w * 0.82;
-  const sideRadius = h * 0.45;
+  const margin = 2;
+  const baseY = h - margin;
+  const bumpBase = h * 0.62;
+  const cornerR = Math.min(h * 0.18, 14);
+  const span = w - 2 * margin;
+
+  const maxR = h * 0.5;
+  const r1 = Math.min(span * 0.15, maxR * 0.85);
+  const r2 = Math.min(span * 0.18, maxR);
+  const r3 = Math.min(span * 0.15, maxR * 0.85);
+
+  const totalBumpW = 2 * (r1 + r2 + r3);
+  const slack = Math.max(0, span - totalBumpW) / 4;
+
+  const x0 = margin;
+  const x3 = w - margin;
+  const a = x0 + slack;
+  const b = a + 2 * r1;
+  const c = b + slack;
+  const d = c + 2 * r2;
+  const e = d + slack;
+  const f = e + 2 * r3;
+
   return [
-    `M ${x + sideRadius} ${y + bottom}`,
-    `L ${x + w - sideRadius} ${y + bottom}`,
-    `Q ${x + w - 4} ${y + bottom} ${x + w - 4} ${y + bottom - sideRadius * 0.6}`,
-    `Q ${x + w - 2} ${y + h * 0.48} ${x + rightBump + h * 0.18} ${y + h * 0.34}`,
-    `Q ${x + rightBump + h * 0.18} ${y + top * 0.4} ${x + rightBump} ${y + top}`,
-    `Q ${x + midBumpR + h * 0.05} ${y + top + h * 0.1} ${x + midBumpR} ${y + top - h * 0.04}`,
-    `Q ${x + (midBumpR + midBumpL) / 2} ${y - h * 0.06} ${x + midBumpL} ${y + top - h * 0.04}`,
-    `Q ${x + midBumpL - h * 0.05} ${y + top + h * 0.12} ${x + leftBump} ${y + top + h * 0.04}`,
-    `Q ${x + leftBump - h * 0.22} ${y + top * 0.5} ${x + 4} ${y + h * 0.42}`,
-    `Q ${x + 4} ${y + bottom - sideRadius * 0.6} ${x + sideRadius} ${y + bottom}`,
+    `M ${x + x0} ${y + baseY - cornerR}`,
+    `Q ${x + x0} ${y + baseY} ${x + x0 + cornerR} ${y + baseY}`,
+    `L ${x + x3 - cornerR} ${y + baseY}`,
+    `Q ${x + x3} ${y + baseY} ${x + x3} ${y + baseY - cornerR}`,
+    `L ${x + x3} ${y + bumpBase}`,
+    `L ${x + f} ${y + bumpBase}`,
+    `A ${r3} ${r3} 0 0 0 ${x + e} ${y + bumpBase}`,
+    `L ${x + d} ${y + bumpBase}`,
+    `A ${r2} ${r2} 0 0 0 ${x + c} ${y + bumpBase}`,
+    `L ${x + b} ${y + bumpBase}`,
+    `A ${r1} ${r1} 0 0 0 ${x + a} ${y + bumpBase}`,
+    `L ${x + x0} ${y + bumpBase}`,
     `Z`,
   ].join(" ");
 }
