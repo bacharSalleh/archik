@@ -65,6 +65,85 @@ describe("EdgeInspector", () => {
     });
   });
 
+  it("dispatches update_edge when description changes", () => {
+    const dispatch = vi.fn();
+    render(<EdgeInspector edge={edge} dispatch={dispatch} />);
+    fireEvent.change(screen.getByLabelText(/description/i), {
+      target: { value: "sends order rows to the warehouse" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { description: "sends order rows to the warehouse" },
+    });
+  });
+
+  it("dispatches update_edge when protocol changes", () => {
+    const dispatch = vi.fn();
+    render(<EdgeInspector edge={edge} dispatch={dispatch} />);
+    fireEvent.change(screen.getByLabelText(/protocol/i), {
+      target: { value: "grpc" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { protocol: "grpc" },
+    });
+  });
+
+  it("dispatches update_edge when lifecycle status changes", () => {
+    const dispatch = vi.fn();
+    render(<EdgeInspector edge={edge} dispatch={dispatch} />);
+    fireEvent.change(screen.getByLabelText(/lifecycle status/i), {
+      target: { value: "proposed" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { status: "proposed" },
+    });
+  });
+
+  it("dispatches update_edge with undefined status when 'active' is selected (schema default)", () => {
+    const dispatch = vi.fn();
+    const proposedEdge: Edge = { ...edge, status: "proposed" };
+    render(<EdgeInspector edge={proposedEdge} dispatch={dispatch} />);
+    fireEvent.change(screen.getByLabelText(/lifecycle status/i), {
+      target: { value: "active" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { status: undefined },
+    });
+  });
+
+  it("dispatches update_edge when the color text input changes", () => {
+    const dispatch = vi.fn();
+    render(<EdgeInspector edge={edge} dispatch={dispatch} />);
+    const colorTextInput = screen.getAllByRole("textbox").find(
+      (el) => (el as HTMLInputElement).placeholder === "default (whitish)",
+    ) as HTMLInputElement;
+    fireEvent.change(colorTextInput, { target: { value: "#ff0000" } });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { color: "#ff0000" },
+    });
+  });
+
+  it("dispatches update_edge with undefined color when Reset is clicked", () => {
+    const dispatch = vi.fn();
+    const coloredEdge: Edge = { ...edge, color: "#ff0000" };
+    render(<EdgeInspector edge={coloredEdge} dispatch={dispatch} />);
+    fireEvent.click(screen.getByRole("button", { name: /reset/i }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_edge",
+      id: "api-db",
+      patch: { color: undefined },
+    });
+  });
+
   it("disables every field and hides delete in readOnly mode", () => {
     render(<EdgeInspector edge={edge} dispatch={vi.fn()} readOnly />);
     expect(screen.getByLabelText(/relationship/i)).toBeDisabled();

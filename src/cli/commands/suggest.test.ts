@@ -249,3 +249,80 @@ edges: []
     ).rejects.toThrow();
   });
 });
+
+describe("suggestCommand show", () => {
+  let cwd: string;
+  let originalCwd: string;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), "archik-suggest-show-"));
+    await mkdir(path.join(cwd, ".archik"));
+    await mkdir(path.join(cwd, "src/api"), { recursive: true });
+    await writeFile(path.join(cwd, ".archik/main.archik.yaml"), mainBody);
+    originalCwd = process.cwd();
+    process.chdir(cwd);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it("returns 0 and reports no pending suggestion when no sidecar exists", async () => {
+    const code = await suggestCommand({ _: ["show"] });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/no pending/i);
+  });
+
+  it("emits JSON with pending: false when no sidecar exists", async () => {
+    const code = await suggestCommand({ _: ["show"], json: "true" });
+    expect(code).toBe(0);
+    const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    const parsed = JSON.parse(stdout);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.pending).toBe(false);
+  });
+
+  it("returns 0 and summarises the sidecar when one exists", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "add db" });
+    logSpy.mockClear();
+
+    const code = await suggestCommand({ _: ["show"] });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/add db/i);
+    expect(out).toMatch(/suggestion/i);
+  });
+
+  it("emits structured JSON with ok, pending, suggestion.note when --json is set", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "add db" });
+    logSpy.mockClear();
+
+    const code = await suggestCommand({ _: ["show"], json: "true" });
+    expect(code).toBe(0);
+    const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    const parsed = JSON.parse(stdout);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.pending).toBe(true);
+    expect(parsed.suggestion.note).toBe("add db");
+    expect(typeof parsed.totals).toBe("object");
+  });
+
+  it("show is the default subcommand (no subcommand arg)", async () => {
+    const code = await suggestCommand({ _: [] });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/no pending/i);
+  });
+});

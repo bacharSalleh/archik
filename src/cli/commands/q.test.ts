@@ -162,6 +162,140 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q describe human output", () => {
+    it("shows id, name, kind, and edge counts in human mode", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: service",
+          "    name: Orders API",
+          "    description: handles orders",
+          "    stack: Go",
+          "  - id: db",
+          "    kind: database",
+          "    name: Orders DB",
+          "    description: stores orders",
+          "edges:",
+          "  - id: api-db",
+          "    from: api",
+          "    to: db",
+          "    relationship: writes",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["describe", "api"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("api");
+      expect(out).toContain("service");
+      expect(out).toContain("Orders API");
+      expect(out).toContain("handles orders");
+      expect(out).toContain("Go");
+      expect(out).toMatch(/outbound.*1/i);
+      expect(out).toMatch(/inbound.*0/i);
+    });
+
+    it("shows status badge for non-active nodes", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: planned",
+          "    kind: external",
+          "    name: Planned Service",
+          "    description: not built yet",
+          "    status: proposed",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["describe", "planned"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("proposed");
+    });
+
+    it("shows responsibilities when present", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: external",
+          "    name: API",
+          "    description: test fixture",
+          "    responsibilities:",
+          "      - accept orders",
+          "      - emit events",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["describe", "api"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("accept orders");
+      expect(out).toContain("emit events");
+    });
+
+    it("shows interfaces when present", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: external",
+          "    name: API",
+          "    description: test fixture",
+          "    interfaces:",
+          "      - name: POST /orders",
+          "        protocol: http",
+          "        description: Place an order",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["describe", "api"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("POST /orders");
+      expect(out).toContain("http");
+    });
+
+    it("shows notes when present", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: external",
+          "    name: API",
+          "    description: test fixture",
+          "    notes:",
+          "      - check the runbook",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["describe", "api"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("check the runbook");
+    });
+  });
+
   describe("--json flag accepts lenient forms", () => {
     beforeEach(async () => {
       await writeFile(
