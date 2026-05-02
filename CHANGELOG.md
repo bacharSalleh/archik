@@ -16,6 +16,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.4] - 2026-05-02
+
+### Fixed
+- **Markdown export now shows `status` for proposed/deprecated nodes.**
+  A `proposed` or `deprecated` node was rendered identically to an
+  `active` one — readers of the exported docs had no way to know the
+  node was planned or being phased out. Active nodes are still silent
+  (active is the default; showing it would be noise).
+
 ## [0.11.3] - 2026-05-02
 
 ### Fixed

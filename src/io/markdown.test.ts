@@ -73,4 +73,60 @@ describe("exportMarkdown", () => {
     const md = exportMarkdown(empty);
     expect(md).toMatch(/^# Empty/m);
   });
+
+  it("includes status badge for proposed nodes", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Lifecycle",
+      nodes: [
+        {
+          id: "planned-svc",
+          kind: "service",
+          name: "Planned Service",
+          description: "Not built yet",
+          status: "proposed",
+        },
+      ],
+      edges: [],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).toContain("proposed");
+  });
+
+  it("includes status badge for deprecated nodes", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Lifecycle",
+      nodes: [
+        {
+          id: "old-svc",
+          kind: "service",
+          name: "Old Service",
+          description: "Being phased out",
+          status: "deprecated",
+        },
+      ],
+      edges: [],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).toContain("deprecated");
+  });
+
+  it("omits status for active nodes (active is default, not shown)", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Lifecycle",
+      nodes: [
+        {
+          id: "live-svc",
+          kind: "service",
+          name: "Live Service",
+          description: "Built and running",
+        },
+      ],
+      edges: [],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).not.toContain("status");
+  });
 });

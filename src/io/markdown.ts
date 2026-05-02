@@ -4,6 +4,9 @@ function nodeSection(node: Node): string {
   const lines: string[] = [];
   lines.push(`### ${node.name} (${node.kind})`);
   if (node.id !== undefined) lines.push(`- **id**: \`${node.id}\``);
+  if (node.status && node.status !== "active") {
+    lines.push(`- **status**: ${node.status}`);
+  }
   if (node.stack !== undefined) lines.push(`- **stack**: ${node.stack}`);
   if (node.description !== undefined) {
     lines.push(`- **description**: ${node.description}`);
