@@ -37,7 +37,9 @@ function edgeLine(edge: Edge, byId: Map<string, Node>): string {
   const from = byId.get(edge.from)?.name ?? edge.from;
   const to = byId.get(edge.to)?.name ?? edge.to;
   const label = edge.label !== undefined ? `: ${edge.label}` : "";
-  return `- ${from} **${edge.relationship}** ${to}${label}`;
+  const status =
+    edge.status && edge.status !== "active" ? ` _(${edge.status})_` : "";
+  return `- ${from} **${edge.relationship}** ${to}${label}${status}`;
 }
 
 export function exportMarkdown(doc: Document): string {

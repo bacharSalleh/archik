@@ -166,4 +166,35 @@ describe("validateCommand cross-file existence", () => {
       expect(parsed.errors[0].message).toMatch(/Invalid YAML/);
     });
   });
+
+  describe("sub-file validation", () => {
+    it("catches schema errors in sub-architecture files", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody("    archikFile: .archik/payments.archik.yaml"),
+      );
+      // sub-file has an invalid version field — schema error
+      await writeFile(
+        path.join(cwd, ".archik/payments.archik.yaml"),
+        'version: "0.9"\nname: Payments\nnodes: []\nedges: []\n',
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const errOutput = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(errOutput).toMatch(/payments\.archik\.yaml/);
+    });
+
+    it("returns 0 when main and all sub-files are valid", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody("    archikFile: .archik/payments.archik.yaml"),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/payments.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+    });
+  });
 });

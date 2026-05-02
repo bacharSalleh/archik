@@ -95,6 +95,7 @@ SUBCOMMANDS
                   --parent <id>   filter by container
                   --file <p>      filter by file (substring match)
                   --status <s>    filter by lifecycle status (active, proposed, deprecated)
+                  --search <t>    case-insensitive substring match on name or description
   edges                    All edges
                   --from <id>     filter by source
                   --to <id>       filter by target
@@ -293,9 +294,11 @@ async function qList(opts: ParsedOptions): Promise<number> {
   const parent = getString(opts, "parent");
   const file = getString(opts, "file");
   const statusArg = getString(opts, "status");
+  const search = getString(opts, "search");
   if (kind !== undefined) filters.kind = kind as NodeKind;
   if (parent !== undefined) filters.parent = parent;
   if (file !== undefined) filters.file = file;
+  if (search !== undefined) filters.search = search;
   if (statusArg !== undefined) {
     if (statusArg !== "active" && statusArg !== "proposed" && statusArg !== "deprecated") {
       console.error(`${cross()} --status must be active, proposed, or deprecated`);

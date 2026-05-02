@@ -135,6 +135,55 @@ describe("NodeInspector", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders existing responsibilities and allows adding a new one", () => {
+    const dispatch = vi.fn();
+    const nodeWithResp: Node = {
+      ...apiNode,
+      responsibilities: ["accept orders", "emit events"],
+    };
+    render(<NodeInspector node={nodeWithResp} dispatch={dispatch} />);
+    expect(screen.getByDisplayValue("accept orders")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("emit events")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /add responsibility/i }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_node",
+      id: "api",
+      patch: { responsibilities: ["accept orders", "emit events", ""] },
+    });
+  });
+
+  it("dispatches update_node when a responsibility is edited", () => {
+    const dispatch = vi.fn();
+    const nodeWithResp: Node = {
+      ...apiNode,
+      responsibilities: ["accept orders"],
+    };
+    render(<NodeInspector node={nodeWithResp} dispatch={dispatch} />);
+    const inputs = screen.getAllByPlaceholderText(/responsibility/i);
+    fireEvent.change(inputs[0]!, { target: { value: "validate cart" } });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_node",
+      id: "api",
+      patch: { responsibilities: ["validate cart"] },
+    });
+  });
+
+  it("dispatches update_node removing responsibility when X is clicked", () => {
+    const dispatch = vi.fn();
+    const nodeWithResp: Node = {
+      ...apiNode,
+      responsibilities: ["accept orders", "emit events"],
+    };
+    render(<NodeInspector node={nodeWithResp} dispatch={dispatch} />);
+    const removeButtons = screen.getAllByTitle(/remove responsibility/i);
+    fireEvent.click(removeButtons[0]!);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "update_node",
+      id: "api",
+      patch: { responsibilities: ["emit events"] },
+    });
+  });
+
   it("dispatches update_node clearing parentId when '(none)' is chosen", () => {
     const dispatch = vi.fn();
     const child: Node = { ...apiNode, parentId: "platform" };

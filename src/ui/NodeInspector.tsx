@@ -153,6 +153,14 @@ export function NodeInspector({
         </select>
       </Field>
 
+      <ResponsibilitiesField
+        responsibilities={node.responsibilities ?? []}
+        onChange={(next) =>
+          update({ responsibilities: next.length > 0 ? next : undefined })
+        }
+        readOnly={readOnly}
+      />
+
       <NotesField
         notes={node.notes ?? []}
         onChange={(next) => update({ notes: next.length > 0 ? next : undefined })}
@@ -200,6 +208,105 @@ function Field({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function ResponsibilitiesField({
+  responsibilities,
+  onChange,
+  readOnly = false,
+}: {
+  responsibilities: ReadonlyArray<string>;
+  onChange: (next: string[]) => void;
+  readOnly?: boolean;
+}): React.ReactElement {
+  const updateAt = (i: number, value: string): void => {
+    const next = responsibilities.slice();
+    next[i] = value;
+    onChange(next);
+  };
+  const removeAt = (i: number): void => {
+    onChange(responsibilities.filter((_, idx) => idx !== i));
+  };
+  const add = (): void => {
+    onChange([...responsibilities, ""]);
+  };
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 4,
+        }}
+      >
+        <span className="archik-label" style={{ margin: 0 }}>
+          Responsibilities
+        </span>
+        <span
+          className="archik-mono"
+          style={{ fontSize: 10, color: "var(--archik-fg-muted)" }}
+        >
+          {responsibilities.length}
+        </span>
+      </div>
+      {responsibilities.length === 0 && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--archik-fg-muted)",
+            fontStyle: "italic",
+            marginBottom: 6,
+          }}
+        >
+          No responsibilities yet.
+        </div>
+      )}
+      {responsibilities.map((resp, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            gap: 4,
+            marginBottom: 6,
+            alignItems: "center",
+          }}
+        >
+          <input
+            type="text"
+            value={resp}
+            onChange={(e) => updateAt(i, e.target.value)}
+            disabled={readOnly}
+            placeholder={`Responsibility ${i + 1}`}
+            className="archik-input"
+            style={{ flex: 1, fontSize: 12 }}
+          />
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              title="Remove responsibility"
+              aria-label="Remove responsibility"
+              className="archik-btn"
+              style={{ padding: "4px 8px", color: "var(--archik-danger)" }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={add}
+          className="archik-btn"
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          + Add responsibility
+        </button>
+      )}
     </div>
   );
 }

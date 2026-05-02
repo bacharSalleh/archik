@@ -112,6 +112,38 @@ describe("exportMarkdown", () => {
     expect(md).toContain("deprecated");
   });
 
+  it("includes status badge for proposed edges", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "EdgeStatus",
+      nodes: [
+        { id: "a", kind: "service", name: "A", description: "test" },
+        { id: "b", kind: "service", name: "B", description: "test" },
+      ],
+      edges: [
+        { id: "a-b", from: "a", to: "b", relationship: "http_call", status: "proposed" },
+      ],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).toContain("proposed");
+  });
+
+  it("includes status badge for deprecated edges", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "EdgeStatus",
+      nodes: [
+        { id: "a", kind: "service", name: "A", description: "test" },
+        { id: "b", kind: "service", name: "B", description: "test" },
+      ],
+      edges: [
+        { id: "a-b", from: "a", to: "b", relationship: "http_call", status: "deprecated" },
+      ],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).toContain("deprecated");
+  });
+
   it("omits status for active nodes (active is default, not shown)", () => {
     const doc: Document = {
       version: "1.0",

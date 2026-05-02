@@ -9,6 +9,7 @@ import {
   validateDocument,
   type ValidationError,
 } from "../../domain/validate.ts";
+import { discoverDocs } from "../../io/discovery.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -105,6 +106,18 @@ export async function validateCommand(
     return 1;
   }
 
+  // Walk all sub-architecture files linked from the root. discoverDocs
+  // already parses + schema-validates each one; errors[] captures any
+  // that fail so we surface them here rather than silently ignoring them.
+  const discovery = await discoverDocs(abs, root);
+  if (discovery.errors.length > 0) {
+    for (const e of discovery.errors) {
+      if (json) console.error(`✗ ${e.relPath}: ${e.message}`);
+      else console.error(`✗ ${e.relPath}: ${e.message}`);
+    }
+    return 1;
+  }
+
   if (json) {
     emitJson({
       ok: true,
@@ -113,8 +126,18 @@ export async function validateCommand(
       edges: validated.value.edges.length,
     });
   } else {
+    const totalNodes = discovery.docs.reduce(
+      (acc, d) => acc + d.doc.nodes.length,
+      0,
+    );
+    const totalEdges = discovery.docs.reduce(
+      (acc, d) => acc + d.doc.edges.length,
+      0,
+    );
+    const fileCount = discovery.docs.length;
+    const suffix = fileCount > 1 ? ` (${fileCount} files)` : "";
     console.log(
-      `✓ ${file} — ${validated.value.nodes.length} nodes, ${validated.value.edges.length} edges`,
+      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges`,
     );
   }
   return 0;

@@ -76,6 +76,8 @@ export type NodeFilters = {
   /** Filter by lifecycle status. `active` matches nodes whose status is
    *  `"active"` or absent (the schema default). */
   status?: NodeStatus;
+  /** Case-insensitive substring match against node name and description. */
+  search?: string;
 };
 
 export function listNodes(
@@ -95,6 +97,12 @@ export function listNodes(
       if (filters.status !== undefined) {
         const effective = node.status ?? "active";
         if (effective !== filters.status) continue;
+      }
+      if (filters.search !== undefined) {
+        const term = filters.search.toLowerCase();
+        const inName = node.name.toLowerCase().includes(term);
+        const inDesc = node.description?.toLowerCase().includes(term) ?? false;
+        if (!inName && !inDesc) continue;
       }
       out.push({ node, relPath });
     }

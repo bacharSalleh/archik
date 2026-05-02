@@ -16,6 +16,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.5] - 2026-05-02
+
+### Added
+- **`q list --search <term>`** — case-insensitive substring search across
+  node name and description. Works alongside `--kind`, `--status`, and
+  `--file` filters; all are combinable.
+- **Responsibilities field in the canvas NodeInspector** — nodes now
+  expose an editable responsibilities list in the sidebar, matching the
+  YAML field that was already in the schema but had no UI entry point.
+
+### Fixed
+- **`archik validate` now reports errors in sub-architecture files.**
+  Running `archik validate` on the root file silently passed even when
+  linked sub-files contained invalid YAML or schema violations. The
+  command now walks all discovered files and surfaces errors per-file.
+  The success text output now shows the total node/edge count across
+  all files and the file count when more than one file was validated.
+- **Markdown export includes status for proposed/deprecated edges.**
+  Proposed and deprecated connections were rendered identically to
+  active ones. They now append `_(proposed)_` or `_(deprecated)_` to
+  the connection line.
+
 ## [0.11.4] - 2026-05-02
 
 ### Fixed

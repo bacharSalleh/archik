@@ -16,7 +16,7 @@ const mainDoc: Document = {
   name: "Demo",
   nodes: [
     { id: "web", kind: "frontend", name: "Web", stack: "Next.js" },
-    { id: "api", kind: "service", name: "API" },
+    { id: "api", kind: "service", name: "API", description: "handles billing and invoice processing" },
     { id: "db", kind: "database", name: "Orders DB" },
     { id: "cache", kind: "cache", name: "Cache" },
     { id: "platform", kind: "module", name: "Platform" },
@@ -159,6 +159,22 @@ describe("listNodes", () => {
     expect(result.map((n) => n.node.id).sort()).toEqual(
       ["active-node", "explicit-active"].sort(),
     );
+  });
+
+  it("filters by search: matches nodes whose name contains the term (case-insensitive)", () => {
+    const result = listNodes(docs, { search: "orders" });
+    expect(result.map((n) => n.node.id)).toEqual(["db"]);
+  });
+
+  it("filters by search: matches nodes whose description contains the term", () => {
+    // api node in mainDoc has description "handles invoicing and billing"
+    const result = listNodes(docs, { search: "invoice" });
+    expect(result.map((n) => n.node.id)).toEqual(["api"]);
+  });
+
+  it("filters by search: returns empty when no match", () => {
+    const result = listNodes(docs, { search: "zzznomatch" });
+    expect(result).toHaveLength(0);
   });
 });
 
