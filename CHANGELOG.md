@@ -16,6 +16,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.2] - 2026-05-02
+
+### Added
+- **`q list --status <active|proposed|deprecated>`** filters nodes by
+  lifecycle status. `active` correctly matches nodes with an absent
+  `status` field (the schema default) as well as explicit `status: active`.
+- **`q list` status badges** — proposed and deprecated nodes now show
+  a dim `[proposed]` or amber `[deprecated]` badge in the text row so
+  you can spot non-active nodes without `--json`.
+- **`q describe` text output now shows `status`, `sourcePath`, `interfaces`,
+  and `notes`** — these fields were previously only visible via `--json`.
+
 ## [0.11.1] - 2026-05-02
 
 ### Fixed

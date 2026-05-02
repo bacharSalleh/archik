@@ -5,6 +5,8 @@
  * on top of these.
  */
 import type { Edge, Node, NodeKind, Relationship } from "./types.ts";
+
+type NodeStatus = "proposed" | "active" | "deprecated";
 import type { LoadedDoc } from "../io/discovery.ts";
 
 export type FoundNode = { node: Node; relPath: string };
@@ -71,6 +73,9 @@ export type NodeFilters = {
    *  or against the relPath as a whole. Lets `--file payments` match
    *  `.archik/payments.archik.yaml`. */
   file?: string;
+  /** Filter by lifecycle status. `active` matches nodes whose status is
+   *  `"active"` or absent (the schema default). */
+  status?: NodeStatus;
 };
 
 export function listNodes(
@@ -86,6 +91,10 @@ export function listNodes(
       if (filters.kind !== undefined && node.kind !== filters.kind) continue;
       if (filters.parent !== undefined && node.parentId !== filters.parent) {
         continue;
+      }
+      if (filters.status !== undefined) {
+        const effective = node.status ?? "active";
+        if (effective !== filters.status) continue;
       }
       out.push({ node, relPath });
     }

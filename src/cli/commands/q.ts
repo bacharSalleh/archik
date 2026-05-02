@@ -94,6 +94,7 @@ SUBCOMMANDS
                   --kind <k>      filter by kind (service, function, …)
                   --parent <id>   filter by container
                   --file <p>      filter by file (substring match)
+                  --status <s>    filter by lifecycle status (active, proposed, deprecated)
   edges                    All edges
                   --from <id>     filter by source
                   --to <id>       filter by target
@@ -124,9 +125,17 @@ function fmtEdge(e: FoundEdge): string {
   return `${e.edge.from} ${cyan("--[" + e.edge.relationship + "]-->")} ${e.edge.to}${label}  ${gray(e.relPath)}`;
 }
 
+function fmtStatusBadge(status: string | undefined): string {
+  if (!status || status === "active") return "";
+  if (status === "proposed") return ` ${dim("[proposed]")}`;
+  if (status === "deprecated") return ` ${yellow("[deprecated]")}`;
+  return ` ${dim(`[${status}]`)}`;
+}
+
 function fmtNodeRow(n: FoundNode): string {
   const stack = n.node.stack ? `  ${dim(n.node.stack)}` : "";
-  return `${cyan(n.node.kind.padEnd(10))} ${bold(n.node.id.padEnd(24))} ${n.node.name}${stack}  ${gray(n.relPath)}`;
+  const badge = fmtStatusBadge(n.node.status);
+  return `${cyan(n.node.kind.padEnd(10))} ${bold(n.node.id.padEnd(24))} ${n.node.name}${stack}${badge}  ${gray(n.relPath)}`;
 }
 
 // ---------- subcommand implementations ----------
@@ -166,13 +175,29 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
   const n = found.found.node;
   console.log(`${bold(n.id)}  ${dim("(" + n.kind + ")")}  ${gray(found.found.relPath)}`);
   console.log(`  ${bold("name")}: ${n.name}`);
+  if (n.status && n.status !== "active") {
+    const badge = n.status === "proposed" ? dim(n.status) : yellow(n.status);
+    console.log(`  ${bold("status")}: ${badge}`);
+  }
   if (n.stack) console.log(`  ${bold("stack")}: ${n.stack}`);
   if (n.description) console.log(`  ${bold("description")}: ${n.description}`);
+  if (n.sourcePath) console.log(`  ${bold("sourcePath")}: ${n.sourcePath}`);
   if (n.parentId) console.log(`  ${bold("parentId")}: ${n.parentId}`);
   if (n.archikFile) console.log(`  ${bold("archikFile")}: ${n.archikFile}`);
   if (n.responsibilities && n.responsibilities.length > 0) {
     console.log(`  ${bold("responsibilities")}:`);
     for (const r of n.responsibilities) console.log(`    - ${r}`);
+  }
+  if (n.interfaces && n.interfaces.length > 0) {
+    console.log(`  ${bold("interfaces")}:`);
+    for (const iface of n.interfaces) {
+      const desc = iface.description ? `  ${dim(iface.description)}` : "";
+      console.log(`    - ${bold(iface.name)}  ${dim(iface.protocol)}${desc}`);
+    }
+  }
+  if (n.notes && n.notes.length > 0) {
+    console.log(`  ${bold("notes")}:`);
+    for (const note of n.notes) console.log(`    - ${note}`);
   }
   console.log("");
   console.log(
@@ -267,9 +292,17 @@ async function qList(opts: ParsedOptions): Promise<number> {
   const kind = getString(opts, "kind");
   const parent = getString(opts, "parent");
   const file = getString(opts, "file");
+  const statusArg = getString(opts, "status");
   if (kind !== undefined) filters.kind = kind as NodeKind;
   if (parent !== undefined) filters.parent = parent;
   if (file !== undefined) filters.file = file;
+  if (statusArg !== undefined) {
+    if (statusArg !== "active" && statusArg !== "proposed" && statusArg !== "deprecated") {
+      console.error(`${cross()} --status must be active, proposed, or deprecated`);
+      return 2;
+    }
+    filters.status = statusArg;
+  }
   const result = listNodes(load.docs, filters);
   const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {

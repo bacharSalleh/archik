@@ -106,6 +106,24 @@ describe("dependents", () => {
   });
 });
 
+const statusDocs: LoadedDoc[] = [
+  {
+    abs: "/p/.archik/main.archik.yaml",
+    relPath: ".archik/main.archik.yaml",
+    doc: {
+      version: "1.0",
+      name: "Status Test",
+      nodes: [
+        { id: "active-node", kind: "service", name: "Active" },
+        { id: "explicit-active", kind: "service", name: "Explicit Active", status: "active" },
+        { id: "proposed-node", kind: "service", name: "Proposed", status: "proposed" },
+        { id: "deprecated-node", kind: "service", name: "Deprecated", status: "deprecated" },
+      ],
+      edges: [],
+    },
+  },
+];
+
 describe("listNodes", () => {
   it("lists every node by default", () => {
     expect(listNodes(docs, {}).length).toBe(7);
@@ -124,6 +142,23 @@ describe("listNodes", () => {
   it("filters by file (basename match)", () => {
     const result = listNodes(docs, { file: "payments" });
     expect(result.map((n) => n.node.id)).toEqual(["charge-handler"]);
+  });
+
+  it("filters by status: proposed returns only proposed nodes", () => {
+    const result = listNodes(statusDocs, { status: "proposed" });
+    expect(result.map((n) => n.node.id)).toEqual(["proposed-node"]);
+  });
+
+  it("filters by status: deprecated returns only deprecated nodes", () => {
+    const result = listNodes(statusDocs, { status: "deprecated" });
+    expect(result.map((n) => n.node.id)).toEqual(["deprecated-node"]);
+  });
+
+  it("filters by status: active returns nodes with active or absent status", () => {
+    const result = listNodes(statusDocs, { status: "active" });
+    expect(result.map((n) => n.node.id).sort()).toEqual(
+      ["active-node", "explicit-active"].sort(),
+    );
   });
 });
 
