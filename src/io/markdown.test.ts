@@ -144,6 +144,39 @@ describe("exportMarkdown", () => {
     expect(md).toContain("deprecated");
   });
 
+  it("lists notes when present", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Notes Test",
+      nodes: [
+        {
+          id: "svc",
+          kind: "external",
+          name: "Service",
+          description: "test fixture",
+          notes: ["check the runbook", "rate limited at 1000 rps"],
+        },
+      ],
+      edges: [],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).toContain("check the runbook");
+    expect(md).toContain("rate limited at 1000 rps");
+  });
+
+  it("omits notes section when node has no notes", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "No Notes",
+      nodes: [
+        { id: "svc", kind: "external", name: "Service", description: "test fixture" },
+      ],
+      edges: [],
+    };
+    const md = exportMarkdown(doc);
+    expect(md).not.toContain("notes");
+  });
+
   it("omits status for active nodes (active is default, not shown)", () => {
     const doc: Document = {
       version: "1.0",

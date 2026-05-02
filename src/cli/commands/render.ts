@@ -2,11 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
+import type { Document } from "../../domain/types.ts";
 import { DiagramSvg } from "../../render/DiagramSvg.tsx";
 import { getString, type ParsedOptions } from "../options.ts";
-import { resolveDocPath } from "../resolveDocPath.ts";
+import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 import {
   injectBackground,
   inlineThemeVars,
@@ -30,6 +32,7 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   }
   const theme: ThemeName = themeRaw;
 
+  // Validate the root file first for a clear parse error message.
   let text: string;
   try {
     text = await readFile(inputAbs, "utf-8");
@@ -38,17 +41,29 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
     console.error(err instanceof Error ? err.message : String(err));
     return 1;
   }
-
-  let doc;
   try {
-    doc = parseYaml(text);
+    parseYaml(text);
   } catch (err) {
     console.error(`✗ ${file}`);
     console.error(err instanceof Error ? err.message : String(err));
     return 1;
   }
 
-  const positioned = await layout(doc);
+  // Walk sub-architecture files and merge all nodes + edges so the
+  // rendered SVG reflects the full diagram, not just the root file.
+  const base = projectRoot(inputAbs);
+  const discovery = await discoverDocs(inputAbs, base);
+  for (const e of discovery.errors) {
+    console.error(`warn: ${e.relPath}: ${e.message}`);
+  }
+  const merged: Document = {
+    version: "1.0",
+    name: "merged",
+    nodes: discovery.docs.flatMap((d) => d.doc.nodes),
+    edges: discovery.docs.flatMap((d) => d.doc.edges),
+  };
+
+  const positioned = await layout(merged);
   const inner = renderToStaticMarkup(
     createElement(DiagramSvg, { positioned }),
   );
@@ -61,7 +76,7 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   await mkdir(path.dirname(outAbs), { recursive: true });
   await writeFile(outAbs, finalSvg, "utf-8");
   console.log(
-    `✓ Rendered ${doc.nodes.length} nodes / ${doc.edges.length} edges → ${out}`,
+    `✓ Rendered ${merged.nodes.length} nodes / ${merged.edges.length} edges → ${out}`,
   );
   return 0;
 }

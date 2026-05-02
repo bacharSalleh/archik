@@ -191,6 +191,164 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q list --status and --search filters", () => {
+    const docWithStatus = (): string =>
+      [
+        'version: "1.0"',
+        "name: Demo",
+        "nodes:",
+        "  - id: api",
+        "    kind: external",
+        "    name: API",
+        "    description: handles order processing",
+        "  - id: legacy",
+        "    kind: external",
+        "    name: Legacy",
+        "    description: old system",
+        "    status: deprecated",
+        "  - id: planned",
+        "    kind: external",
+        "    name: Planned",
+        "    description: future feature",
+        "    status: proposed",
+        "edges: []",
+        "",
+      ].join("\n");
+
+    beforeEach(async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), docWithStatus());
+    });
+
+    it("--status proposed returns only proposed nodes", async () => {
+      const code = await qCommand({ _: ["list"], status: "proposed" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("planned");
+      expect(out).not.toContain("legacy");
+      expect(out).not.toContain(" api ");
+    });
+
+    it("--status deprecated returns only deprecated nodes", async () => {
+      const code = await qCommand({ _: ["list"], status: "deprecated" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("legacy");
+      expect(out).not.toContain("planned");
+    });
+
+    it("--status active returns only active nodes (absent = active)", async () => {
+      const code = await qCommand({ _: ["list"], status: "active" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("api");
+      expect(out).not.toContain("legacy");
+      expect(out).not.toContain("planned");
+    });
+
+    it("--status with invalid value returns exit 2", async () => {
+      const code = await qCommand({ _: ["list"], status: "unknown" });
+      expect(code).toBe(2);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/--status/);
+    });
+
+    it("--search filters nodes by name substring (case-insensitive)", async () => {
+      const code = await qCommand({ _: ["list"], search: "order" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("api");
+      expect(out).not.toContain("legacy");
+    });
+
+    it("--search returns empty (exit 1) when no match", async () => {
+      const code = await qCommand({ _: ["list"], search: "zzznomatch" });
+      expect(code).toBe(1);
+    });
+
+    it("--status in JSON mode emits { ok, count, nodes }", async () => {
+      const code = await qCommand({ _: ["list"], status: "proposed", json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.count).toBe(1);
+      expect(parsed.nodes[0].node.id).toBe("planned");
+    });
+  });
+
+  describe("q edges --status filter", () => {
+    const docWithEdgeStatus = (): string =>
+      [
+        'version: "1.0"',
+        "name: Demo",
+        "nodes:",
+        "  - id: a",
+        "    kind: external",
+        "    name: A",
+        "    description: test fixture",
+        "  - id: b",
+        "    kind: external",
+        "    name: B",
+        "    description: test fixture",
+        "  - id: c",
+        "    kind: external",
+        "    name: C",
+        "    description: test fixture",
+        "edges:",
+        "  - id: a-b",
+        "    from: a",
+        "    to: b",
+        "    relationship: http_call",
+        "  - id: a-c",
+        "    from: a",
+        "    to: c",
+        "    relationship: http_call",
+        "    status: proposed",
+        "  - id: b-c",
+        "    from: b",
+        "    to: c",
+        "    relationship: http_call",
+        "    status: deprecated",
+        "",
+      ].join("\n");
+
+    beforeEach(async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), docWithEdgeStatus());
+    });
+
+    it("--status proposed returns only proposed edges (JSON)", async () => {
+      const code = await qCommand({ _: ["edges"], status: "proposed", json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      const ids = parsed.edges.map((e: { edge: { id: string } }) => e.edge.id);
+      expect(ids).toEqual(["a-c"]);
+    });
+
+    it("--status active returns only active edges (JSON)", async () => {
+      const code = await qCommand({ _: ["edges"], status: "active", json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      const ids = parsed.edges.map((e: { edge: { id: string } }) => e.edge.id);
+      expect(ids).toEqual(["a-b"]);
+    });
+
+    it("--status with invalid value returns exit 2", async () => {
+      const code = await qCommand({ _: ["edges"], status: "bad" });
+      expect(code).toBe(2);
+    });
+
+    it("--status in JSON mode emits filtered edges", async () => {
+      const code = await qCommand({ _: ["edges"], status: "deprecated", json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.count).toBe(1);
+      expect(parsed.edges[0].edge.id).toBe("b-c");
+    });
+  });
+
   describe("root file failures are fatal", () => {
     it("returns exit 2 when the root file fails to parse, even if sub-files are fine", async () => {
       await writeFile(

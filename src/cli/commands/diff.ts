@@ -8,10 +8,13 @@ import {
   statusMap,
   type DocumentDiff,
 } from "../../domain/diff.ts";
+import type { Document } from "../../domain/types.ts";
+import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
 import { DiffSvg } from "../../render/DiffSvg.tsx";
 import { getString, type ParsedOptions } from "../options.ts";
+import { projectRoot } from "../resolveDocPath.ts";
 import {
   injectBackground,
   inlineThemeVars,
@@ -101,7 +104,7 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
 
 async function readDocument(
   file: string,
-): Promise<{ doc: import("../../domain/types.ts").Document } | { error: string }> {
+): Promise<{ doc: Document } | { error: string }> {
   const abs = path.resolve(file);
   let text: string;
   try {
@@ -110,10 +113,21 @@ async function readDocument(
     return { error: err instanceof Error ? err.message : String(err) };
   }
   try {
-    return { doc: parseYaml(text) };
+    parseYaml(text); // validate root first for a clear error message
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }
+  // Walk sub-architecture files so the diff reflects the full diagram
+  // state, not just the root file.
+  const base = projectRoot(abs);
+  const discovery = await discoverDocs(abs, base);
+  const merged: Document = {
+    version: "1.0",
+    name: "merged",
+    nodes: discovery.docs.flatMap((d) => d.doc.nodes),
+    edges: discovery.docs.flatMap((d) => d.doc.edges),
+  };
+  return { doc: merged };
 }
 
 function printSummary(
