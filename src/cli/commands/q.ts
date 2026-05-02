@@ -100,6 +100,7 @@ SUBCOMMANDS
                   --from <id>     filter by source
                   --to <id>       filter by target
                   --rel <name>    filter by relationship
+                  --status <s>    filter by lifecycle status (active, proposed, deprecated)
   impact <id>              Edges/children that would orphan if removed,
                            plus transitive dependents
   stats                    Counts: files, nodes, edges, kinds, relationships
@@ -331,9 +332,17 @@ async function qEdges(opts: ParsedOptions): Promise<number> {
   const from = getString(opts, "from");
   const to = getString(opts, "to");
   const rel = getString(opts, "rel");
+  const statusArg = getString(opts, "status");
   if (from !== undefined) filters.from = from;
   if (to !== undefined) filters.to = to;
   if (rel !== undefined) filters.rel = rel as Relationship;
+  if (statusArg !== undefined) {
+    if (statusArg !== "active" && statusArg !== "proposed" && statusArg !== "deprecated") {
+      console.error(`${cross()} --status must be active, proposed, or deprecated`);
+      return 2;
+    }
+    filters.status = statusArg;
+  }
   const result = listEdges(load.docs, filters);
   const exit = result.length === 0 ? 1 : 0;
   if (isJson(opts)) {

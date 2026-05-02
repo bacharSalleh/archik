@@ -197,6 +197,32 @@ describe("listEdges", () => {
     const result = listEdges(docs, { rel: "reads" });
     expect(result.map((e) => e.edge.id).sort()).toEqual(["api-cache", "worker-db"]);
   });
+
+  it("filters by status: proposed returns only proposed edges", () => {
+    const statusEdgeDocs: LoadedDoc[] = [
+      {
+        abs: "/p/.archik/main.archik.yaml",
+        relPath: ".archik/main.archik.yaml",
+        doc: {
+          version: "1.0",
+          name: "Edge Status",
+          nodes: [
+            { id: "a", kind: "service", name: "A" },
+            { id: "b", kind: "service", name: "B" },
+            { id: "c", kind: "service", name: "C" },
+          ],
+          edges: [
+            { id: "a-b", from: "a", to: "b", relationship: "http_call" },
+            { id: "a-c", from: "a", to: "c", relationship: "http_call", status: "proposed" },
+            { id: "b-c", from: "b", to: "c", relationship: "http_call", status: "deprecated" },
+          ],
+        },
+      },
+    ];
+    expect(listEdges(statusEdgeDocs, { status: "proposed" }).map((e) => e.edge.id)).toEqual(["a-c"]);
+    expect(listEdges(statusEdgeDocs, { status: "deprecated" }).map((e) => e.edge.id)).toEqual(["b-c"]);
+    expect(listEdges(statusEdgeDocs, { status: "active" }).map((e) => e.edge.id)).toEqual(["a-b"]);
+  });
 });
 
 describe("stats", () => {

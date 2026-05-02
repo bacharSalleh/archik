@@ -114,6 +114,9 @@ export type EdgeFilters = {
   from?: string;
   to?: string;
   rel?: Relationship;
+  /** Filter by lifecycle status. `active` matches edges whose status is
+   *  `"active"` or absent (the schema default). */
+  status?: NodeStatus;
 };
 
 export function listEdges(
@@ -127,6 +130,10 @@ export function listEdges(
       if (filters.to !== undefined && edge.to !== filters.to) continue;
       if (filters.rel !== undefined && edge.relationship !== filters.rel) {
         continue;
+      }
+      if (filters.status !== undefined) {
+        const effective = edge.status ?? "active";
+        if (effective !== filters.status) continue;
       }
       out.push({ edge, relPath });
     }

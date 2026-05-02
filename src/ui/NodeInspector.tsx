@@ -1,5 +1,5 @@
 import type { Command } from "../domain/commands.ts";
-import type { Node, NodeKind } from "../domain/types.ts";
+import type { Interface, Node, NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
 
 type Props = {
@@ -153,6 +153,14 @@ export function NodeInspector({
         </select>
       </Field>
 
+      <InterfacesField
+        interfaces={node.interfaces ?? []}
+        onChange={(next) =>
+          update({ interfaces: next.length > 0 ? next : undefined })
+        }
+        readOnly={readOnly}
+      />
+
       <ResponsibilitiesField
         responsibilities={node.responsibilities ?? []}
         onChange={(next) =>
@@ -208,6 +216,132 @@ function Field({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function InterfacesField({
+  interfaces,
+  onChange,
+  readOnly = false,
+}: {
+  interfaces: ReadonlyArray<Interface>;
+  onChange: (next: Interface[]) => void;
+  readOnly?: boolean;
+}): React.ReactElement {
+  const updateAt = (i: number, patch: Partial<Interface>): void => {
+    const next = interfaces.map((iface, idx) =>
+      idx === i ? { ...iface, ...patch } : iface,
+    );
+    onChange(next);
+  };
+  const removeAt = (i: number): void => {
+    onChange(interfaces.filter((_, idx) => idx !== i));
+  };
+  const add = (): void => {
+    onChange([...interfaces, { name: "", protocol: "" }]);
+  };
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 4,
+        }}
+      >
+        <span className="archik-label" style={{ margin: 0 }}>
+          Interfaces
+        </span>
+        <span
+          className="archik-mono"
+          style={{ fontSize: 10, color: "var(--archik-fg-muted)" }}
+        >
+          {interfaces.length}
+        </span>
+      </div>
+      {interfaces.length === 0 && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--archik-fg-muted)",
+            fontStyle: "italic",
+            marginBottom: 6,
+          }}
+        >
+          No interfaces yet.
+        </div>
+      )}
+      {interfaces.map((iface, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            marginBottom: 10,
+            padding: "8px",
+            borderRadius: 4,
+            background: "var(--archik-bg-subtle, rgba(0,0,0,0.04))",
+          }}
+        >
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <input
+              type="text"
+              value={iface.name}
+              onChange={(e) => updateAt(i, { name: e.target.value })}
+              disabled={readOnly}
+              placeholder="Interface name"
+              className="archik-input"
+              style={{ flex: 1, fontSize: 12 }}
+            />
+            <input
+              type="text"
+              value={iface.protocol}
+              onChange={(e) => updateAt(i, { protocol: e.target.value })}
+              disabled={readOnly}
+              placeholder="Protocol"
+              className="archik-input"
+              style={{ width: 80, fontSize: 12 }}
+            />
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                title="Remove interface"
+                aria-label="Remove interface"
+                className="archik-btn"
+                style={{ padding: "4px 8px", color: "var(--archik-danger)" }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <input
+            type="text"
+            value={iface.description ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              updateAt(i, { description: v === "" ? undefined : v });
+            }}
+            disabled={readOnly}
+            placeholder="Description (optional)"
+            className="archik-input"
+            style={{ fontSize: 11, color: "var(--archik-fg-muted)" }}
+          />
+        </div>
+      ))}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={add}
+          className="archik-btn"
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          + Add interface
+        </button>
+      )}
     </div>
   );
 }

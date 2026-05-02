@@ -191,8 +191,8 @@ USAGE
   archik q describe <id>
   archik q deps <id>
   archik q dependents <id>
-  archik q list [--kind <k>] [--parent <id>] [--file <p>]
-  archik q edges [--from <id>] [--to <id>] [--rel <name>]
+  archik q list [--kind <k>] [--parent <id>] [--file <p>] [--status <s>] [--search <t>]
+  archik q edges [--from <id>] [--to <id>] [--rel <name>] [--status <s>]
   archik q impact <id>
   archik q stats
 
