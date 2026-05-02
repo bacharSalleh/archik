@@ -101,6 +101,24 @@ describe("diffCommand", () => {
     expect(code).toBe(1);
   });
 
+  it("returns 1 for an invalid --theme value", async () => {
+    const before = path.join(cwd, "before.yaml");
+    const after = path.join(cwd, "after.yaml");
+    await writeFile(before, nodeDoc("api", "API"));
+    await writeFile(after, nodeDoc("api", "API"));
+    const code = await diffCommand({ _: [before, after], theme: "purple" });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/--theme/);
+  });
+
+  it("returns 1 when the after file is missing", async () => {
+    const before = path.join(cwd, "before.yaml");
+    await writeFile(before, nodeDoc("api", "API"));
+    const code = await diffCommand({ _: [before, "/nonexistent-after.yaml"] });
+    expect(code).toBe(1);
+  });
+
   it("includes nodes from sub-architecture files when diffing", async () => {
     // before: root + sub-file with extra node
     const beforeDir = path.join(cwd, "before");

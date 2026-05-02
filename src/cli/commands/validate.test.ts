@@ -167,6 +167,49 @@ describe("validateCommand cross-file existence", () => {
     });
   });
 
+  describe("human-readable output", () => {
+    it("prints success with checkmark, filename, node and edge counts", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toMatch(/✓/);
+      expect(out).toContain("main.archik.yaml");
+      expect(out).toMatch(/\d+ nodes/);
+      expect(out).toMatch(/\d+ edges/);
+    });
+
+    it("prints error with ✗ and filename to stderr for invalid schema", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        'version: "0.9"\nname: Demo\nnodes: []\nedges: []\n',
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/✗/);
+      expect(err).toContain("main.archik.yaml");
+    });
+
+    it("includes file count in success message for multi-file projects", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody("    archikFile: .archik/payments.archik.yaml"),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/payments.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toMatch(/2 files/);
+    });
+  });
+
   describe("sub-file validation", () => {
     it("catches schema errors in sub-architecture files", async () => {
       await writeFile(
