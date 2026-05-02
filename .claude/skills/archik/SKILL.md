@@ -89,6 +89,104 @@ Distinction:
 - **`evolve`** = prescriptive (propose a cleaner shape, then discuss before accepting)
 - **`suggest`** = targeted (apply one feature-sized change from a description)
 
+## The engineering loop (how archik fits into delivering work)
+
+Archik is the front of a five-phase loop that turns intent into
+working, reviewed, validated code. **Every structural change runs the
+loop.** Don't skip phases; don't silently retry on rejection; don't
+paper over a wrong design mid-build — go back.
+
+```
+  ┌────────────┐  q stats / list / source tree.
+  │  DISCOVER  │  Read before write. Map intent onto what already
+  └─────┬──────┘  exists.
+        │
+  ┌─────▼──────┐  Frame intent in one line + 1–3 sharp clarifying Qs.
+  │   DESIGN   │  Stage sidecar (`suggest set`) with rationale:
+  │            │  bounded contexts, sync vs async, composition,
+  └─────┬──────┘  alternatives rejected.       ◄── reject + reason ──┐
+        │                                                            │
+  ┌─────▼──────┐  Canvas diff: accept | reject (why?) | revise.      │
+  │   DECIDE   │ ───────────────────────────────────────────────────►┤
+  └─────┬──────┘                                                     │
+        │ accept                                                     │
+  ┌─────▼──────┐  Plan → Implement → Self-review.                    │
+  │   BUILD    │  Small reversible commits, one delta each.          │
+  │            │  Tests-first when behaviour is clear.               │
+  │            │  If implementation invalidates the design ─────────►┘
+  └─────┬──────┘  loop back to DESIGN — don't paper over.
+        │
+  ┌─────▼──────┐  npx archik validate; tests; drift; regen SVG.
+  │   VERIFY   │  Evidence before assertions. Propose next iteration —
+  └────────────┘  don't end on "done".
+```
+
+| Phase    | Driver       | Output / tool                                              |
+| -------- | ------------ | ---------------------------------------------------------- |
+| Discover | Claude       | `npx archik q ...` + source-tree `ls`                      |
+| Design   | Claude → User | sidecar via `suggest set`, after 1–3 clarifying Qs (HITL) |
+| Decide   | User         | `/archik:accept` or `/archik:reject` (HITL gate)           |
+| Build    | Claude → User | numbered plan (HITL approval), then small commits         |
+| Verify   | Claude       | `npx archik validate` + tests + drift + SVG regen          |
+
+**Two non-obvious feedback edges** (the things real loops have that flat
+lists miss):
+
+1. **Decide → Design on reject.** A rejection is information; ask one
+   specific question (boundary? relationship? scope? naming?
+   composition? lifecycle?), treat the answer as a hard constraint,
+   re-stage. Never silently retry the same draft.
+2. **Build → Design on invalidation.** If implementation reveals the
+   accepted diagram is wrong (a missing port, a hidden dependency, a
+   boundary that doesn't hold), STOP coding. Open a fresh
+   `/archik:suggest` to fix the diagram first, then resume. Code that
+   silently contradicts the diagram is drift before it's even merged.
+
+### Design heuristics — apply these in the DESIGN phase
+
+Before staging a sidecar, run the candidate through this checklist.
+Each item is a yellow flag; flag them out loud in your rationale
+rather than hiding them.
+
+- **One reason to change.** Each new node has a single responsibility
+  expressible in one sentence. If `description` rambles, decompose.
+- **Bounded contexts.** Name the context this change belongs to. A
+  change spanning two contexts is a yellow flag — usually means a
+  missing third (orchestrator, port, gateway).
+- **Async at context boundaries.** Default cross-context coupling to
+  `publishes` / `subscribes` over a stream/queue. `http_call` across
+  contexts is allowed but should be justified (sync-required RPC,
+  query for read-side data).
+- **Composition over sprawl.** Group related nodes under a `module`
+  parent via `parentId`. Flat top-level lists past ~8 nodes are a
+  smell.
+- **Ports & adapters at the edge.** External integrations sit behind
+  an `external` node, never inline inside a service. A port (interface)
+  + adapter (concrete) pair is preferred when the integration could
+  swap.
+- **Public traffic → gateway/auth upstream.** Anything user-facing
+  routes through a `gateway`/`auth` node, not directly to a service.
+- **Failure modes.** Async producers imply DLQ/retry on the consumer;
+  `http_call` implies timeout + circuit. Don't draw the happy path
+  alone.
+- **Lifecycle honesty.** Code-bearing node without code on disk →
+  `status: proposed`. About to be removed → `status: deprecated`. The
+  diagram should track reality, not aspiration.
+
+### Optional sharpening — `superpowers:*` skills (if installed)
+
+The loop is self-contained, but these skills sharpen specific phases
+when the user has them. Check the available-skills list at session
+start; never assume they exist.
+
+| Phase   | Skill                                          |
+| ------- | ---------------------------------------------- |
+| Design  | `superpowers:brainstorming`                    |
+| Build   | `superpowers:writing-plans`,                   |
+|         | `superpowers:test-driven-development`,         |
+|         | `superpowers:requesting-code-review`           |
+| Verify  | `superpowers:verification-before-completion`   |
+
 ## Protocol — three rules
 
 1. **Before** answering structural questions, query via `npx archik q ...`. Never `cat` or `Read` the YAML.
@@ -205,9 +303,17 @@ After a suggestion is accepted, the diagram has changed. Don't just stop — pro
 3. **Diff vs reality.** Offer to spot-check the source tree against the new diagram: *"Should I scan `src/` to confirm the diagram still matches the code?"*
 4. **Render.** If the project commits a rendered SVG (`docs/architecture.svg`), regenerate it: `npx archik render --out docs/architecture.svg`. Offer to do this if such a file exists.
 
-After a rejection, ask one clarifying question — *"Want me to try a smaller change that only touches X?"* — instead of going silent.
+After a rejection, **never go silent and never silently retry the same draft**. Ask a question pinned to one of these axes — the answer becomes a constraint when you regenerate:
 
-The goal: every accepted change ends with the user knowing what's next, not "ok, accepted".
+- **Boundary** — *"Did the wrong context own a node? e.g. should `payments-worker` live under `orders` or under `billing`?"*
+- **Relationship** — *"Was a sync `http_call` wrong where you wanted `publishes`/`subscribes`?"*
+- **Scope** — *"Too big? Want me to try a smaller delta that only touches the queue, not the worker?"*
+- **Naming** — *"Was the id/name unclear? What would you call it?"*
+- **Composition** — *"Should this be one node, or split into a port + adapter pair?"*
+
+Then loop back to step 2 (Clarify) of the engineering loop with the rejection reason as a hard constraint on the next draft.
+
+The goal: every accepted change ends with the user knowing what's next, not "ok, accepted". Every rejection ends with one specific question, not silence.
 
 ## Verification workflow
 

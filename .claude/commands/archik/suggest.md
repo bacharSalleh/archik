@@ -22,7 +22,36 @@ on `architecture.archik.yaml`, or on any sidecar. The CLI is the
 sanctioned interface; everything else is a manual edit and breaks
 the contract with the user.
 
+## This is the DISCOVER → DESIGN → DECIDE handoff of the engineering loop
+
+The skill defines a 5-phase loop: **Discover → Design → Decide → Build
+→ Verify**. This command covers Discover (grounding) and Design
+(staging the sidecar with rationale), then hands off to the user's
+review and the explicit Decide gate (`/archik:accept` or
+`/archik:reject`). Don't skip clarification just because a slash
+command was typed — clarification is what makes the draft good. Don't
+start Build phase here; that's gated on accept.
+
 ## Steps
+
+0. **Frame + clarify (entering DESIGN).** Before any CLI call, restate
+   the user's intent in one sentence and list 1–3 sharp clarifying
+   questions if any of these are ambiguous in `$ARGUMENTS`:
+   - **Boundary** — which existing context owns this, or is it a new
+     one? (data ownership = bounded context)
+   - **Sync vs async** — request/response (`http_call`) or
+     event-driven (`publishes`/`subscribes` over a stream)?
+   - **Composition** — one node or split (e.g. port + adapter, gateway
+     + service)?
+   - **External integrations** — what third-party touches this?
+   - **Lifecycle** — built now, or `status: proposed` for a planned
+     iteration?
+
+   Skip questions that `$ARGUMENTS` already answers. If the change is
+   trivially small (one node, one edge, no boundary impact), skip the
+   clarify pass entirely and go straight to step 1. **Use judgment;
+   don't ask questions for the sake of asking.** When in doubt, ask
+   the user "you decide?" so they can defer back if they want.
 
 1. **Make sure the canvas is running** so the user can review:
    ```
@@ -90,17 +119,28 @@ the contract with the user.
    Never write a draft file under `.archik/` and never edit the
    sidecar directly.
 
-5. **Tell the user how to review and what's next**. Surface the
-   canvas URL from step 1 plus the terminal options, then offer a
-   concrete follow-up:
-   - "📝 Suggestion ready — open the canvas at <URL> and use the
-     **Review** banner to see added/removed/changed nodes."
-   - "Or from the terminal: `npx archik suggest show` /
-     `npx archik suggest accept` / `npx archik suggest reject`."
-   - One follow-up sentence picking from: implement the new
-     node(s) in code, run `/archik:evolve` if the change exposed
-     architectural smells, regenerate `docs/architecture.svg` if
-     the project commits one. Don't end the turn at "done".
+5. **Narrate the design rationale** in 2–4 short bullets before
+   handing off to review. The user needs to see *why* this shape, not
+   just *what* it is. Cover:
+   - Which **bounded context(s)** the change touches and why those
+     boundaries.
+   - The **separation of concerns** — what each new node owns and why
+     it's its own node (not folded into an existing one).
+   - **Async vs sync** choice and the reason (cross-context coupling
+     should default to async).
+   - Any **alternative you rejected** and the trade-off.
+
+   Keep it tight — bullets, not paragraphs. The diagram does the rest.
+
+6. **Hand off to the DECIDE gate.** Surface the canvas URL plus the
+   terminal options, then state the gate clearly:
+   - "📝 Suggestion ready — open the canvas at <URL> for the diff."
+   - "Terminal: `npx archik suggest show` / `accept` / `reject`."
+   - "**Accept** to enter BUILD (plan → implement → self-review), or
+     **reject** and tell me what didn't fit (boundary? relationship?
+     scope? naming? composition? lifecycle?) so I can revise."
+
+   Do NOT pre-emptively start implementing. Wait for `/archik:accept`.
 
 ## Notes
 

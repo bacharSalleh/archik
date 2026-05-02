@@ -19,9 +19,8 @@ export const RELATIONSHIPS = [
   // architectural / structural
   "implements",      // adapter implements an abstract interface
   "extends",         // UML inheritance — subtype of another type
-  "composes",        // UML composition — whole owns the part's lifecycle
   "depends_on",      // package / build-level dependency
-  "has_a",           // composition (looser than UML "composes")
+  "has_a",           // owns or contains — whole/part relationship
   "uses",            // lightest-weight relationship
 ] as const;
 

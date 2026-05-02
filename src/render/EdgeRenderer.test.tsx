@@ -46,17 +46,20 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("marker-end")).toMatch(/^url\(#archik-arrow/);
   });
 
-  it("uses dashed stroke for depends_on relationships", () => {
+  it("renders depends_on as a solid, non-animated edge", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
       </svg>,
     );
-    const poly = container.querySelector("polyline");
-    expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
+    const poly = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
+    expect(poly?.getAttribute("class") ?? "").not.toContain("archik-edge-flowing");
   });
 
-  it("renders http_call as a dotted, animated edge (data on wire)", () => {
+  it("renders http_call as a dashed, animated edge (data on wire)", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "http_call" })} />
@@ -69,12 +72,12 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("class")).toContain("archik-edge-flowing");
   });
 
-  it("uses one of the four shape markers per relationship", () => {
+  it("uses filled or open marker per relationship", () => {
     const cases = [
       ["http_call", "archik-arrow-filled"],
       ["writes", "archik-arrow-filled"],
       ["reads", "archik-arrow-open"],
-      ["publishes", "archik-arrow-circle"],
+      ["publishes", "archik-arrow-filled"],
       ["subscribes", "archik-arrow-filled"],
       ["depends_on", "archik-arrow-open"],
       ["has_a", "archik-arrow-filled"],
@@ -96,8 +99,8 @@ describe("EdgeRenderer", () => {
     }
   });
 
-  it("does not animate structural relationships", () => {
-    for (const rel of ["depends_on", "implements", "has_a", "uses"] as const) {
+  it("does not animate structural or data-access relationships", () => {
+    for (const rel of ["depends_on", "implements", "has_a", "uses", "reads", "writes", "publishes"] as const) {
       const { container, unmount } = render(
         <svg>
           <EdgeRenderer edge={baseEdge({ relationship: rel })} />
@@ -125,19 +128,12 @@ describe("EdgeRenderer", () => {
     expect(visiblePolyline?.getAttribute("stroke")).toBe("#f97316");
   });
 
-  it("sets --archik-dash-period inline so the marching-dots animation matches the dash pattern", () => {
-    // Bug we're locking down: the keyframe used to advance by a
-    // fixed -16px regardless of relationship, so streams (period
-    // 10), websockets (7), webhooks (15) visibly jumped each cycle.
-    // Now EdgeRenderer derives the period from strokeDasharray and
-    // exposes it as a CSS variable so the keyframe interpolates
-    // exactly one period per cycle.
+  it("sets --archik-dash-period on animated wire edges", () => {
     const cases: Array<{ rel: PositionedEdge["relationship"]; period: string }> = [
-      { rel: "streams_to", period: "10" }, // "6 4"
-      { rel: "websocket", period: "7" },   // "4 3"
-      { rel: "webhook", period: "15" },    // "10 5"
-      { rel: "writes", period: "8" },      // "2 6"
-      { rel: "grpc", period: "7" },        // "3 4"
+      { rel: "http_call", period: "8" },   // "2 6"
+      { rel: "grpc", period: "8" },         // "2 6"
+      { rel: "websocket", period: "8" },    // "2 6"
+      { rel: "webhook", period: "8" },      // "2 6"
     ];
     for (const { rel, period } of cases) {
       const { container, unmount } = render(
@@ -148,9 +144,6 @@ describe("EdgeRenderer", () => {
       const visiblePolyline = container.querySelector(
         "polyline:not([data-archik-edge-hitarea])",
       ) as SVGPolylineElement | null;
-      // Inline style is the cheapest cross-test way to assert a
-      // CSS custom property — the rendered DOM doesn't expose the
-      // resolved value of the variable, just whether it was set.
       const styleAttr = visiblePolyline?.getAttribute("style") ?? "";
       expect(styleAttr).toContain("--archik-dash-period");
       expect(styleAttr).toContain(period);
@@ -158,10 +151,7 @@ describe("EdgeRenderer", () => {
     }
   });
 
-  it("does not set --archik-dash-period on non-animated structural edges", () => {
-    // depends_on / implements / has_a / uses don't animate, so
-    // there's no period to set — leaving the variable absent keeps
-    // the DOM clean.
+  it("does not set --archik-dash-period on non-animated edges", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
@@ -172,26 +162,6 @@ describe("EdgeRenderer", () => {
     );
     const styleAttr = visiblePolyline?.getAttribute("style") ?? "";
     expect(styleAttr).not.toContain("--archik-dash-period");
-  });
-
-  it("draws writes thicker than reads", () => {
-    const reads = render(
-      <svg>
-        <EdgeRenderer edge={baseEdge({ relationship: "reads" })} />
-      </svg>,
-    );
-    const writes = render(
-      <svg>
-        <EdgeRenderer edge={baseEdge({ relationship: "writes" })} />
-      </svg>,
-    );
-    const r = Number(
-      reads.container.querySelector("polyline")?.getAttribute("stroke-width"),
-    );
-    const w = Number(
-      writes.container.querySelector("polyline")?.getAttribute("stroke-width"),
-    );
-    expect(w).toBeGreaterThan(r);
   });
 
   it("renders nothing visible when sections is empty (defensive)", () => {
@@ -250,7 +220,6 @@ describe("EdgeRenderer", () => {
       </svg>,
     );
     const polylines = container.querySelectorAll("polyline");
-    // visible + hit area
     expect(polylines.length).toBe(2);
     const hit = container.querySelector("[data-archik-edge-hitarea]");
     expect(hit).not.toBeNull();

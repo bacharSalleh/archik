@@ -3,46 +3,24 @@ import type { Relationship } from "../domain/types.ts";
 
 export const ARROW_MARKER_FILLED = "archik-arrow-filled";
 export const ARROW_MARKER_OPEN = "archik-arrow-open";
-export const ARROW_MARKER_CIRCLE = "archik-arrow-circle";
 export const ARROW_MARKER_SELECTED = "archik-arrow-selected";
-export const ARROW_MARKER_UML_TRIANGLE = "archik-arrow-uml-triangle";
-export const ARROW_MARKER_UML_DIAMOND_FILLED = "archik-arrow-uml-diamond-filled";
-export const ARROW_MARKER_DOUBLE = "archik-arrow-double";
 
 type EdgeStyle = {
-  /** Default stroke colour. Any edge with `color` set overrides this. */
   stroke: string;
   strokeWidth: number;
-  /** Dash pattern. Empty / undefined means solid. */
   strokeDasharray?: string;
-  /** When true the polyline gets the marching-dots flow animation. */
   animated?: boolean;
-  /** Faster variant of the marching-dots animation. */
-  animatedFast?: boolean;
-  /**
-   * When true, the marching-dots animation runs *opposite* to the
-   * arrow direction. Used for relationships where the conceptual
-   * data flow is from `to` → `from` (e.g. `subscribes`: the arrow
-   * points at the topic to express the subscription, but the data
-   * actually flows from the topic to the subscriber). Without this
-   * the animation contradicts the semantic and confuses readers.
-   */
-  animatedReverse?: boolean;
-  /** Marker on the *target* end of the edge (always set). */
   markerId: string;
-  /**
-   * Optional marker on the *source* end. Used for bidirectional
-   * relationships (websocket) and UML composition's filled diamond
-   * which sits at the owner end.
-   */
   markerStartId?: string;
 };
 
 const DEFAULT_STROKE = "var(--archik-edge-filled)";
 const STRUCTURAL_STROKE = "var(--archik-edge-dim)";
 
+// Wire edges (HTTP, RPC, etc.) are dashed + animated to show data flowing
+// over the wire. Everything else is solid — clean and uncluttered.
 const STYLES: Record<Relationship, EdgeStyle> = {
-  // -------- Sync request / response over the wire ----------------------
+  // Wire — dashed + animated
   http_call: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
@@ -51,13 +29,11 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     markerId: ARROW_MARKER_FILLED,
   },
   grpc: {
-    // Typed RPC — heavier line + double-tick arrow head distinguishes
-    // from generic http.
     stroke: DEFAULT_STROKE,
-    strokeWidth: 1.8,
-    strokeDasharray: "3 4",
+    strokeWidth: 1.4,
+    strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_DOUBLE,
+    markerId: ARROW_MARKER_FILLED,
   },
   invokes: {
     stroke: DEFAULT_STROKE,
@@ -71,118 +47,75 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     strokeWidth: 1.4,
     markerId: ARROW_MARKER_FILLED,
   },
-
-  // -------- Persistent / async wire protocols --------------------------
   websocket: {
-    // Long-lived bidirectional. Arrows on both ends, fast animation
-    // to evoke the always-on chatter.
     stroke: DEFAULT_STROKE,
-    strokeWidth: 1.6,
-    strokeDasharray: "4 3",
-    animatedFast: true,
+    strokeWidth: 1.4,
+    strokeDasharray: "2 6",
+    animated: true,
     markerId: ARROW_MARKER_FILLED,
     markerStartId: ARROW_MARKER_FILLED,
   },
   webhook: {
-    // Async callback the other party pushes back. Long dashes hint at
-    // "delayed", animation kept slow to distinguish from http_call.
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    strokeDasharray: "10 5",
-    animated: true,
-    markerId: ARROW_MARKER_OPEN,
-  },
-
-  // -------- Data access ------------------------------------------------
-  reads: {
-    // Arrow points at the database (the "I read FROM you" semantic),
-    // but the data flows database → service. Reverse the marching
-    // dots so the animation matches the data direction.
-    stroke: DEFAULT_STROKE,
-    strokeWidth: 1.2,
     strokeDasharray: "2 6",
     animated: true,
-    animatedReverse: true,
+    markerId: ARROW_MARKER_FILLED,
+  },
+
+  // Data access — solid
+  reads: {
+    stroke: DEFAULT_STROKE,
+    strokeWidth: 1.4,
     markerId: ARROW_MARKER_OPEN,
   },
   writes: {
     stroke: DEFAULT_STROKE,
-    strokeWidth: 1.7,
-    strokeDasharray: "2 6",
-    animated: true,
+    strokeWidth: 1.4,
     markerId: ARROW_MARKER_FILLED,
   },
 
-  // -------- Messaging --------------------------------------------------
+  // Messaging — solid
   publishes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    strokeDasharray: "2 6",
-    animated: true,
-    markerId: ARROW_MARKER_CIRCLE,
+    markerId: ARROW_MARKER_FILLED,
   },
   subscribes: {
-    // Arrow points at the topic (the subscription declaration),
-    // but messages flow topic → subscriber. Reverse the animation
-    // so the dots travel from the data source to the consumer —
-    // matches what the user mentally pictures when they read the
-    // edge.
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    strokeDasharray: "2 6",
-    animated: true,
-    animatedReverse: true,
     markerId: ARROW_MARKER_FILLED,
   },
   streams_to: {
     stroke: DEFAULT_STROKE,
-    strokeWidth: 1.7,
-    strokeDasharray: "6 4",
-    animatedFast: true,
+    strokeWidth: 1.4,
     markerId: ARROW_MARKER_FILLED,
   },
 
-  // -------- UML structural relationships -------------------------------
-  // implements / extends / composes follow UML class-diagram conventions
-  // so the visual matches what a software engineer expects on a board.
+  // Structural — solid, dimmer
   implements: {
-    // Realisation of an abstract interface — UML: dashed line +
-    // hollow triangle at the interface end.
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    strokeDasharray: "8 4",
-    markerId: ARROW_MARKER_UML_TRIANGLE,
+    markerId: ARROW_MARKER_OPEN,
   },
   extends: {
-    // Inheritance — UML: solid line + hollow triangle at the parent end.
     stroke: STRUCTURAL_STROKE,
-    strokeWidth: 1.4,
-    markerId: ARROW_MARKER_UML_TRIANGLE,
-  },
-  composes: {
-    // Composition — UML: solid line + filled diamond at the *owner*
-    // end. ELK-rendered edges go from source → target, so we put the
-    // diamond at markerStart (source = the whole that owns).
-    stroke: STRUCTURAL_STROKE,
-    strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
-    markerStartId: ARROW_MARKER_UML_DIAMOND_FILLED,
+    strokeWidth: 1.2,
+    markerId: ARROW_MARKER_OPEN,
   },
   depends_on: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    strokeDasharray: "6 4",
     markerId: ARROW_MARKER_OPEN,
   },
   has_a: {
     stroke: STRUCTURAL_STROKE,
-    strokeWidth: 1.4,
+    strokeWidth: 1.2,
     markerId: ARROW_MARKER_FILLED,
   },
   uses: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    strokeDasharray: "4 4",
     markerId: ARROW_MARKER_OPEN,
   },
 };
@@ -222,42 +155,30 @@ export function EdgeRenderer({
     section.endPoint,
   ];
   const style = STYLES[edge.relationship];
-  // Prefer the ELK-placed label position — it accounts for adjacent
-  // nodes and other labels. Fall back to the polyline midpoint for
-  // edges without a label box reserved.
   const placed = edge.labels[0];
   const labelAt = placed
     ? { x: placed.x + placed.width / 2, y: placed.y + placed.height / 2 }
     : midpoint(all);
   const isSelected = selectedEdgeIds?.has(edge.id) ?? false;
 
-  // Selected wins, then per-edge color override, then style default.
+  const statusStroke =
+    edge.status === "proposed"
+      ? "var(--archik-status-proposed)"
+      : edge.status === "deprecated"
+        ? "var(--archik-status-deprecated)"
+        : undefined;
   const stroke = isSelected
     ? "var(--archik-selected)"
-    : (edge.color ?? style.stroke);
+    : (statusStroke ?? edge.color ?? style.stroke);
   const strokeWidth = isSelected ? style.strokeWidth + 0.5 : style.strokeWidth;
   const markerId = isSelected ? ARROW_MARKER_SELECTED : style.markerId;
   const markerStartId =
     !isSelected && style.markerStartId !== undefined
       ? style.markerStartId
       : undefined;
-  const polylineClass = isSelected
-    ? undefined
-    : style.animatedFast
-      ? style.animatedReverse
-        ? "archik-edge-flowing-fast-reverse"
-        : "archik-edge-flowing-fast"
-      : style.animated
-        ? style.animatedReverse
-          ? "archik-edge-flowing-reverse"
-          : "archik-edge-flowing"
-        : undefined;
+  const polylineClass =
+    !isSelected && style.animated ? "archik-edge-flowing" : undefined;
 
-  // The marching-dots animation needs to advance exactly one dash
-  // period per cycle, otherwise the dots visibly jump. We derive
-  // the period from the same strokeDasharray we apply to the
-  // polyline so streams (period 10), websockets (7), webhooks (15)
-  // animate as smoothly as the http_call/writes/reads family (8).
   const dashPeriod =
     style.strokeDasharray !== undefined
       ? style.strokeDasharray

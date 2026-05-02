@@ -15,28 +15,85 @@ const STARTER = `version: "1.0"
 name: My Architecture
 description: Initial scaffold — edit this file to grow your diagram.
 nodes:
-  - id: web
-    kind: frontend
-    name: Web
-    stack: Next.js
-  - id: api
+  - id: gateway
+    kind: gateway
+    name: API Gateway
+    description: Single entry point for all client traffic — routes requests to the owning service, enforces rate limits, and terminates TLS.
+  - id: platform
+    kind: module
+    name: Platform
+    description: Core application boundary — owns the bounded contexts that make up the business logic.
+    status: proposed
+  - id: users-service
     kind: service
-    name: API
-    stack: Go
-  - id: db
+    name: Users Service
+    parentId: platform
+    description: Identity bounded context — manages accounts, roles, authentication, and profile lifecycle.
+    status: proposed
+  - id: users-db
     kind: database
-    name: Primary DB
-    stack: Postgres
+    name: Users DB
+    description: Persisted state for the users context — accounts, credentials, and profile data.
+  - id: orders-service
+    kind: service
+    name: Orders Service
+    parentId: platform
+    description: Orders bounded context — owns the order lifecycle from placement through fulfillment, enforces invariants, and emits domain events.
+    status: proposed
+  - id: orders-db
+    kind: database
+    name: Orders DB
+    description: Persisted state for the orders context — orders, line items, and status history.
+  - id: event-bus
+    kind: stream
+    name: Event Bus
+    description: Asynchronous event backbone — decouples producers from consumers so services react to domain events without point-to-point coupling.
+  - id: notification-worker
+    kind: worker
+    name: Notification Worker
+    description: Background consumer — subscribes to domain events and dispatches notifications (email, push, SMS) without blocking the request path.
+    status: proposed
+  - id: placeholder
+    kind: external
+    name: Placeholder
+    description: Stand-in for a real external dependency — replace with the actual third-party systems your architecture depends on.
 edges:
-  - id: web-api
-    from: web
-    to: api
-    relationship: http_call
-    label: requests
-  - id: api-db
-    from: api
-    to: db
+  - id: gateway-users
+    from: gateway
+    to: users-service
+    relationship: routes_to
+    label: /users/*
+  - id: gateway-orders
+    from: gateway
+    to: orders-service
+    relationship: routes_to
+    label: /orders/*
+  - id: users-reads
+    from: users-service
+    to: users-db
+    relationship: reads
+  - id: users-writes
+    from: users-service
+    to: users-db
     relationship: writes
+  - id: orders-reads
+    from: orders-service
+    to: orders-db
+    relationship: reads
+  - id: orders-writes
+    from: orders-service
+    to: orders-db
+    relationship: writes
+  - id: orders-publish
+    from: orders-service
+    to: event-bus
+    relationship: publishes
+    label: order.placed
+  - id: notifications-sub
+    from: notification-worker
+    to: event-bus
+    relationship: subscribes
+    label: order.placed
 `;
 
 export async function initCommand(opts: ParsedOptions): Promise<number> {

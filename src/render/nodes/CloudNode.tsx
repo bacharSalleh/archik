@@ -93,39 +93,54 @@ export function CloudNode({ node, selected }: Props): React.ReactElement {
 
 /**
  * Stylised cloud silhouette inscribed in a `w` × `h` rect. Three
- * cumulus bumps along the top, gently rounded sides, flat-ish
- * bottom that lifts slightly at the corners.
+ * circular-arc bumps along the top, rounded bottom corners, flat
+ * bottom. All control points stay inside the bounding box at any
+ * sensible aspect ratio.
  */
 function cloudPath(w: number, h: number): string {
-  // All coordinates are normalised to the bounding box so the cloud
-  // scales with the node size.
-  const top = h * 0.18;          // where the bumps start
-  const bottom = h - 4;
-  const leftBump = w * 0.22;
-  const midBumpL = w * 0.42;
-  const midBumpR = w * 0.62;
-  const rightBump = w * 0.82;
-  const sideRadius = h * 0.45;
+  const margin = 2;
+  const baseY = h - margin;
+  const bumpBase = h * 0.62;
+  const cornerR = Math.min(h * 0.18, 14);
+  const span = w - 2 * margin;
 
+  // Cap bumps so they never escape the top of the bbox on wide nodes.
+  const maxR = h * 0.5;
+  const r1 = Math.min(span * 0.15, maxR * 0.85);
+  const r2 = Math.min(span * 0.18, maxR);
+  const r3 = Math.min(span * 0.15, maxR * 0.85);
+
+  // Distribute leftover horizontal space as flat sections between
+  // bumps so wide nodes keep cloud-like proportions instead of being
+  // a single stretched bump.
+  const totalBumpW = 2 * (r1 + r2 + r3);
+  const slack = Math.max(0, span - totalBumpW) / 4;
+
+  const x0 = margin;
+  const x3 = w - margin;
+  const a = x0 + slack;
+  const b = a + 2 * r1;
+  const c = b + slack;
+  const d = c + 2 * r2;
+  const e = d + slack;
+  const f = e + 2 * r3;
+
+  // Path traverses counter-clockwise: bottom-left corner → bottom →
+  // bottom-right corner → up right side → bumps right-to-left along
+  // bumpBase (sweep flag 0 makes them bulge up) → down to start.
   return [
-    `M ${sideRadius} ${bottom}`,
-    // Bottom edge
-    `L ${w - sideRadius} ${bottom}`,
-    // Right side, curving up
-    `Q ${w - 4} ${bottom} ${w - 4} ${bottom - sideRadius * 0.6}`,
-    `Q ${w - 2} ${h * 0.48} ${rightBump + h * 0.18} ${h * 0.34}`,
-    // Right bump
-    `Q ${rightBump + h * 0.18} ${top * 0.4} ${rightBump} ${top}`,
-    // Valley between right bump and middle-right bump
-    `Q ${midBumpR + h * 0.05} ${top + h * 0.1} ${midBumpR} ${top - h * 0.04}`,
-    // Middle-right bump (the tallest one — peak)
-    `Q ${(midBumpR + midBumpL) / 2} ${-h * 0.06} ${midBumpL} ${top - h * 0.04}`,
-    // Valley between middle bumps
-    `Q ${midBumpL - h * 0.05} ${top + h * 0.12} ${leftBump} ${top + h * 0.04}`,
-    // Left bump
-    `Q ${leftBump - h * 0.22} ${top * 0.5} ${4} ${h * 0.42}`,
-    // Left side, curving down to start
-    `Q ${4} ${bottom - sideRadius * 0.6} ${sideRadius} ${bottom}`,
+    `M ${x0} ${baseY - cornerR}`,
+    `Q ${x0} ${baseY} ${x0 + cornerR} ${baseY}`,
+    `L ${x3 - cornerR} ${baseY}`,
+    `Q ${x3} ${baseY} ${x3} ${baseY - cornerR}`,
+    `L ${x3} ${bumpBase}`,
+    `L ${f} ${bumpBase}`,
+    `A ${r3} ${r3} 0 0 0 ${e} ${bumpBase}`,
+    `L ${d} ${bumpBase}`,
+    `A ${r2} ${r2} 0 0 0 ${c} ${bumpBase}`,
+    `L ${b} ${bumpBase}`,
+    `A ${r1} ${r1} 0 0 0 ${a} ${bumpBase}`,
+    `L ${x0} ${bumpBase}`,
     `Z`,
   ].join(" ");
 }

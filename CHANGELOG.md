@@ -16,6 +16,65 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.0] - 2026-05-02
+
+### Added
+- **Engineering loop in the archik skill.** A five-phase
+  Discover → Design → Decide → Build → Verify cycle with explicit
+  feedback edges: rejection reasons feed back into Design as hard
+  constraints, and mid-build invalidations re-open Design rather
+  than papering over the diagram. Includes a Design heuristics
+  checklist (bounded contexts, async at boundaries, ports &
+  adapters at the edge, failure modes, lifecycle honesty).
+- **Richer `archik init` STARTER.** The scaffold now demonstrates
+  real architecture patterns: bounded contexts (`users-service`,
+  `orders-service`), composition via a `platform` module parent,
+  gateway routing, an async event bus with a notification worker,
+  and a placeholder external integration. Useful as a worked
+  example, not just a hello-world.
+
+### Changed
+- **Edge styling simplified.** Wire relationships (`http_call`,
+  `grpc`, `invokes`, `websocket`, `webhook`) keep the dashed +
+  animated marching-dots treatment that signals data on the wire.
+  Data access, messaging, and structural relationships are now
+  solid with no animation. Stroke widths collapse from a 1.2–1.8
+  range down to 1.4 (wire / data / messaging) and 1.2 (structural).
+- **Cloud node shape redrawn** as parametric arcs — three
+  circular-arc top bumps and a rounded-corner bottom — that scale
+  cleanly across aspect ratios. The previous path had control
+  points outside the bounding box and produced an ugly silhouette
+  on wide nodes.
+- **`/archik:accept` now drives the full Build → Verify phases**,
+  not just `npx archik suggest accept`. After applying the sidecar
+  it walks plan-with-HITL → implement → self-review → validate →
+  close-the-loop with a concrete next-step offer.
+- **`/archik:reject` asks one specific clarifying question** pinned
+  to one axis (boundary, relationship, scope, naming, composition,
+  lifecycle) instead of going silent. The user's answer becomes a
+  hard constraint on the next draft.
+
+### Removed
+- **Relationship `composes`.** UML "composition" overlapped with
+  `has_a` and `parentId` containment and rarely showed up in real
+  diagrams. Migration: replace `relationship: composes` with
+  `has_a`, or model true containment via `parentId`.
+- **Edge marker shapes `circle`, `uml-triangle`,
+  `uml-diamond-filled`, `double`** and the `animatedFast` /
+  `animatedReverse` style variants. All edges now use filled or
+  open arrowheads only.
+
+### Fixed
+- **Status-coloured edge strokes** (`proposed` indigo,
+  `deprecated` amber) are now applied as an SVG attribute on the
+  polyline rather than via a CSS rule. The CSS rule was overriding
+  the relationship-default stroke at higher specificity, producing
+  visible artifacts at the join between the status colour and the
+  dasharray.
+- **`archik init` STARTER now passes validation.** The previous
+  STARTER omitted the (now-required) `description` on every node
+  and would fail `npx archik validate` immediately after scaffolding.
+
 ## [0.10.1] - 2026-05-01
 
 ### Changed
