@@ -114,6 +114,39 @@ describe("driftCommand", () => {
     expect(out).toMatch(/migrations/);
   });
 
+  describe("human-readable summary line", () => {
+    it("prints the issue count in the summary line when drift is found", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody("    sourcePath: src/orders/"),
+      );
+      await driftCommand({ _: [] });
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toMatch(/archik drift:/);
+      expect(out).toMatch(/1 issue/);
+    });
+
+    it("appends the ignored count when some items are ignored", async () => {
+      await mkdir(path.join(cwd, "src", "orders"), { recursive: true });
+      await mkdir(path.join(cwd, "src", "migrations"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody("    sourcePath: src/orders/"),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/.driftignore"),
+        "src/migrations/**\n",
+      );
+      // One unmapped (migrations, but ignored) + zero orphans → total 0 but
+      // ignored > 0, so summary still mentions the ignored count.
+      // Add an extra real unmapped dir to ensure total > 0 so summary line shows.
+      await mkdir(path.join(cwd, "src", "payments"), { recursive: true });
+      await driftCommand({ _: [] });
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toMatch(/\d+ ignored/);
+    });
+  });
+
   describe("--json", () => {
     it("emits structured JSON with summary", async () => {
       await mkdir(path.join(cwd, "src", "orders"), { recursive: true });
