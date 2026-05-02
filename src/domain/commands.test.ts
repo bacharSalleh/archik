@@ -222,6 +222,25 @@ describe("applyCommand: update_node", () => {
     ).toThrow(CommandError);
   });
 
+  it("clears parentId when patch sets it to undefined", () => {
+    const withParent: Document = {
+      version: "1.0",
+      name: "Test",
+      nodes: [
+        { id: "platform", kind: "custom", name: "Platform", description: "test fixture" },
+        { id: "api", kind: "service", name: "API", parentId: "platform", description: "test fixture" },
+      ],
+      edges: [],
+    };
+    const next = applyCommand(withParent, {
+      type: "update_node",
+      id: "api",
+      patch: { parentId: undefined },
+    });
+    const api = next.nodes.find((n) => n.id === "api");
+    expect(api?.parentId).toBeUndefined();
+  });
+
   it("rejects a parentId that would create an indirect cycle", () => {
     // platform parent of api parent of db; trying to set platform.parentId
     // = db would close the loop (db → api → platform → db).

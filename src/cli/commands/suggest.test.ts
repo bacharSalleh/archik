@@ -326,3 +326,157 @@ describe("suggestCommand show", () => {
     expect(out).toMatch(/no pending/i);
   });
 });
+
+describe("suggestCommand accept", () => {
+  let cwd: string;
+  let originalCwd: string;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), "archik-suggest-accept-"));
+    await mkdir(path.join(cwd, ".archik"));
+    await mkdir(path.join(cwd, "src/api"), { recursive: true });
+    await writeFile(path.join(cwd, ".archik/main.archik.yaml"), mainBody);
+    originalCwd = process.cwd();
+    process.chdir(cwd);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it("returns 1 when there is no sidecar to accept", async () => {
+    const code = await suggestCommand({ _: ["accept"] });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/no suggestion/i);
+  });
+
+  it("overwrites main with the sidecar content and deletes the sidecar", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "add db" });
+    logSpy.mockClear();
+
+    const code = await suggestCommand({ _: ["accept"] });
+    expect(code).toBe(0);
+
+    // Main file now has db node
+    const main = YAML.parse(
+      await readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8"),
+    );
+    expect(main.nodes).toHaveLength(2);
+    expect(main.nodes.find((n: { id: string }) => n.id === "db")).toBeTruthy();
+
+    // Sidecar is gone
+    await expect(
+      readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("strips metadata.suggestion from the accepted file", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "add db" });
+    logSpy.mockClear();
+
+    await suggestCommand({ _: ["accept"] });
+    const main = YAML.parse(
+      await readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8"),
+    );
+    expect(main.metadata?.suggestion).toBeUndefined();
+  });
+
+  it("logs a success message after accepting", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"] });
+    logSpy.mockClear();
+
+    await suggestCommand({ _: ["accept"] });
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/accepted/i);
+    expect(out).toContain("main.archik.yaml");
+  });
+});
+
+describe("suggestCommand reject", () => {
+  let cwd: string;
+  let originalCwd: string;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), "archik-suggest-reject-"));
+    await mkdir(path.join(cwd, ".archik"));
+    await mkdir(path.join(cwd, "src/api"), { recursive: true });
+    await writeFile(path.join(cwd, ".archik/main.archik.yaml"), mainBody);
+    originalCwd = process.cwd();
+    process.chdir(cwd);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it("returns 0 and notes nothing to reject when no sidecar exists", async () => {
+    const code = await suggestCommand({ _: ["reject"] });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/nothing to reject/i);
+  });
+
+  it("deletes the sidecar and returns 0", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"] });
+    logSpy.mockClear();
+
+    const code = await suggestCommand({ _: ["reject"] });
+    expect(code).toBe(0);
+
+    await expect(
+      readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("does not modify the main file when rejecting", async () => {
+    const originalMain = await readFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      "utf-8",
+    );
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"] });
+    logSpy.mockClear();
+
+    await suggestCommand({ _: ["reject"] });
+    const afterMain = await readFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      "utf-8",
+    );
+    expect(afterMain).toBe(originalMain);
+  });
+
+  it("logs a success message after rejecting", async () => {
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"] });
+    logSpy.mockClear();
+
+    await suggestCommand({ _: ["reject"] });
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/rejected/i);
+  });
+});
