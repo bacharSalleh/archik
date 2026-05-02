@@ -3,18 +3,17 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { Popover } from "./Popover.tsx";
 
 function make(align?: "start" | "end"): ReturnType<typeof render> {
-  return render(
-    <Popover
-      align={align}
-      trigger={(open) => (
-        <button type="button" aria-expanded={open}>
-          Toggle
-        </button>
-      )}
-    >
-      {() => <div data-testid="content">Panel content</div>}
-    </Popover>,
+  const trigger = (open: boolean): React.ReactNode => (
+    <button type="button" aria-expanded={open}>
+      Toggle
+    </button>
   );
+  const children = (): React.ReactNode => (
+    <div data-testid="content">Panel content</div>
+  );
+  return align === undefined
+    ? render(<Popover trigger={trigger}>{children}</Popover>)
+    : render(<Popover align={align} trigger={trigger}>{children}</Popover>);
 }
 
 describe("Popover", () => {
