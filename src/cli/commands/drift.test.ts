@@ -148,6 +148,36 @@ describe("driftCommand", () => {
     });
   });
 
+  it("scans sub-architecture files and detects orphans in them", async () => {
+    await mkdir(path.join(cwd, "src", "orders"), { recursive: true });
+    // main file: orders node with existing sourcePath
+    await writeFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      validBody("    sourcePath: src/orders/"),
+    );
+    // sub-file: a node whose sourcePath doesn't exist on disk
+    await writeFile(
+      path.join(cwd, ".archik/payments.archik.yaml"),
+      [
+        'version: "1.0"',
+        "name: Payments",
+        "nodes:",
+        "  - id: payments-svc",
+        "    kind: service",
+        "    name: Payments Service",
+        "    description: test fixture",
+        "    sourcePath: src/payments/",
+        "edges: []",
+        "",
+      ].join("\n"),
+    );
+    const code = await driftCommand({ _: [] });
+    expect(code).toBe(1);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/ORPHAN/);
+    expect(out).toMatch(/payments-svc/);
+  });
+
   describe("error handling", () => {
     it("returns 1 when no archik file found", async () => {
       const code = await driftCommand({ _: [] });

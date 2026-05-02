@@ -16,6 +16,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.11.3] - 2026-05-02
+
+### Fixed
+- **`archik drift` now scans all sub-architecture files**, not just the
+  root file. Sub-files added via `archikFile:` pointers were silently
+  skipped — orphan nodes and unmapped directories in sub-architectures
+  were never reported. The command now uses `discoverDocs` to load the
+  full multi-file graph and merges all nodes before running detection.
+
 ## [0.11.2] - 2026-05-02
 
 ### Added

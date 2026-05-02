@@ -3,7 +3,9 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { detectDrift, type DriftResult } from "../../drift/detector.ts";
 import { parseDriftignore } from "../../drift/driftignore.ts";
+import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
+import type { Document } from "../../domain/types.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 
@@ -30,6 +32,8 @@ export async function driftCommand(
     return 1;
   }
 
+  // Validate the root file first so we get a clear error message for
+  // malformed YAML or schema violations, same as before.
   let text: string;
   try {
     text = await readFile(abs, "utf-8");
@@ -40,9 +44,8 @@ export async function driftCommand(
     return 1;
   }
 
-  let doc;
   try {
-    doc = parseYaml(text);
+    parseYaml(text);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (json) emitJson({ orphan: [], unmapped: [], ignored: [], summary: { orphan: 0, unmapped: 0, ignored: 0, total: 0 }, error: message });
@@ -51,6 +54,22 @@ export async function driftCommand(
   }
 
   const root = projectRoot(abs);
+
+  // Load all architecture files (main + sub-files) so drift covers
+  // nodes declared in sub-architectures, not just the root file.
+  const discovery = await discoverDocs(abs, root);
+  const mergedDoc: Document = {
+    version: "1.0",
+    name: "merged",
+    nodes: discovery.docs.flatMap((d) => d.doc.nodes),
+    edges: [],
+  };
+  // Surface sub-file parse errors as warnings — they're non-fatal
+  // (the main file already validated) but worth knowing about.
+  for (const e of discovery.errors) {
+    if (json) continue;
+    console.error(`warn: ${e.relPath}: ${e.message}`);
+  }
 
   // Load .driftignore if it exists
   const ignoreFile = getString(opts, "ignore") ?? ".archik/.driftignore";
@@ -61,7 +80,7 @@ export async function driftCommand(
     ignoreRules = parseDriftignore(ignoreText);
   }
 
-  const result = await detectDrift(doc, root, ignoreRules);
+  const result = await detectDrift(mergedDoc, root, ignoreRules);
 
   if (json) {
     emitJson(toJsonShape(result));
