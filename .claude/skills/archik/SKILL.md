@@ -333,7 +333,7 @@ A node in the architecture YAML declares which flows it participates in via the 
     - .archik/checkout-flow.archik.seq.yaml
 ```
 
-`seqFiles` is an **array of relative paths** from the project root. The validator checks each path exists on disk. Nodes without `seqFiles` are unaffected.
+`seqFiles` is a **non-empty array of relative paths** (at least one entry required) from the project root. The validator checks each path exists on disk. Nodes without `seqFiles` are unaffected.
 
 **UI effect:** nodes with `seqFiles` get clickable diagram links in the node inspector. The toolbar shows a "glow" button that highlights all nodes with seq diagrams so they're easy to spot on large canvases.
 
@@ -355,6 +355,8 @@ description: "..."      # optional
 participants:            # required, at least one
   - id: browser         # participant ref id (used in steps)
     nodeId: frontend    # architecture node id this participant maps to
+                        # the node's kind (gateway, service, database…) is
+                        # automatically applied to the participant header icon/color
     label: Browser      # optional display label (defaults to nodeId)
 
 steps:                  # ordered list of messages, notes, groups
@@ -399,6 +401,17 @@ steps:                  # ordered list of messages, notes, groups
             label: "401 Unauthorized"
             arrow: return
     status: proposed               # optional
+
+  # --- ref group (drill-down to another seq file) ---
+  - type: group
+    id: g2
+    kind: ref
+    label: "checkout flow"         # display label inside the frame
+    seqFile: .archik/checkout-flow.archik.seq.yaml
+                                   # relative path to the linked seq file
+                                   # makes the frame clickable in the UI →
+                                   # navigates to that diagram
+    branches: []                   # branches must be present (can be empty for ref)
 ```
 
 **Arrow types:**
@@ -453,9 +466,10 @@ npx archik validate .archik/main.archik.yaml
 
 ```bash
 npx archik render --seq .archik/login-flow.archik.seq.yaml --out login-flow.svg
+# optionally: --theme dark|light (default: dark)
 ```
 
-Renders a headless SVG of the sequence diagram. Useful for CI or docs.
+Renders a headless SVG of the sequence diagram. Useful for CI or docs. Participant icons/colors are automatically resolved from the architecture node kinds when a root arch doc is present in the same project root.
 
 ## Verification workflow
 
@@ -472,13 +486,16 @@ The CLI ships as the `archik` npm package; default to `npx archik` (works in fre
 ```
 npx archik schema                       # the document shape (always start here when authoring)
                   --json                #   structured shape for piping into jq
+                  --seq                 #   seq diagram schema instead of arch schema
 
 npx archik q describe <id> | deps <id> | dependents <id>
                   list | edges | impact <id> | stats
+                  sequences [--node <id>]   # list seq diagrams; --node filters to flows involving a node
                   --json                #   stable machine-readable shape
 
 npx archik validate <path> [--json]     # schema + cross-file check (CI-friendly)
 npx archik render --out diagram.svg --theme light|dark
+              render --seq <path> --out seq.svg --theme light|dark   # render a seq diagram to SVG
 npx archik diff a.yaml b.yaml [--out diff.svg] [--json]
 
 npx archik suggest show [--json]
