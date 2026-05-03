@@ -175,6 +175,39 @@ export function NodeInspector({
         readOnly={readOnly}
       />
 
+      {node.seqFiles && node.seqFiles.length > 0 && (
+        <div>
+          <div className="archik-label">Sequence Diagrams</div>
+          <div className="flex flex-col gap-1 mt-1">
+            {node.seqFiles.map((seqFile) => {
+              const label = seqFile.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
+              const href = `/__archik/seq?path=${encodeURIComponent(seqFile)}`;
+              return (
+                <a
+                  key={seqFile}
+                  href={href}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 12,
+                    padding: "3px 8px",
+                    borderRadius: 6,
+                    background: "var(--archik-node-fill)",
+                    border: "1px solid var(--archik-node-stroke)",
+                    color: "var(--archik-fg)",
+                    textDecoration: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {!readOnly && (
         <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
           {onStartConnect !== undefined && (
