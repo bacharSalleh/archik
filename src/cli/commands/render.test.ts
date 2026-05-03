@@ -107,4 +107,51 @@ describe("renderCommand", () => {
     const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(err).toMatch(/--theme/);
   });
+
+  describe("--seq flag", () => {
+    const minimalSeqDoc = (): string =>
+      [
+        'version: "1.0"',
+        "name: Login Flow",
+        "participants:",
+        "  - id: client",
+        "    nodeId: api",
+        "    label: Client",
+        "steps:",
+        "  - type: message",
+        "    id: m1",
+        "    from: client",
+        "    to: client",
+        "    label: login request",
+        "    arrow: sync",
+        "",
+      ].join("\n");
+
+    it("renders a seq YAML to SVG and reports success", async () => {
+      const seqFile = path.join(cwd, ".archik/login.archik.seq.yaml");
+      await writeFile(seqFile, minimalSeqDoc());
+      const outFile = path.join(cwd, "login.svg");
+      const code = await renderCommand({ _: [], seq: seqFile, out: outFile });
+      expect(code).toBe(0);
+      const svg = await readFile(outFile, "utf-8");
+      expect(svg).toContain("<svg");
+      expect(svg).toContain("Client");
+      const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(logged).toContain("Login Flow");
+    });
+
+    it("returns 1 when the seq file does not exist", async () => {
+      const code = await renderCommand({ _: [], seq: path.join(cwd, "missing.yaml"), out: path.join(cwd, "out.svg") });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("Cannot read");
+    });
+
+    it("returns 1 for bad --theme value with --seq", async () => {
+      const seqFile = path.join(cwd, ".archik/login.archik.seq.yaml");
+      await writeFile(seqFile, minimalSeqDoc());
+      const code = await renderCommand({ _: [], seq: seqFile, theme: "neon" });
+      expect(code).toBe(1);
+    });
+  });
 });
