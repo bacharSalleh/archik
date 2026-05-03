@@ -238,7 +238,121 @@ function isJson(opts: ParsedOptions): boolean {
   return v !== undefined && v !== "false" && v !== "0";
 }
 
+type SeqSchemaSpec = {
+  seqDocument: FieldSpec[];
+  participant: FieldSpec[];
+  message: FieldSpec[];
+  note: FieldSpec[];
+  group: FieldSpec[];
+  arrowTypes: string[];
+  notePositions: string[];
+  groupKinds: string[];
+  constraints: string[];
+};
+
+function buildSeqSchema(): SeqSchemaSpec {
+  return {
+    seqDocument: [
+      { name: "version", required: true, type: 'literal "1.0"' },
+      { name: "name", required: true, type: "string" },
+      { name: "description", required: false, type: "string" },
+      { name: "participants", required: true, type: "array of Participant" },
+      { name: "steps", required: true, type: "array of Step (message | note | group)" },
+    ],
+    participant: [
+      { name: "id", required: true, type: "string", notes: "kebab-case, unique within document" },
+      { name: "nodeId", required: true, type: "string", notes: "must reference an existing architecture node id" },
+      { name: "label", required: false, type: "string", notes: "display override; defaults to the node's name" },
+    ],
+    message: [
+      { name: "type", required: true, type: 'literal "message"' },
+      { name: "id", required: true, type: "string", notes: "kebab-case, unique" },
+      { name: "from", required: true, type: "string", notes: "participant id" },
+      { name: "to", required: true, type: "string", notes: "participant id; same as from for self-calls" },
+      { name: "label", required: true, type: "string" },
+      { name: "arrow", required: true, type: "enum", notes: "see ARROW TYPES" },
+      { name: "activate", required: false, type: "boolean", notes: "show activation bar on receiver" },
+      { name: "status", required: false, type: "enum", notes: "proposed | active | deprecated" },
+    ],
+    note: [
+      { name: "type", required: true, type: 'literal "note"' },
+      { name: "id", required: true, type: "string" },
+      { name: "position", required: true, type: "enum", notes: "see NOTE POSITIONS" },
+      { name: "participants", required: true, type: "array of string", notes: "participant ids the note spans" },
+      { name: "text", required: true, type: "string" },
+      { name: "status", required: false, type: "enum", notes: "proposed | active | deprecated" },
+    ],
+    group: [
+      { name: "type", required: true, type: 'literal "group"' },
+      { name: "id", required: true, type: "string" },
+      { name: "kind", required: true, type: "enum", notes: "see GROUP KINDS" },
+      { name: "condition", required: false, type: "string", notes: "displayed after the kind label" },
+      { name: "label", required: false, type: "string" },
+      { name: "branches", required: false, type: "array of Branch", notes: "for alt/opt/loop/par/break" },
+      { name: "seqFile", required: false, type: "string", notes: "for ref groups — path to another .archik.seq.yaml" },
+      { name: "participants", required: false, type: "array of string", notes: "for ref groups — which participants are involved" },
+      { name: "status", required: false, type: "enum", notes: "proposed | active | deprecated" },
+    ],
+    arrowTypes: ["sync", "async", "return", "create", "destroy"],
+    notePositions: ["over", "left_of", "right_of"],
+    groupKinds: ["alt", "opt", "loop", "par", "break", "ref"],
+    constraints: [
+      "All participant nodeId values must reference existing architecture nodes.",
+      "All from/to in messages must reference declared participant ids.",
+      "All id values are unique within the document (including nested steps).",
+      "Self-calls (from === to) are valid — rendered as a looped arrow.",
+      "ref group seqFile path must exist on disk.",
+      "File naming: *.archik.seq.yaml — place under .archik/",
+    ],
+  };
+}
+
+function formatSeqSchema(spec: SeqSchemaSpec): string {
+  const sections: string[] = [];
+  sections.push("SEQ DOCUMENT");
+  for (const f of spec.seqDocument) sections.push(formatField(f));
+  sections.push("");
+  sections.push("PARTICIPANT");
+  for (const f of spec.participant) sections.push(formatField(f));
+  sections.push("");
+  sections.push("MESSAGE  (step type: message)");
+  for (const f of spec.message) sections.push(formatField(f));
+  sections.push("");
+  sections.push("NOTE  (step type: note)");
+  for (const f of spec.note) sections.push(formatField(f));
+  sections.push("");
+  sections.push("GROUP  (step type: group)");
+  for (const f of spec.group) sections.push(formatField(f));
+  sections.push("");
+  sections.push("ARROW TYPES  (message.arrow)");
+  sections.push("  " + spec.arrowTypes.join(", "));
+  sections.push("");
+  sections.push("NOTE POSITIONS  (note.position)");
+  sections.push("  " + spec.notePositions.join(", "));
+  sections.push("");
+  sections.push("GROUP KINDS  (group.kind)");
+  sections.push("  " + spec.groupKinds.join(", "));
+  sections.push("");
+  sections.push("CONSTRAINTS");
+  for (const c of spec.constraints) sections.push(`  • ${c}`);
+  sections.push("");
+  return sections.join("\n");
+}
+
+function seqSchemaCommand(opts: ParsedOptions): number {
+  const spec = buildSeqSchema();
+  if (isJson(opts)) {
+    console.log(JSON.stringify(spec, null, 2));
+    return 0;
+  }
+  console.log(formatSeqSchema(spec));
+  return 0;
+}
+
 export function schemaCommand(opts: ParsedOptions): number {
+  if (opts._[0] === "seq") {
+    return seqSchemaCommand(opts);
+  }
   const spec = buildSchema();
   if (isJson(opts)) {
     console.log(JSON.stringify(spec, null, 2));

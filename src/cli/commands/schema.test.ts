@@ -65,6 +65,31 @@ describe("schemaCommand", () => {
     }
   });
 
+  it("schema seq prints seq schema in human format", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    const exit = schemaCommand({ _: ["seq"] });
+    expect(exit).toBe(0);
+    const joined = output.join("\n");
+    expect(joined).toContain("SEQ DOCUMENT");
+    expect(joined).toContain("participants");
+    expect(joined).toContain("steps");
+    expect(joined).toContain("ARROW TYPES");
+    expect(joined).toContain("sync");
+    expect(joined).toContain("GROUP KINDS");
+    expect(joined).toContain("alt");
+  });
+
+  it("schema seq --json returns structured seq schema", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: ["seq"], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    expect(parsed.seqDocument).toBeDefined();
+    expect(parsed.arrowTypes).toContain("sync");
+    expect(parsed.groupKinds).toContain("alt");
+  });
+
   it("json mode: emits a parseable object on stdout", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
