@@ -114,9 +114,10 @@ export async function validateCommand(
   // that fail so we surface them here rather than silently ignoring them.
   const discovery = await discoverDocs(abs, root);
   if (discovery.errors.length > 0) {
-    for (const e of discovery.errors) {
-      if (json) console.error(`✗ ${e.relPath}: ${e.message}`);
-      else console.error(`✗ ${e.relPath}: ${e.message}`);
+    if (json) {
+      emitJson({ ok: false, file, errors: discovery.errors.map((e) => ({ path: e.relPath, message: e.message })) });
+    } else {
+      for (const e of discovery.errors) console.error(`✗ ${e.relPath}: ${e.message}`);
     }
     return 1;
   }

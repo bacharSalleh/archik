@@ -61,11 +61,17 @@ describe("SeqDiagramSvg", () => {
       type: "group",
       id: "g1",
       kind: "alt",
-      condition: "[ok]",
-      branches: [{
-        label: "[ok]",
-        steps: [{ type: "message", id: "m1", from: "a", to: "b", label: "call()", arrow: "sync" }],
-      }],
+      condition: "[auth ok]",
+      branches: [
+        {
+          label: "[success]",
+          steps: [{ type: "message", id: "m1", from: "a", to: "b", label: "call()", arrow: "sync" }],
+        },
+        {
+          label: "[failure]",
+          steps: [{ type: "message", id: "m2", from: "b", to: "a", label: "error()", arrow: "return" }],
+        },
+      ],
     }],
   };
 
@@ -85,10 +91,12 @@ describe("SeqDiagramSvg", () => {
     }],
   };
 
-  it("renders a group frame with condition", () => {
+  it("renders a group frame with condition and branch labels", () => {
     const laid = layoutSeqDocument(docWithGroup);
     const { getByText } = render(<SeqDiagramSvg laid={laid} />);
-    expect(getByText("[ok]")).not.toBeNull();
+    expect(getByText("[auth ok]")).not.toBeNull();
+    expect(getByText("[success]")).not.toBeNull();
+    expect(getByText("[failure]")).not.toBeNull();
   });
 
   it("renders a note with text", () => {

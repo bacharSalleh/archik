@@ -42,7 +42,7 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
   }, [path]);
 
   const backHref = fromViewKey
-    ? `/?viewKey=${encodeURIComponent(fromViewKey)}`
+    ? `/?file=${encodeURIComponent(fromViewKey)}`
     : "/";
 
   if (state.status === "loading") {

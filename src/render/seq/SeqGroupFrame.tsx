@@ -58,31 +58,29 @@ export function SeqGroupFrame({ group, renderStep }: Props): React.ReactElement 
       )}
       {group.branches.map((branch, i) => (
         <g key={i}>
+          {branch.label && (
+            <text
+              x={group.x + 6}
+              y={branch.startY + 12}
+              fontSize={10}
+              fill={color}
+              fontFamily="inherit"
+            >
+              {branch.label}
+            </text>
+          )}
           {branch.steps.map((s) => renderStep(s))}
           {branch.dividerY !== undefined && (
-            <g>
-              <line
-                x1={group.x}
-                y1={branch.dividerY}
-                x2={group.x + group.width}
-                y2={branch.dividerY}
-                stroke={color}
-                strokeWidth={1}
-                strokeDasharray="4 2"
-                opacity={0.5}
-              />
-              {branch.label && (
-                <text
-                  x={group.x + 6}
-                  y={branch.dividerY + 12}
-                  fontSize={10}
-                  fill={color}
-                  fontFamily="inherit"
-                >
-                  {branch.label}
-                </text>
-              )}
-            </g>
+            <line
+              x1={group.x}
+              y1={branch.dividerY}
+              x2={group.x + group.width}
+              y2={branch.dividerY}
+              stroke={color}
+              strokeWidth={1}
+              strokeDasharray="4 2"
+              opacity={0.5}
+            />
           )}
         </g>
       ))}

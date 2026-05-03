@@ -60,6 +60,7 @@ export type LayoutedGroup = {
   height: number;
   branches: Array<{
     label?: string;
+    startY: number;
     dividerY?: number;
     steps: LayoutedStep[];
   }>;
@@ -112,14 +113,14 @@ function layoutSteps(
       const pCxs = step.participants
         .map((pid) => participantMap.get(pid)?.cx ?? 0)
         .sort((a, b) => a - b);
-      const noteX = (pCxs[0] ?? leftX) - 8;
-      const noteW = ((pCxs[pCxs.length - 1] ?? rightX) - (pCxs[0] ?? leftX)) + 16;
+      const noteW = Math.max(80, ((pCxs[pCxs.length - 1] ?? rightX) - (pCxs[0] ?? leftX)) + 16);
+      const noteX = (pCxs[0] ?? leftX) - noteW / 2;
       items.push({
         type: "note",
         id: step.id,
         x: noteX,
         y,
-        width: Math.max(80, noteW),
+        width: noteW,
         height: NOTE_HEIGHT,
         text: step.text,
         ...(step.status !== undefined ? { status: step.status } : {}),
@@ -135,6 +136,7 @@ function layoutSteps(
       if (step.branches) {
         for (let i = 0; i < step.branches.length; i++) {
           const branch = step.branches[i]!;
+          const branchStartY = y;
           const { items: branchItems, endY } = layoutSteps(
             branch.steps,
             participantMap,
@@ -145,6 +147,7 @@ function layoutSteps(
           y = endY;
           layoutedBranches.push({
             ...(branch.label !== undefined ? { label: branch.label } : {}),
+            startY: branchStartY,
             ...(i < step.branches.length - 1 ? { dividerY: y } : {}),
             steps: branchItems,
           });

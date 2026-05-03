@@ -92,7 +92,7 @@ function collectStepIds(steps: SeqStep[], ids: Set<string>): string[] {
 }
 
 export const SeqDocumentSchema = z
-  .object({
+  .strictObject({
     version: z.literal("1.0"),
     name: z.string().min(1),
     description: z.string().optional(),

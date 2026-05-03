@@ -594,7 +594,13 @@ export async function handleSeqFile(
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://localhost");
   const relPath = url.searchParams.get("path");
-  if (!relPath || !relPath.endsWith(".archik.seq.yaml")) {
+  if (
+    !relPath ||
+    relPath.startsWith("/") ||
+    relPath.includes("\\") ||
+    /^[a-zA-Z]:[\\/]/.test(relPath) ||
+    !relPath.endsWith(".archik.seq.yaml")
+  ) {
     res.writeHead(400, { "Content-Type": "text/plain" });
     res.end("path must end in .archik.seq.yaml");
     return;
