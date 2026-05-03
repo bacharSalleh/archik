@@ -95,8 +95,8 @@ function layoutSteps(
     if (step.type === "message") {
       const fromP = participantMap.get(step.from);
       const toP = participantMap.get(step.to);
-      const fromCx = fromP?.cx ?? 0;
-      const toCx = toP?.cx ?? 0;
+      const fromCx = fromP?.cx ?? leftX;
+      const toCx = toP?.cx ?? leftX;
       items.push({
         type: "message",
         id: step.id,
@@ -111,8 +111,9 @@ function layoutSteps(
       });
       y += step.from === step.to ? MESSAGE_ROW_HEIGHT * 1.5 : MESSAGE_ROW_HEIGHT;
     } else if (step.type === "note") {
-      const pCxs = step.participants
-        .map((pid) => participantMap.get(pid)?.cx ?? 0)
+      const pCxs = (step.participants
+        .map((pid) => participantMap.get(pid)?.cx)
+        .filter((cx): cx is number => cx !== undefined))
         .sort((a, b) => a - b);
       const leftCx = pCxs[0] ?? leftX;
       const rightCx = pCxs[pCxs.length - 1] ?? rightX;
@@ -187,7 +188,10 @@ function collectDestroyY(steps: LayoutedStep[]): Map<number, number> {
   const map = new Map<number, number>(); // cx -> y
   for (const step of steps) {
     if (step.type === "message" && step.arrow === "destroy") {
-      map.set(step.toCx, step.y + 20); // a bit below the × marker
+      // step.y is in layout coords (relative to top of message area);
+      // SeqDiagramSvg applies translate(0, PARTICIPANT_HEADER_HEIGHT) to steps,
+      // so the SVG y of the × marker = step.y + PARTICIPANT_HEADER_HEIGHT.
+      map.set(step.toCx, step.y + PARTICIPANT_HEADER_HEIGHT + 20);
     }
     if (step.type === "group") {
       for (const b of step.branches) {
@@ -220,9 +224,13 @@ export function layoutSeqDocument(
   const leftX = participants[0]?.cx ?? DIAGRAM_H_PADDING;
   const rightX = participants[participants.length - 1]?.cx ?? totalWidth - DIAGRAM_H_PADDING;
 
-  const startY = PARTICIPANT_HEADER_HEIGHT + DIAGRAM_V_PADDING;
+  // startY is in layout coords: steps are rendered inside translate(0, PARTICIPANT_HEADER_HEIGHT)
+  // in SeqDiagramSvg, so layout coords only need to account for the vertical padding.
+  const startY = DIAGRAM_V_PADDING;
   const { items: steps, endY } = layoutSteps(doc.steps, participantMap, startY, leftX, rightX);
-  const totalHeight = endY + DIAGRAM_V_PADDING;
+  // totalHeight must include PARTICIPANT_HEADER_HEIGHT because the SVG element encompasses
+  // both the header row and the message area.
+  const totalHeight = PARTICIPANT_HEADER_HEIGHT + endY + DIAGRAM_V_PADDING;
 
   const destroyY = collectDestroyY(steps);
   const participantsWithEnd = participants.map((p) => ({
