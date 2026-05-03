@@ -56,6 +56,23 @@ export const ArchikFilePathSchema = z
     message: "archikFile must end in `.archik.yaml`",
   });
 
+export const SeqFilePathSchema = z
+  .string()
+  .min(1)
+  .refine((p) => !p.startsWith("/") && !/^[a-zA-Z]:[\\/]/.test(p), {
+    message: "seqFile must be a relative path",
+  })
+  .refine((p) => !p.includes("\\"), {
+    message: "seqFile must use forward slashes",
+  })
+  .refine(
+    (p) => !p.split("/").some((seg) => seg === ".."),
+    { message: "seqFile must not contain `..` segments" },
+  )
+  .refine((p) => p.endsWith(".archik.seq.yaml"), {
+    message: "seqFile must end in `.archik.seq.yaml`",
+  });
+
 export const InterfaceSchema = z.strictObject({
   name: z.string().min(1),
   protocol: z.string().min(1),
@@ -84,6 +101,9 @@ export const NodeSchema = z.strictObject({
    *  node's internal architecture. The canvas shows a "↓ open" affordance
    *  on the node and navigates to that file when the user opens it. */
   archikFile: ArchikFilePathSchema.optional(),
+  /** Sequence diagram files linked to this node. Each entry is a relative
+   *  path to a `.archik.seq.yaml` file describing a flow involving this node. */
+  seqFiles: z.array(SeqFilePathSchema).optional(),
   /** Relative path to this node's source code on disk. Used by
    *  `archik drift` to detect when the diagram diverges from reality. */
   sourcePath: SourcePathSchema.optional(),

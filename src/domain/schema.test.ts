@@ -5,6 +5,7 @@ import {
   IdSchema,
   InterfaceSchema,
   NodeSchema,
+  SeqFilePathSchema,
 } from "./schema.ts";
 
 describe("InterfaceSchema", () => {
@@ -158,6 +159,50 @@ describe("NodeSchema", () => {
       expect(accept("orders.json")).toBe(false);
       expect(accept("orders")).toBe(false);
     });
+  });
+});
+
+describe("SeqFilePathSchema", () => {
+  it("accepts a valid seq file path", () => {
+    expect(SeqFilePathSchema.safeParse(".archik/flows/login.archik.seq.yaml").success).toBe(true);
+  });
+  it("rejects a path not ending in .archik.seq.yaml", () => {
+    expect(SeqFilePathSchema.safeParse(".archik/flows/login.archik.yaml").success).toBe(false);
+  });
+  it("rejects an absolute path", () => {
+    expect(SeqFilePathSchema.safeParse("/absolute/path.archik.seq.yaml").success).toBe(false);
+  });
+  it("rejects a path with ..", () => {
+    expect(SeqFilePathSchema.safeParse("../escape.archik.seq.yaml").success).toBe(false);
+  });
+  it("rejects a path with backslashes", () => {
+    expect(SeqFilePathSchema.safeParse(".archik\\flows\\login.archik.seq.yaml").success).toBe(false);
+  });
+});
+
+describe("NodeSchema seqFiles", () => {
+  const base = {
+    id: "gw",
+    kind: "gateway" as const,
+    name: "Gateway",
+    description: "Routes traffic.",
+  };
+  it("accepts a node with seqFiles", () => {
+    const result = NodeSchema.safeParse({
+      ...base,
+      seqFiles: [".archik/flows/login.archik.seq.yaml"],
+    });
+    expect(result.success).toBe(true);
+  });
+  it("accepts a node without seqFiles", () => {
+    expect(NodeSchema.safeParse(base).success).toBe(true);
+  });
+  it("rejects seqFiles with invalid path", () => {
+    const result = NodeSchema.safeParse({
+      ...base,
+      seqFiles: ["bad.yaml"],
+    });
+    expect(result.success).toBe(false);
   });
 });
 
