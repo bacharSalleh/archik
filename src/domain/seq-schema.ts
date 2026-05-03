@@ -36,7 +36,7 @@ export type SeqNote = z.infer<typeof SeqNoteSchema>;
 export type SeqParticipant = z.infer<typeof SeqParticipantSchema>;
 
 export type SeqBranch = {
-  label?: string;
+  label?: string | undefined;
   steps: SeqStep[];
 };
 
@@ -44,12 +44,12 @@ export type SeqGroup = {
   type: "group";
   id: string;
   kind: "alt" | "opt" | "loop" | "par" | "break" | "ref";
-  condition?: string;
-  label?: string;
-  branches?: SeqBranch[];
-  seqFile?: string;
-  participants?: string[];
-  status?: "proposed" | "active" | "deprecated";
+  condition?: string | undefined;
+  label?: string | undefined;
+  branches?: SeqBranch[] | undefined;
+  seqFile?: string | undefined;
+  participants?: string[] | undefined;
+  status?: "proposed" | "active" | "deprecated" | undefined;
 };
 
 export type SeqStep = SeqMessage | SeqNote | SeqGroup;

@@ -22,9 +22,9 @@ export async function discoverSeqDocs(
   const errors: SeqDiscoveryResult["errors"] = [];
   const archikDir = path.join(projectBase, ".archik");
 
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  let entries: import("node:fs").Dirent<string>[];
   try {
-    entries = await readdir(archikDir, { withFileTypes: true });
+    entries = await readdir(archikDir, { withFileTypes: true, encoding: "utf8" });
   } catch {
     return { docs, errors };
   }

@@ -104,8 +104,8 @@ function layoutSteps(
         label: step.label,
         arrow: step.arrow,
         activate: step.activate ?? false,
-        status: step.status,
         isSelf: step.from === step.to,
+        ...(step.status !== undefined ? { status: step.status } : {}),
       });
       y += step.from === step.to ? MESSAGE_ROW_HEIGHT * 1.5 : MESSAGE_ROW_HEIGHT;
     } else if (step.type === "note") {
@@ -122,7 +122,7 @@ function layoutSteps(
         width: Math.max(80, noteW),
         height: NOTE_HEIGHT,
         text: step.text,
-        status: step.status,
+        ...(step.status !== undefined ? { status: step.status } : {}),
       });
       y += NOTE_HEIGHT + 8;
     } else if (step.type === "group") {
@@ -144,7 +144,7 @@ function layoutSteps(
           );
           y = endY;
           layoutedBranches.push({
-            label: branch.label,
+            ...(branch.label !== undefined ? { label: branch.label } : {}),
             ...(i < step.branches.length - 1 ? { dividerY: y } : {}),
             steps: branchItems,
           });
@@ -157,14 +157,14 @@ function layoutSteps(
         type: "group",
         id: step.id,
         kind: step.kind,
-        condition: step.condition,
-        label: step.label,
+        ...(step.condition !== undefined ? { condition: step.condition } : {}),
+        ...(step.label !== undefined ? { label: step.label } : {}),
         x: groupX,
         y: groupStartY,
         width: groupWidth,
         height: y - groupStartY,
         branches: layoutedBranches,
-        status: step.status,
+        ...(step.status !== undefined ? { status: step.status } : {}),
       });
     }
   }
@@ -200,7 +200,8 @@ export function layoutSeqDocument(
     const colWidth = colWidths[i]!;
     const cx = x + colWidth / 2;
     x += colWidth;
-    return { id: p.id, nodeId: p.nodeId, label: p.label ?? p.nodeId, cx, colWidth, kind: kinds?.get(p.nodeId), lifelineEndY: 0 };
+    const kind = kinds?.get(p.nodeId);
+    return { id: p.id, nodeId: p.nodeId, label: p.label ?? p.nodeId, cx, colWidth, ...(kind !== undefined ? { kind } : {}), lifelineEndY: 0 };
   });
   const totalWidth = x + DIAGRAM_H_PADDING;
 

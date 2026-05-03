@@ -5,7 +5,6 @@ import type { SeqDocument } from "../domain/seq-schema.ts";
 import { layoutSeqDocument } from "../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../render/seq/SeqDiagramSvg.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
-import { exportFilename } from "../io/canvasExport.ts";
 
 type State =
   | { status: "loading" }
@@ -66,7 +65,7 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
   }
 
   const laid = layoutSeqDocument(state.doc);
-  const filename = exportFilename(path.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, ""));
+  const filename = path.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
 
   return (
     <div className="flex h-screen flex-col" style={{ background: "var(--archik-bg)" }}>
