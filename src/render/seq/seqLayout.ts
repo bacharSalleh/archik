@@ -114,8 +114,14 @@ function layoutSteps(
       const pCxs = step.participants
         .map((pid) => participantMap.get(pid)?.cx ?? 0)
         .sort((a, b) => a - b);
-      const noteW = Math.max(80, ((pCxs[pCxs.length - 1] ?? rightX) - (pCxs[0] ?? leftX)) + 16);
-      const noteX = (pCxs[0] ?? leftX) - noteW / 2;
+      const leftCx = pCxs[0] ?? leftX;
+      const rightCx = pCxs[pCxs.length - 1] ?? rightX;
+      const noteW = Math.max(
+        step.text.length * 7.5 + 24,
+        (rightCx - leftCx) + 16,
+        80,
+      );
+      const noteX = (leftCx + rightCx) / 2 - noteW / 2;
       items.push({
         type: "note",
         id: step.id,

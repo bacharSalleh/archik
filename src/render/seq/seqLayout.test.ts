@@ -57,6 +57,83 @@ describe("layoutSeqDocument", () => {
     expect(msg.type).toBe("message");
     if (msg.type === "message") expect(msg.isSelf).toBe(true);
   });
+  it("note over single participant is centered on that participant", () => {
+    const noteDoc: SeqDocument = {
+      version: "1.0",
+      name: "Note",
+      participants: [
+        { id: "a", nodeId: "svc-a" },
+        { id: "b", nodeId: "svc-b" },
+      ],
+      steps: [{
+        type: "note",
+        id: "n1",
+        position: "over",
+        participants: ["a"],
+        text: "JWT issued here",
+      }],
+    };
+    const laid = layoutSeqDocument(noteDoc);
+    const note = laid.steps[0]!;
+    expect(note.type).toBe("note");
+    if (note.type === "note") {
+      const aCx = laid.participants[0]!.cx;
+      const centerX = note.x + note.width / 2;
+      expect(Math.abs(centerX - aCx)).toBeLessThan(2);
+    }
+  });
+
+  it("note over multiple participants is centered between them", () => {
+    const noteDoc: SeqDocument = {
+      version: "1.0",
+      name: "Note",
+      participants: [
+        { id: "a", nodeId: "svc-a" },
+        { id: "b", nodeId: "svc-b" },
+      ],
+      steps: [{
+        type: "note",
+        id: "n1",
+        position: "over",
+        participants: ["a", "b"],
+        text: "spans both",
+      }],
+    };
+    const laid = layoutSeqDocument(noteDoc);
+    const note = laid.steps[0]!;
+    expect(note.type).toBe("note");
+    if (note.type === "note") {
+      const aCx = laid.participants[0]!.cx;
+      const bCx = laid.participants[1]!.cx;
+      const centerX = note.x + note.width / 2;
+      const expected = (aCx + bCx) / 2;
+      expect(Math.abs(centerX - expected)).toBeLessThan(2);
+    }
+  });
+
+  it("note width accounts for long text", () => {
+    const longText = "a very long note that exceeds the minimum width threshold for sure";
+    const noteDoc: SeqDocument = {
+      version: "1.0",
+      name: "Note",
+      participants: [{ id: "a", nodeId: "svc-a" }],
+      steps: [{
+        type: "note",
+        id: "n1",
+        position: "over",
+        participants: ["a"],
+        text: longText,
+      }],
+    };
+    const laid = layoutSeqDocument(noteDoc);
+    const note = laid.steps[0]!;
+    expect(note.type).toBe("note");
+    if (note.type === "note") {
+      expect(note.width).toBeGreaterThan(80);
+      expect(note.width).toBeGreaterThan(longText.length * 5);
+    }
+  });
+
   it("group step produces type=group", () => {
     const groupDoc: SeqDocument = {
       version: "1.0",
