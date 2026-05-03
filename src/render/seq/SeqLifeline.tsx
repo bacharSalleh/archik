@@ -6,6 +6,8 @@ type Props = {
 };
 
 export function SeqLifeline({ participant }: Props): React.ReactElement {
+  const status = participant.status;
+  const opacity = status === "proposed" ? 0.3 : status === "deprecated" ? 0.2 : 0.5;
   return (
     <line
       x1={participant.cx}
@@ -15,7 +17,7 @@ export function SeqLifeline({ participant }: Props): React.ReactElement {
       stroke="var(--archik-node-stroke)"
       strokeWidth={1}
       strokeDasharray="4 4"
-      opacity={0.5}
+      opacity={opacity}
     />
   );
 }

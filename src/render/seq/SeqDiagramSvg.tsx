@@ -1,5 +1,5 @@
 import type { LayoutedSeqDocument, LayoutedStep } from "./seqLayout.ts";
-import { PARTICIPANT_HEADER_HEIGHT, SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
+import { ACTIVATION_W, PARTICIPANT_HEADER_HEIGHT, SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
 import { SeqParticipantHeader } from "./SeqParticipantHeader.tsx";
 import { SeqLifeline } from "./SeqLifeline.tsx";
 import { SeqMessage } from "./SeqMessage.tsx";
@@ -44,7 +44,7 @@ type Props = {
 };
 
 export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactElement {
-  const { participants, steps, totalWidth, totalHeight } = laid;
+  const { participants, steps, activations, totalWidth, totalHeight } = laid;
 
   return (
     <svg
@@ -70,6 +70,19 @@ export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactE
         />
       ))}
       <g transform={`translate(0, ${PARTICIPANT_HEADER_HEIGHT})`}>
+        {activations.map((a, i) => (
+          <rect
+            key={i}
+            x={a.cx - ACTIVATION_W / 2}
+            y={a.startY}
+            width={ACTIVATION_W}
+            height={a.endY - a.startY}
+            fill="var(--archik-node-fill)"
+            stroke="var(--archik-node-stroke)"
+            strokeWidth={1}
+            rx={2}
+          />
+        ))}
         {steps.map((step) => <RenderStep key={step.id} step={step} {...(onRefClick !== undefined ? { onRefClick } : {})} />)}
       </g>
     </svg>

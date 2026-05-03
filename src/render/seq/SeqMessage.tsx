@@ -4,8 +4,6 @@ import { SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
 const SELF_LOOP_W = 32;
 const SELF_LOOP_H = 20;
 const LABEL_OFFSET_Y = -6;
-const ACTIVATION_W = 8;
-const ACTIVATION_H = 20;
 
 export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElement {
   const isReturn = msg.arrow === "return";
@@ -36,18 +34,6 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
 
   return (
     <g opacity={opacity}>
-      {msg.activate && (
-        <rect
-          x={msg.toCx - ACTIVATION_W / 2}
-          y={msg.y - 2}
-          width={ACTIVATION_W}
-          height={ACTIVATION_H}
-          fill="var(--archik-node-fill)"
-          stroke="var(--archik-node-stroke)"
-          strokeWidth={1}
-          rx={2}
-        />
-      )}
       <line
         x1={msg.fromCx}
         y1={msg.y}

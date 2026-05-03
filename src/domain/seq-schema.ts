@@ -9,6 +9,7 @@ export const SeqParticipantSchema = z.strictObject({
   id: IdSchema,
   nodeId: IdSchema,
   label: z.string().min(1).optional(),
+  status: NodeStatusSchema.optional(),
 });
 
 export const SeqMessageSchema = z.strictObject({

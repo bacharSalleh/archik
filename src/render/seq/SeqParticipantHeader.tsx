@@ -17,9 +17,12 @@ export function SeqParticipantHeader({ participant, nodeKind }: Props): React.Re
   const chipY = (PARTICIPANT_HEADER_HEIGHT - CHIP_H) / 2;
   const IconComponent = meta?.icon;
   const textX = IconComponent ? CHIP_HALF_W + 9 : CHIP_HALF_W;
+  const status = participant.status;
+  const opacity = status === "proposed" ? 0.55 : status === "deprecated" ? 0.35 : 1;
+  const strokeDasharray = status === "proposed" || status === "deprecated" ? "4 3" : undefined;
 
   return (
-    <g transform={`translate(${participant.cx - CHIP_HALF_W}, ${chipY})`}>
+    <g transform={`translate(${participant.cx - CHIP_HALF_W}, ${chipY})`} opacity={opacity}>
       <rect
         width={CHIP_HALF_W * 2}
         height={CHIP_H}
@@ -27,6 +30,7 @@ export function SeqParticipantHeader({ participant, nodeKind }: Props): React.Re
         fill="var(--archik-node-fill)"
         stroke={color}
         strokeWidth={1.4}
+        {...(strokeDasharray !== undefined ? { strokeDasharray } : {})}
       />
       {IconComponent && (
         <g transform={`translate(10, ${(CHIP_H - 14) / 2})`}>

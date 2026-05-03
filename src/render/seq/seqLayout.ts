@@ -10,6 +10,7 @@ export const GROUP_PADDING = 12;
 export const NOTE_HEIGHT = 48;
 export const DIAGRAM_H_PADDING = 32;
 export const DIAGRAM_V_PADDING = 24;
+export const ACTIVATION_W = 8;
 
 export const SEQ_MARKER_FILLED = "seq-arrow-filled";
 export const SEQ_MARKER_OPEN = "seq-arrow-open";
@@ -21,6 +22,7 @@ export type LayoutedParticipant = {
   cx: number;
   colWidth: number;
   kind?: NodeKind;
+  status?: "proposed" | "active" | "deprecated";
   lifelineEndY: number;
 };
 
@@ -70,9 +72,16 @@ export type LayoutedGroup = {
 
 export type LayoutedStep = LayoutedMessage | LayoutedNote | LayoutedGroup;
 
+export type LayoutedActivation = {
+  cx: number;
+  startY: number;
+  endY: number;
+};
+
 export type LayoutedSeqDocument = {
   participants: LayoutedParticipant[];
   steps: LayoutedStep[];
+  activations: LayoutedActivation[];
   totalWidth: number;
   totalHeight: number;
 };
@@ -122,7 +131,15 @@ function layoutSteps(
         (rightCx - leftCx) + 16,
         80,
       );
-      const noteX = (leftCx + rightCx) / 2 - noteW / 2;
+      let noteX: number;
+      if (step.position === "left_of") {
+        noteX = leftCx - noteW - 8;
+      } else if (step.position === "right_of") {
+        noteX = rightCx + 8;
+      } else {
+        // "over": center between the leftmost and rightmost participant
+        noteX = (leftCx + rightCx) / 2 - noteW / 2;
+      }
       items.push({
         type: "note",
         id: step.id,
@@ -202,6 +219,45 @@ function collectDestroyY(steps: LayoutedStep[]): Map<number, number> {
   return map;
 }
 
+function collectActivations(steps: LayoutedStep[]): LayoutedActivation[] {
+  const activations: LayoutedActivation[] = [];
+  // Stack of open activations per participant cx: cx → stack of startY
+  const openStacks = new Map<number, number[]>();
+
+  function walk(steps: LayoutedStep[]): void {
+    for (const step of steps) {
+      if (step.type === "message") {
+        if (step.activate && step.arrow === "sync" && !step.isSelf) {
+          const stack = openStacks.get(step.toCx) ?? [];
+          stack.push(step.y);
+          openStacks.set(step.toCx, stack);
+        }
+        if (step.arrow === "return" && !step.isSelf) {
+          const stack = openStacks.get(step.fromCx);
+          if (stack && stack.length > 0) {
+            const startY = stack.pop()!;
+            activations.push({ cx: step.fromCx, startY, endY: step.y + MESSAGE_ROW_HEIGHT / 4 });
+            if (stack.length === 0) openStacks.delete(step.fromCx);
+          }
+        }
+      } else if (step.type === "group") {
+        for (const branch of step.branches) walk(branch.steps);
+      }
+    }
+  }
+
+  walk(steps);
+
+  // Unclosed activations (sync with no return): render as a short fixed box
+  for (const [cx, stack] of openStacks) {
+    for (const startY of stack) {
+      activations.push({ cx, startY, endY: startY + MESSAGE_ROW_HEIGHT / 2 });
+    }
+  }
+
+  return activations;
+}
+
 export function layoutSeqDocument(
   doc: SeqDocument,
   kinds?: Map<string, NodeKind>,
@@ -216,7 +272,16 @@ export function layoutSeqDocument(
     const cx = x + colWidth / 2;
     x += colWidth;
     const kind = kinds?.get(p.nodeId);
-    return { id: p.id, nodeId: p.nodeId, label: p.label ?? p.nodeId, cx, colWidth, ...(kind !== undefined ? { kind } : {}), lifelineEndY: 0 };
+    return {
+      id: p.id,
+      nodeId: p.nodeId,
+      label: p.label ?? p.nodeId,
+      cx,
+      colWidth,
+      ...(kind !== undefined ? { kind } : {}),
+      ...(p.status !== undefined ? { status: p.status } : {}),
+      lifelineEndY: 0,
+    };
   });
   const totalWidth = x + DIAGRAM_H_PADDING;
 
@@ -238,5 +303,7 @@ export function layoutSeqDocument(
     lifelineEndY: destroyY.get(p.cx) ?? totalHeight,
   }));
 
-  return { participants: participantsWithEnd, steps, totalWidth, totalHeight };
+  const activations = collectActivations(steps);
+
+  return { participants: participantsWithEnd, steps, activations, totalWidth, totalHeight };
 }
