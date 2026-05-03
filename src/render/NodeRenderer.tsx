@@ -94,6 +94,7 @@ function Shape({
 type Props = {
   node: PositionedNode;
   selectedNodeIds?: ReadonlySet<string>;
+  glowNodeIds?: ReadonlySet<string>;
   onSelectNode?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
@@ -118,6 +119,7 @@ type Props = {
 export function NodeRenderer({
   node,
   selectedNodeIds,
+  glowNodeIds,
   onSelectNode,
   onOpenSubFile,
   onCrossFileNavigate,
@@ -126,6 +128,7 @@ export function NodeRenderer({
   depth = 0,
 }: Props): React.ReactElement {
   const isSelected = selectedNodeIds?.has(node.id) ?? false;
+  const isGlowed = glowNodeIds?.has(node.id) ?? false;
   const isContainer = node.children.length > 0;
   const childDepth = isContainer ? depth + 1 : depth;
 
@@ -150,6 +153,20 @@ export function NodeRenderer({
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
+      {isGlowed && (
+        <rect
+          x={-4}
+          y={-4}
+          width={node.width + 8}
+          height={node.height + 8}
+          rx={10}
+          fill="none"
+          stroke="var(--archik-accent)"
+          strokeWidth={2}
+          opacity={0.85}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
       {viewMode === "detailed" && !isContainer && (() => {
         const hasNotes =
@@ -264,6 +281,7 @@ export function NodeRenderer({
           viewMode={viewMode}
           depth={childDepth}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+          {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
           {...(onCrossFileNavigate !== undefined ? { onCrossFileNavigate } : {})}

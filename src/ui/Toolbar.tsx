@@ -1,4 +1,4 @@
-import { LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
+import { GitBranch, LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
@@ -36,6 +36,9 @@ type Props = {
   onRedo?: () => void;
   /** Returns the live canvas <svg> for SVG / PNG export. */
   getSvg?: () => SVGSVGElement | null;
+  seqHighlight?: boolean;
+  onToggleSeqHighlight?: () => void;
+  seqNodeCount?: number;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -73,6 +76,9 @@ export function Toolbar({
   onUndo,
   onRedo,
   getSvg,
+  seqHighlight,
+  onToggleSeqHighlight,
+  seqNodeCount,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -205,6 +211,26 @@ export function Toolbar({
         )}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />
+        )}
+        {onToggleSeqHighlight !== undefined && (seqNodeCount ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={onToggleSeqHighlight}
+            title={seqHighlight ? "Hide sequence diagram highlights" : `Show ${seqNodeCount} node${seqNodeCount === 1 ? "" : "s"} with sequence diagrams`}
+            aria-label="Toggle sequence diagram highlights"
+            aria-pressed={seqHighlight}
+            className="archik-btn"
+            style={{
+              padding: "5px 8px",
+              ...(seqHighlight ? {
+                background: "var(--archik-accent)",
+                borderColor: "var(--archik-accent)",
+                color: "white",
+              } : {}),
+            }}
+          >
+            <GitBranch size={14} strokeWidth={1.8} />
+          </button>
         )}
         <Legend />
         <ExportMenu

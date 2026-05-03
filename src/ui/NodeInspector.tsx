@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import type { Command } from "../domain/commands.ts";
 import type { Interface, Node, NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
@@ -191,15 +192,17 @@ export function NodeInspector({
                     alignItems: "center",
                     gap: 4,
                     fontSize: 12,
-                    padding: "3px 8px",
+                    padding: "5px 10px",
                     borderRadius: 6,
-                    background: "var(--archik-node-fill)",
-                    border: "1px solid var(--archik-node-stroke)",
-                    color: "var(--archik-fg)",
+                    background: "var(--archik-accent)",
+                    border: "none",
+                    color: "white",
+                    fontWeight: 500,
                     textDecoration: "none",
                     cursor: "pointer",
                   }}
                 >
+                  <ArrowRight size={12} strokeWidth={2} />
                   {label}
                 </a>
               );

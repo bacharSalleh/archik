@@ -163,6 +163,7 @@ export function App(): React.ReactElement {
   // user sees WHY the save failed rather than an opaque "error".
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [seqHighlight, setSeqHighlight] = useState(false);
   // Pending Claude-authored suggestion sidecar. Banner shows when
   // present; user picks Review (opens server-rendered diff in a new
   // tab), Accept (POST → main becomes sidecar), or Reject (DELETE).
@@ -200,6 +201,13 @@ export function App(): React.ReactElement {
   const layoutOptions = useMemo(
     () => ({ ...densityToLayoutOptions(density), viewMode }),
     [density, viewMode],
+  );
+  const seqNodeIds = useMemo(
+    () =>
+      state.status === "ready"
+        ? new Set(state.document.nodes.filter((n) => (n.seqFiles?.length ?? 0) > 0).map((n) => n.id))
+        : new Set<string>(),
+    [state],
   );
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
@@ -948,6 +956,9 @@ export function App(): React.ReactElement {
         onUndo={undo}
         onRedo={redo}
         getSvg={getSvg}
+        seqHighlight={seqHighlight}
+        onToggleSeqHighlight={() => setSeqHighlight((h) => !h)}
+        seqNodeCount={seqNodeIds.size}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {
@@ -1107,6 +1118,7 @@ export function App(): React.ReactElement {
               viewKey={currentFile.docUrl}
               svgRef={canvasSvgRef}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
+              {...(seqHighlight && seqNodeIds.size > 0 ? { glowNodeIds: seqNodeIds } : {})}
             />
           </div>
         </div>

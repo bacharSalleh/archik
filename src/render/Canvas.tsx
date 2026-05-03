@@ -49,6 +49,7 @@ type Props = {
   viewKey?: string;
   /** When set, layer diff frames + edge tints over the diagram (review mode). */
   diffStatuses?: StatusMap;
+  glowNodeIds?: ReadonlySet<string>;
   /** Optional external ref so callers (App, ExportMenu) can reach the
    *  rendered <svg> for snapshot / export. When omitted, Canvas keeps
    *  its own internal ref and nothing changes. */
@@ -90,6 +91,7 @@ export function Canvas({
   onCrossFileNavigate,
   viewKey,
   diffStatuses,
+  glowNodeIds,
   svgRef: externalSvgRef,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
@@ -341,6 +343,7 @@ export function Canvas({
             ? { onCrossFileNavigate }
             : {})}
           {...(diffStatuses !== undefined ? { diffStatuses } : {})}
+          {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
         />
       </div>
       <ZoomControls

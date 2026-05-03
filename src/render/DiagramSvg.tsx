@@ -89,6 +89,7 @@ type Props = {
     | null;
   selectedNodeIds?: ReadonlySet<string>;
   selectedEdgeIds?: ReadonlySet<string>;
+  glowNodeIds?: ReadonlySet<string>;
   onSelectNode?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
@@ -107,6 +108,7 @@ type InnerProps = {
   viewMode?: ViewMode;
   selectedNodeIds?: ReadonlySet<string>;
   selectedEdgeIds?: ReadonlySet<string>;
+  glowNodeIds?: ReadonlySet<string>;
   onSelectNode?:
     | ((id: string, event: React.MouseEvent) => void)
     | undefined;
@@ -127,6 +129,7 @@ export function DiagramInner({
   viewMode = "detailed",
   selectedNodeIds,
   selectedEdgeIds,
+  glowNodeIds,
   onSelectNode,
   onSelectEdge,
   onOpenSubFile,
@@ -174,6 +177,7 @@ export function DiagramInner({
             viewMode={viewMode}
             crossFileByNode={crossFileByNode}
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
+            {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
             {...(onSelectNode !== undefined ? { onSelectNode } : {})}
             {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
             {...(onCrossFileNavigate !== undefined
@@ -219,6 +223,7 @@ export function DiagramSvg({
   dragGhost,
   selectedNodeIds,
   selectedEdgeIds,
+  glowNodeIds,
   onSelectNode,
   onSelectEdge,
   onSelectNothing,
@@ -257,6 +262,7 @@ export function DiagramSvg({
           viewMode={viewMode}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
+          {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}
           {...(onSelectEdge !== undefined ? { onSelectEdge } : {})}
           {...(onOpenSubFile !== undefined ? { onOpenSubFile } : {})}
