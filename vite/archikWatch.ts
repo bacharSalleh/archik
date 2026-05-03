@@ -11,6 +11,7 @@ import {
   handleArchikFile,
   handleDiffSvg,
   handleListFiles,
+  handleNodeKinds,
   handleSeqFile,
   handleSidecar,
   handleYaml,
@@ -25,6 +26,7 @@ const FILE_URL = `/__archik/file`;
 const FILE_ACCEPT_URL = `/__archik/file-accept`;
 const FILES_URL = `/__archik/files`;
 const SEQ_FILE_URL = `/__archik/seq-file`;
+const NODE_KINDS_URL = `/__archik/node-kinds`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
 const DOC_EVENT = "archik:doc-changed";
@@ -91,6 +93,10 @@ export function archikWatch(): Plugin {
       server.middlewares.use(SEQ_FILE_URL, (req, res, next) => {
         if (req.method === undefined) return next();
         void handleSeqFile(root, req, res);
+      });
+
+      server.middlewares.use(NODE_KINDS_URL, (_req, res) => {
+        void handleNodeKinds(root, docPath, res);
       });
 
       // Watch the main file, its sidecar, and the project's .archik/

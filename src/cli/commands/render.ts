@@ -6,7 +6,7 @@ import YAML from "yaml";
 import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
-import type { Document } from "../../domain/types.ts";
+import type { Document, NodeKind } from "../../domain/types.ts";
 import { SeqDocumentSchema } from "../../domain/seq-schema.ts";
 import { layoutSeqDocument } from "../../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../../render/seq/SeqDiagramSvg.tsx";
@@ -43,7 +43,22 @@ async function renderSeqCommand(seqPath: string, opts: ParsedOptions): Promise<n
     return 1;
   }
 
-  const laid = layoutSeqDocument(result.data);
+  const seqBase = path.resolve(seqPath);
+  const seqRoot = projectRoot(seqBase);
+  let kindsMap: Map<string, NodeKind> | undefined;
+  try {
+    const archPath = await resolveDocPath(undefined, seqRoot);
+    const discovery = await discoverDocs(archPath, seqRoot);
+    const kmap = new Map<string, NodeKind>();
+    for (const { doc } of discovery.docs) {
+      for (const node of doc.nodes) kmap.set(node.id, node.kind);
+    }
+    kindsMap = kmap;
+  } catch {
+    // no arch doc found — proceed without kinds
+  }
+
+  const laid = layoutSeqDocument(result.data, kindsMap);
   const inner = renderToStaticMarkup(createElement(SeqDiagramSvg, { laid }));
   const themed = injectBackground(inlineThemeVars(inner, theme), theme);
   const finalSvg = `<?xml version="1.0" encoding="UTF-8"?>\n${themed}\n`;

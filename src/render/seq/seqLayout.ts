@@ -54,6 +54,7 @@ export type LayoutedGroup = {
   kind: string;
   condition?: string;
   label?: string;
+  seqFile?: string;
   x: number;
   y: number;
   width: number;
@@ -162,6 +163,7 @@ function layoutSteps(
         kind: step.kind,
         ...(step.condition !== undefined ? { condition: step.condition } : {}),
         ...(step.label !== undefined ? { label: step.label } : {}),
+        ...(step.seqFile !== undefined ? { seqFile: step.seqFile } : {}),
         x: groupX,
         y: groupStartY,
         width: groupWidth,

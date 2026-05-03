@@ -18,6 +18,7 @@ import {
   handleArchikFile,
   handleDiffSvg,
   handleListFiles,
+  handleNodeKinds,
   handleSeqFile,
   handleSidecar,
   handleYaml,
@@ -59,6 +60,7 @@ const FILE_ACCEPT_URL = "/__archik/file-accept";
  *  has-suggestion flag — drives the file-switcher dropdown. */
 const FILES_URL = "/__archik/files";
 const SEQ_FILE_URL = "/__archik/seq-file";
+const NODE_KINDS_URL = "/__archik/node-kinds";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -271,6 +273,11 @@ export async function startDevServer(
 
     if (url === SEQ_FILE_URL || url.startsWith(SEQ_FILE_URL + "?")) {
       void handleSeqFile(root, req, res);
+      return;
+    }
+
+    if (url === NODE_KINDS_URL || url.startsWith(NODE_KINDS_URL + "?")) {
+      void handleNodeKinds(root, docPath, res);
       return;
     }
 

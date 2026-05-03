@@ -26,6 +26,7 @@ import {
   formatErrors,
   validateDocument,
 } from "../domain/validate.ts";
+import { discoverDocs } from "../io/discovery.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
@@ -622,6 +623,25 @@ export async function handleSeqFile(
   }
   res.writeHead(200, { "Content-Type": "text/yaml; charset=utf-8" });
   res.end(text);
+}
+
+export async function handleNodeKinds(
+  projectRoot: string,
+  rootDocPath: string,
+  res: ServerResponse,
+): Promise<void> {
+  const discovery = await discoverDocs(rootDocPath, projectRoot);
+  const kinds: Record<string, string> = {};
+  for (const { doc } of discovery.docs) {
+    for (const node of doc.nodes) {
+      kinds[node.id] = node.kind;
+    }
+  }
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  res.end(JSON.stringify(kinds));
 }
 
 export async function handleDiffSvg(

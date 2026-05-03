@@ -22,14 +22,15 @@ function OpenTriangle({ id }: { id: string }): React.ReactElement {
   );
 }
 
-function RenderStep({ step }: { step: LayoutedStep }): React.ReactElement | null {
+function RenderStep({ step, onRefClick }: { step: LayoutedStep; onRefClick?: (f: string) => void }): React.ReactElement | null {
   if (step.type === "message") return <SeqMessage msg={step} />;
   if (step.type === "note") return <SeqNote note={step} />;
   if (step.type === "group") {
     return (
       <SeqGroupFrame
         group={step}
-        renderStep={(s) => <RenderStep key={s.id} step={s} />}
+        {...(onRefClick !== undefined ? { onRefClick } : {})}
+        renderStep={(s) => <RenderStep key={s.id} step={s} {...(onRefClick !== undefined ? { onRefClick } : {})} />}
       />
     );
   }
@@ -39,9 +40,10 @@ function RenderStep({ step }: { step: LayoutedStep }): React.ReactElement | null
 type Props = {
   laid: LayoutedSeqDocument;
   svgRef?: React.RefObject<SVGSVGElement | null>;
+  onRefClick?: (seqFile: string) => void;
 };
 
-export function SeqDiagramSvg({ laid, svgRef }: Props): React.ReactElement {
+export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactElement {
   const { participants, steps, totalWidth, totalHeight } = laid;
 
   return (
@@ -68,7 +70,7 @@ export function SeqDiagramSvg({ laid, svgRef }: Props): React.ReactElement {
         />
       ))}
       <g transform={`translate(0, ${PARTICIPANT_HEADER_HEIGHT})`}>
-        {steps.map((step) => <RenderStep key={step.id} step={step} />)}
+        {steps.map((step) => <RenderStep key={step.id} step={step} {...(onRefClick !== undefined ? { onRefClick } : {})} />)}
       </g>
     </svg>
   );

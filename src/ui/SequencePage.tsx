@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import YAML from "yaml";
 import { SeqDocumentSchema } from "../domain/seq-schema.ts";
 import type { SeqDocument } from "../domain/seq-schema.ts";
+import type { NodeKind } from "../domain/types.ts";
 import { layoutSeqDocument } from "../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../render/seq/SeqDiagramSvg.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
@@ -18,7 +19,17 @@ type Props = {
 
 export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [kinds, setKinds] = useState<Map<string, NodeKind> | undefined>(undefined);
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    fetch("/__archik/node-kinds")
+      .then((r) => r.ok ? r.json() as Promise<Record<string, string>> : null)
+      .then((data) => {
+        if (data) setKinds(new Map(Object.entries(data) as [string, NodeKind][]));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setState({ status: "loading" });
@@ -64,8 +75,13 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
     );
   }
 
-  const laid = layoutSeqDocument(state.doc);
+  const laid = layoutSeqDocument(state.doc, kinds);
   const filename = path.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
+
+  const handleRefClick = (seqFile: string): void => {
+    const q = `?path=${encodeURIComponent(seqFile)}&from=${encodeURIComponent(path)}`;
+    window.location.href = `/seq${q}`;
+  };
 
   return (
     <div className="flex h-screen flex-col" style={{ background: "var(--archik-bg)" }}>
@@ -96,7 +112,7 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <SeqDiagramSvg laid={laid} svgRef={svgRef} />
+        <SeqDiagramSvg laid={laid} svgRef={svgRef} onRefClick={handleRefClick} />
       </div>
     </div>
   );

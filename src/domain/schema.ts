@@ -103,7 +103,7 @@ export const NodeSchema = z.strictObject({
   archikFile: ArchikFilePathSchema.optional(),
   /** Sequence diagram files linked to this node. Each entry is a relative
    *  path to a `.archik.seq.yaml` file describing a flow involving this node. */
-  seqFiles: z.array(SeqFilePathSchema).optional(),
+  seqFiles: z.array(SeqFilePathSchema).min(1).optional(),
   /** Relative path to this node's source code on disk. Used by
    *  `archik drift` to detect when the diagram diverges from reality. */
   sourcePath: SourcePathSchema.optional(),

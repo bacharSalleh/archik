@@ -3,6 +3,7 @@ import type { LayoutedGroup, LayoutedStep } from "./seqLayout.ts";
 type Props = {
   group: LayoutedGroup;
   renderStep: (step: LayoutedStep) => React.ReactElement | null;
+  onRefClick?: (seqFile: string) => void;
 };
 
 const KIND_COLORS: Record<string, string> = {
@@ -17,12 +18,17 @@ const KIND_COLORS: Record<string, string> = {
 const TAB_W = 36;
 const TAB_H = 18;
 
-export function SeqGroupFrame({ group, renderStep }: Props): React.ReactElement {
+export function SeqGroupFrame({ group, renderStep, onRefClick }: Props): React.ReactElement {
   const color = KIND_COLORS[group.kind] ?? "var(--archik-fg-muted)";
   const opacity = group.status === "proposed" ? 0.55 : group.status === "deprecated" ? 0.35 : 1;
+  const isClickableRef = group.kind === "ref" && group.seqFile !== undefined && onRefClick !== undefined;
 
   return (
-    <g opacity={opacity}>
+    <g
+      opacity={opacity}
+      onClick={isClickableRef ? () => onRefClick!(group.seqFile!) : undefined}
+      style={isClickableRef ? { cursor: "pointer" } : undefined}
+    >
       <rect
         x={group.x}
         y={group.y}
