@@ -9,22 +9,27 @@ type Props = {
 };
 
 const CHIP_H = 36;
-const CHIP_HALF_W = 64;
+const MIN_CHIP_W = 128;
+const CHAR_W = 7;
+const ICON_EXTRA = 20;
+const H_PAD = 24;
 
 export function SeqParticipantHeader({ participant, nodeKind }: Props): React.ReactElement {
   const meta = nodeKind ? KIND_META[nodeKind] : undefined;
   const color = meta?.color ?? "var(--archik-fg-muted)";
   const chipY = (PARTICIPANT_HEADER_HEIGHT - CHIP_H) / 2;
   const IconComponent = meta?.icon;
-  const textX = IconComponent ? CHIP_HALF_W + 9 : CHIP_HALF_W;
+  const chipW = Math.max(MIN_CHIP_W, participant.label.length * CHAR_W + H_PAD + (IconComponent ? ICON_EXTRA : 0));
+  const chipHalfW = chipW / 2;
+  const textX = IconComponent ? chipHalfW + ICON_EXTRA / 2 : chipHalfW;
   const status = participant.status;
   const opacity = status === "proposed" ? 0.55 : status === "deprecated" ? 0.35 : 1;
   const strokeDasharray = status === "proposed" || status === "deprecated" ? "4 3" : undefined;
 
   return (
-    <g transform={`translate(${participant.cx - CHIP_HALF_W}, ${chipY})`} opacity={opacity}>
+    <g transform={`translate(${participant.cx - chipHalfW}, ${chipY})`} opacity={opacity}>
       <rect
-        width={CHIP_HALF_W * 2}
+        width={chipW}
         height={CHIP_H}
         rx={8}
         fill="var(--archik-node-fill)"
@@ -33,7 +38,7 @@ export function SeqParticipantHeader({ participant, nodeKind }: Props): React.Re
         {...(strokeDasharray !== undefined ? { strokeDasharray } : {})}
       />
       {IconComponent && (
-        <g transform={`translate(10, ${(CHIP_H - 14) / 2})`}>
+        <g transform={`translate(${H_PAD / 2}, ${(CHIP_H - 14) / 2})`}>
           <IconComponent size={14} color={color} strokeWidth={1.5} />
         </g>
       )}

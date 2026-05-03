@@ -1,6 +1,6 @@
 {
   "name": "archik",
-  "version": "0.12.10",
+  "version": "0.12.11",
   "description": "The shared vocabulary between you and Claude Code, at the engineering level. Plain-YAML architecture diagrams with a live browser canvas, headless SVG render in CI, and an installable Claude skill so the model treats the diagram as the spec.",
   "keywords": [
     "architecture",
