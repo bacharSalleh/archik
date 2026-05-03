@@ -315,6 +315,148 @@ Then loop back to step 2 (Clarify) of the engineering loop with the rejection re
 
 The goal: every accepted change ends with the user knowing what's next, not "ok, accepted". Every rejection ends with one specific question, not silence.
 
+## Sequence diagrams
+
+Sequence diagrams live alongside architecture files in `.archik/` as `*.archik.seq.yaml` files. Each one documents a specific runtime flow (e.g. a request path, an event chain, an auth handshake) at the call level, using a subset of UML.
+
+### How they connect to architecture nodes
+
+A node in the architecture YAML declares which flows it participates in via the `seqFiles` field:
+
+```yaml
+- id: api-gateway
+  kind: gateway
+  label: API Gateway
+  description: ...
+  seqFiles:
+    - .archik/login-flow.archik.seq.yaml
+    - .archik/checkout-flow.archik.seq.yaml
+```
+
+`seqFiles` is an **array of relative paths** from the project root. The validator checks each path exists on disk. Nodes without `seqFiles` are unaffected.
+
+**UI effect:** nodes with `seqFiles` get clickable diagram links in the node inspector. The toolbar shows a "glow" button that highlights all nodes with seq diagrams so they're easy to spot on large canvases.
+
+### Authoring rule — seq files are direct-write (not `suggest set`)
+
+`suggest set` is for architecture files only. Seq files have **no sidecar workflow** — create or edit them directly with `Write` / `Edit`. Then validate:
+
+```bash
+npx archik validate .archik/main.archik.yaml   # validates seq files referenced by seqFiles fields too
+```
+
+### Seq YAML schema
+
+```yaml
+version: "1.0"          # required, literal
+name: "Login flow"      # required, non-empty
+description: "..."      # optional
+
+participants:            # required, at least one
+  - id: browser         # participant ref id (used in steps)
+    nodeId: frontend    # architecture node id this participant maps to
+    label: Browser      # optional display label (defaults to nodeId)
+
+steps:                  # ordered list of messages, notes, groups
+  # --- message ---
+  - type: message
+    id: m1
+    from: browser       # participant id
+    to: api             # participant id
+    label: POST /login
+    arrow: sync         # sync | async | return | create | destroy
+    activate: true      # optional — draws activation box on receiver
+    status: proposed    # optional — proposed | active | deprecated
+
+  # --- note ---
+  - type: note
+    id: n1
+    position: over      # over | left_of | right_of (currently all render as "over")
+    participants: [api] # list of participant ids the note spans
+    text: "JWT issued here"
+    status: proposed    # optional
+
+  # --- group (alt / opt / loop / par / break / ref) ---
+  - type: group
+    id: g1
+    kind: alt
+    condition: "[authenticated]"   # optional — shown in group header
+    branches:
+      - label: "[success]"         # optional branch label
+        steps:
+          - type: message
+            id: m2
+            from: api
+            to: browser
+            label: "200 OK"
+            arrow: return
+      - label: "[failure]"
+        steps:
+          - type: message
+            id: m3
+            from: api
+            to: browser
+            label: "401 Unauthorized"
+            arrow: return
+    status: proposed               # optional
+```
+
+**Arrow types:**
+| arrow | meaning |
+|-------|---------|
+| `sync` | synchronous call (solid line, filled arrowhead) |
+| `async` | fire-and-forget (solid line, open arrowhead) |
+| `return` | return value (dashed line, open arrowhead) |
+| `create` | object creation (dashed line, filled arrowhead + `«create»` label prefix) |
+| `destroy` | object destruction (solid line, × marker at target) |
+
+**Group kinds:** `alt` (conditional), `opt` (optional), `loop`, `par` (parallel), `break`, `ref` (reference)
+
+### Linking a new seq file (full workflow)
+
+```bash
+# 1. Write the seq file directly
+# (use Write tool — no suggest set for seq files)
+
+# 2. Validate the seq file is well-formed
+npx archik validate .archik/main.archik.yaml
+
+# 3. Add seqFiles to the relevant architecture node via suggest set
+npx archik suggest set --note "link login-flow seq diagram to api-gateway" - <<'YAML'
+version: "1.0"
+name: My Architecture
+nodes:
+  - id: api-gateway
+    ...
+    seqFiles:
+      - .archik/login-flow.archik.seq.yaml
+  ... (all other nodes)
+edges:
+  ... (all edges)
+YAML
+
+# 4. Validate again — now checks the seqFiles path exists
+npx archik validate .archik/main.archik.yaml
+
+# 5. User accepts on canvas → node gets seq diagram link in inspector
+```
+
+### What the validator checks for seq diagrams
+
+- All seq files referenced in `seqFiles` exist on disk
+- Each seq file parses as valid YAML
+- Each seq file matches the seq schema (version, participants, steps structure)
+- Participant `nodeId` fields reference real node ids from the architecture
+- No duplicate step ids within a seq file
+
+### CLI render
+
+```bash
+npx archik render --seq .archik/login-flow.archik.seq.yaml --out login-flow.svg
+```
+
+Renders a headless SVG of the sequence diagram. Useful for CI or docs.
+
 ## Verification workflow
 
 After every `suggest set` or `suggest accept`:
