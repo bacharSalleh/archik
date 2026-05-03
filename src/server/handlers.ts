@@ -587,6 +587,31 @@ export async function handleArchikAccept(
   return handleAccept(main, suggestionPath(main), req, res);
 }
 
+export async function handleSeqFile(
+  projectRoot: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const relPath = url.searchParams.get("path");
+  if (!relPath || !relPath.endsWith(".archik.seq.yaml")) {
+    res.writeHead(400, { "Content-Type": "text/plain" });
+    res.end("path must end in .archik.seq.yaml");
+    return;
+  }
+  const abs = path.resolve(projectRoot, relPath);
+  let text: string;
+  try {
+    text = await fs.readFile(abs, "utf-8");
+  } catch {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end(`Not Found: ${relPath}`);
+    return;
+  }
+  res.writeHead(200, { "Content-Type": "text/yaml; charset=utf-8" });
+  res.end(text);
+}
+
 export async function handleDiffSvg(
   mainPath: string,
   sidecarPath: string,
