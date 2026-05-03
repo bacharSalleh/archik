@@ -46,10 +46,10 @@ export function SeqDiagramSvg({ laid, svgRef }: Props): React.ReactElement {
         <OpenTriangle id="seq-arrow-open" />
       </defs>
       {participants.map((p) => (
-        <SeqLifeline key={p.id} participant={p} totalHeight={totalHeight} />
+        <SeqLifeline key={p.id} participant={p} />
       ))}
       {participants.map((p) => (
-        <SeqParticipantHeader key={p.id} participant={p} />
+        <SeqParticipantHeader key={p.id} participant={p} nodeKind={p.kind} />
       ))}
       <g transform={`translate(0, ${PARTICIPANT_HEADER_HEIGHT})`}>
         {steps.map((step) => <RenderStep key={step.id} step={step} />)}

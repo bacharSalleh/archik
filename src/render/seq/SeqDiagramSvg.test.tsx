@@ -38,7 +38,8 @@ describe("SeqDiagramSvg", () => {
   });
   it("renders a self-call message", () => {
     const laid = layoutSeqDocument(doc);
-    const { getByText } = render(<SeqDiagramSvg laid={laid} />);
+    const { getByText, container } = render(<SeqDiagramSvg laid={laid} />);
     expect(getByText("refresh()")).not.toBeNull();
+    expect(container.querySelector("path")).not.toBeNull();
   });
 });

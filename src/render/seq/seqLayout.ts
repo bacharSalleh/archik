@@ -1,4 +1,5 @@
 import type { SeqDocument, SeqStep } from "../../domain/seq-schema.ts";
+import type { NodeKind } from "../../domain/types.ts";
 
 export const PARTICIPANT_HEADER_HEIGHT = 56;
 export const PARTICIPANT_MIN_WIDTH = 160;
@@ -16,6 +17,8 @@ export type LayoutedParticipant = {
   label: string;
   cx: number;
   colWidth: number;
+  kind?: NodeKind;
+  lifelineEndY: number;
 };
 
 export type LayoutedMessage = {
@@ -166,7 +169,25 @@ function layoutSteps(
   return { items, endY: y };
 }
 
-export function layoutSeqDocument(doc: SeqDocument): LayoutedSeqDocument {
+function collectDestroyY(steps: LayoutedStep[]): Map<number, number> {
+  const map = new Map<number, number>(); // cx -> y
+  for (const step of steps) {
+    if (step.type === "message" && step.arrow === "destroy") {
+      map.set(step.toCx, step.y + 20); // a bit below the × marker
+    }
+    if (step.type === "group") {
+      for (const b of step.branches) {
+        for (const [k, v] of collectDestroyY(b.steps)) map.set(k, v);
+      }
+    }
+  }
+  return map;
+}
+
+export function layoutSeqDocument(
+  doc: SeqDocument,
+  kinds?: Map<string, NodeKind>,
+): LayoutedSeqDocument {
   const colWidths = doc.participants.map((p) =>
     measureLabel(p.label ?? p.nodeId),
   );
@@ -176,7 +197,7 @@ export function layoutSeqDocument(doc: SeqDocument): LayoutedSeqDocument {
     const colWidth = colWidths[i]!;
     const cx = x + colWidth / 2;
     x += colWidth;
-    return { id: p.id, nodeId: p.nodeId, label: p.label ?? p.nodeId, cx, colWidth };
+    return { id: p.id, nodeId: p.nodeId, label: p.label ?? p.nodeId, cx, colWidth, kind: kinds?.get(p.nodeId), lifelineEndY: 0 };
   });
   const totalWidth = x + DIAGRAM_H_PADDING;
 
@@ -188,5 +209,11 @@ export function layoutSeqDocument(doc: SeqDocument): LayoutedSeqDocument {
   const { items: steps, endY } = layoutSteps(doc.steps, participantMap, startY, leftX, rightX);
   const totalHeight = endY + DIAGRAM_V_PADDING;
 
-  return { participants, steps, totalWidth, totalHeight };
+  const destroyY = collectDestroyY(steps);
+  const participantsWithEnd = participants.map((p) => ({
+    ...p,
+    lifelineEndY: destroyY.get(p.cx) ?? totalHeight,
+  }));
+
+  return { participants: participantsWithEnd, steps, totalWidth, totalHeight };
 }
