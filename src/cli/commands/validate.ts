@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 import {
+  checkArchNodeSeqFilePaths,
   checkCrossFileReferences,
   checkSourcePaths,
   formatErrors,
@@ -10,6 +11,8 @@ import {
   type ValidationError,
 } from "../../domain/validate.ts";
 import { discoverDocs } from "../../io/discovery.ts";
+import { discoverSeqDocs } from "../../io/seq-discovery.ts";
+import { checkSeqNodeRefs } from "../../domain/seq-validate.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -115,6 +118,43 @@ export async function validateCommand(
       if (json) console.error(`✗ ${e.relPath}: ${e.message}`);
       else console.error(`✗ ${e.relPath}: ${e.message}`);
     }
+    return 1;
+  }
+
+  // Validate .archik.seq.yaml files
+  const allNodeIds = new Set(discovery.docs.flatMap((d) => d.doc.nodes.map((n) => n.id)));
+
+  // Check seqFiles paths on architecture nodes
+  const seqFilePathErrors: ValidationError[] = [];
+  for (const { doc: archDoc } of discovery.docs) {
+    seqFilePathErrors.push(...checkArchNodeSeqFilePaths(archDoc, fileExists));
+  }
+  if (seqFilePathErrors.length > 0) {
+    if (json) {
+      emitJson({ ok: false, file, errors: seqFilePathErrors });
+    } else {
+      console.error(`✗ seqFiles path errors:`);
+      for (const e of seqFilePathErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
+    }
+    return 1;
+  }
+
+  const seqDiscovery = await discoverSeqDocs(root);
+  let seqErrorCount = 0;
+  for (const e of seqDiscovery.errors) {
+    console.error(`✗ ${e.relPath}: ${e.message}`);
+    seqErrorCount++;
+  }
+  for (const { relPath, doc: seqDoc } of seqDiscovery.docs) {
+    const refErrors = checkSeqNodeRefs(seqDoc, allNodeIds);
+    if (refErrors.length > 0) {
+      console.error(`✗ ${relPath}`);
+      for (const e of refErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
+      seqErrorCount += refErrors.length;
+    }
+  }
+  if (seqErrorCount > 0) {
+    if (json) emitJson({ ok: false, file, errors: [{ path: "<seq>", message: `${seqErrorCount} sequence diagram error(s)` }] });
     return 1;
   }
 
