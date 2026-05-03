@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  checkArchNodeSeqFilePaths,
   checkCrossFileReferences,
   checkSourcePaths,
   validateDocument,
@@ -543,6 +544,29 @@ describe("checkSourcePaths", () => {
       };
       expect(checkSourcePaths(doc, "normal", (p) => present2.has(p))).toEqual([]);
     });
+  });
+});
+
+describe("checkArchNodeSeqFilePaths", () => {
+  const doc = {
+    version: "1.0" as const,
+    name: "test",
+    nodes: [{
+      id: "gw",
+      kind: "gateway" as const,
+      name: "GW",
+      description: "Routes.",
+      seqFiles: [".archik/flows/login.archik.seq.yaml"],
+    }],
+    edges: [],
+  };
+  it("returns no errors when seqFile exists", () => {
+    expect(checkArchNodeSeqFilePaths(doc, () => true)).toHaveLength(0);
+  });
+  it("returns error when seqFile does not exist", () => {
+    const errors = checkArchNodeSeqFilePaths(doc, () => false);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain("login.archik.seq.yaml");
   });
 });
 

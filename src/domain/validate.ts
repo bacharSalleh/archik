@@ -189,6 +189,25 @@ export function checkCrossFileReferences(
   return errors;
 }
 
+export function checkArchNodeSeqFilePaths(
+  doc: Document,
+  exists: (relPath: string) => boolean,
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  doc.nodes.forEach((node, i) => {
+    if (!node.seqFiles) return;
+    node.seqFiles.forEach((p, j) => {
+      if (!exists(p)) {
+        errors.push({
+          path: `nodes.${i}.seqFiles.${j}`,
+          message: `seqFile "${p}" does not exist on disk (resolved relative to the project root)`,
+        });
+      }
+    });
+  });
+  return errors;
+}
+
 export type ValidateResult<T> =
   | { ok: true; value: T }
   | { ok: false; errors: ValidationError[] };
