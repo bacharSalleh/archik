@@ -61,7 +61,11 @@ export function SeqDiagramSvg({ laid, svgRef }: Props): React.ReactElement {
         <SeqLifeline key={p.id} participant={p} />
       ))}
       {participants.map((p) => (
-        <SeqParticipantHeader key={p.id} participant={p} nodeKind={p.kind} />
+        <SeqParticipantHeader
+          key={p.id}
+          participant={p}
+          {...(p.kind !== undefined ? { nodeKind: p.kind } : {})}
+        />
       ))}
       <g transform={`translate(0, ${PARTICIPANT_HEADER_HEIGHT})`}>
         {steps.map((step) => <RenderStep key={step.id} step={step} />)}

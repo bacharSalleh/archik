@@ -45,7 +45,7 @@ export function SeqGroupFrame({ group, renderStep }: Props): React.ReactElement 
       >
         {group.kind}
       </text>
-      {group.condition && (
+      {(group.condition ?? group.label) && (
         <text
           x={group.x + TAB_W + 6}
           y={group.y + TAB_H - 5}
@@ -53,24 +53,13 @@ export function SeqGroupFrame({ group, renderStep }: Props): React.ReactElement 
           fill={color}
           fontFamily="inherit"
         >
-          {group.condition}
-        </text>
-      )}
-      {group.label && !group.condition && (
-        <text
-          x={group.x + TAB_W + 6}
-          y={group.y + TAB_H - 5}
-          fontSize={10}
-          fill={color}
-          fontFamily="inherit"
-        >
-          {group.label}
+          {group.condition ?? group.label}
         </text>
       )}
       {group.branches.map((branch, i) => (
         <g key={i}>
           {branch.steps.map((s) => renderStep(s))}
-          {branch.dividerY > 0 && (
+          {branch.dividerY !== undefined && (
             <g>
               <line
                 x1={group.x}

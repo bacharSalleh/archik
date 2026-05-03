@@ -60,7 +60,7 @@ export type LayoutedGroup = {
   height: number;
   branches: Array<{
     label?: string;
-    dividerY: number;
+    dividerY?: number;
     steps: LayoutedStep[];
   }>;
   status?: string;
@@ -145,7 +145,7 @@ function layoutSteps(
           y = endY;
           layoutedBranches.push({
             label: branch.label,
-            dividerY: i < step.branches.length - 1 ? y : -1,
+            ...(i < step.branches.length - 1 ? { dividerY: y } : {}),
             steps: branchItems,
           });
           if (i < step.branches.length - 1) y += 4;
