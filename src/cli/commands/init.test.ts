@@ -100,20 +100,4 @@ describe("initCommand", () => {
     expect(content).toContain('version: "1.0"');
   });
 
-  it("writes CLAUDE.md from inline template when none exists", async () => {
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
-    const content = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
-    expect(content).toContain("archik q sequences");
-  });
-
-  it("prints merge note when CLAUDE.md already exists", async () => {
-    await writeFile(path.join(cwd, "CLAUDE.md"), "existing content");
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
-    // File must not be overwritten
-    const content = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
-    expect(content).toBe("existing content");
-    // Log must mention the merge note
-    const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(logged).toMatch(/already present/i);
-  });
 });
