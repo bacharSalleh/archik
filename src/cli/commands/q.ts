@@ -5,6 +5,7 @@
  * shape over the pure functions in src/domain/query.ts.
  */
 import { discoverDocs, type LoadedDoc } from "../../io/discovery.ts";
+import { discoverSeqDocs } from "../../io/seq-discovery.ts";
 import {
   deps,
   dependents,
@@ -434,6 +435,46 @@ async function qStats(opts: ParsedOptions): Promise<number> {
   return 0;
 }
 
+async function sequencesCommand(
+  opts: ParsedOptions,
+  base: string,
+): Promise<number> {
+  const nodeFilter = getString(opts, "node");
+  const json = isJson(opts);
+
+  const { docs, errors } = await discoverSeqDocs(base);
+
+  for (const e of errors) {
+    if (!json) console.error(`warn: ${e.relPath}: ${e.message}`);
+  }
+
+  const filtered = nodeFilter
+    ? docs.filter((d) => d.doc.participants.some((p) => p.nodeId === nodeFilter))
+    : docs;
+
+  if (json) {
+    console.log(JSON.stringify(filtered.map((d) => ({
+      relPath: d.relPath,
+      name: d.doc.name,
+      participants: d.doc.participants.map((p) => ({ id: p.id, nodeId: p.nodeId, label: p.label })),
+    })), null, 2));
+    return 0;
+  }
+
+  if (filtered.length === 0) {
+    console.log("No sequence diagrams found.");
+    if (nodeFilter) console.log(`(filtered by --node ${nodeFilter})`);
+    return 0;
+  }
+
+  for (const d of filtered) {
+    const participants = d.doc.participants.map((p) => p.nodeId).join(", ");
+    console.log(`${d.doc.name}  ${d.relPath}`);
+    console.log(`  participants: ${participants}`);
+  }
+  return 0;
+}
+
 // ---------- entry point ----------
 
 export async function qCommand(opts: ParsedOptions): Promise<number> {
@@ -453,6 +494,16 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
       return qImpact(opts);
     case "stats":
       return qStats(opts);
+    case "sequences": {
+      let abs: string;
+      try {
+        abs = await resolveDocPath(getString(opts, "doc"));
+      } catch (err) {
+        console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
+        return 2;
+      }
+      return sequencesCommand(opts, projectRoot(abs));
+    }
     case undefined:
     case "help":
     case "--help":

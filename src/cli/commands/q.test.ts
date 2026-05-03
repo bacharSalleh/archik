@@ -483,6 +483,73 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q sequences subcommand", () => {
+    const minimalSeqDoc = (name: string, nodeId: string): string =>
+      [
+        'version: "1.0"',
+        `name: ${name}`,
+        "participants:",
+        `  - id: p1`,
+        `    nodeId: ${nodeId}`,
+        `    label: ${name} participant`,
+        "steps:",
+        "  - type: message",
+        "    id: m1",
+        "    from: p1",
+        "    to: p1",
+        "    label: self",
+        "    arrow: sync",
+        "",
+      ].join("\n");
+
+    beforeEach(async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        minimalDoc(),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/login.archik.seq.yaml"),
+        minimalSeqDoc("Login Flow", "api"),
+      );
+    });
+
+    it("lists sequence diagrams in human mode", async () => {
+      const code = await qCommand({ _: ["sequences"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("Login Flow");
+    });
+
+    it("lists sequence diagrams in JSON mode", async () => {
+      const code = await qCommand({ _: ["sequences"], json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed[0].name).toBe("Login Flow");
+      expect(Array.isArray(parsed[0].participants)).toBe(true);
+    });
+
+    it("filters by --node in human mode", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/other.archik.seq.yaml"),
+        minimalSeqDoc("Other Flow", "db"),
+      );
+      const code = await qCommand({ _: ["sequences"], node: "api" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("Login Flow");
+      expect(out).not.toContain("Other Flow");
+    });
+
+    it("shows 'No sequence diagrams found' when none match filter", async () => {
+      const code = await qCommand({ _: ["sequences"], node: "nonexistent" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("No sequence diagrams found");
+    });
+  });
+
   describe("root file failures are fatal", () => {
     it("returns exit 2 when the root file fails to parse, even if sub-files are fine", async () => {
       await writeFile(
