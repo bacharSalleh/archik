@@ -2,6 +2,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { arrow, bold, cross, cyan, dim, gray, magenta, tick } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
+import { pkgRoot } from "../paths.ts";
 import { RUNTIME_FILENAME } from "../projectState.ts";
 import { resolveInitTarget } from "../resolveDocPath.ts";
 import {
@@ -156,6 +157,24 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
       console.error(
         `${cross()} Commands source missing at ${dim(commandsResult.source)} — continuing without it.`,
       );
+    }
+  }
+
+  // Copy CLAUDE.md template if none exists in the target directory.
+  const claudeMdPath = path.resolve(process.cwd(), "CLAUDE.md");
+  const templatePath = path.join(pkgRoot(), "docs/templates/CLAUDE.md");
+  try {
+    await access(claudeMdPath);
+    console.log(
+      `${gray("•")} CLAUDE.md already present — ${dim("merge the sequence diagram additions from docs/templates/CLAUDE.md manually")}`,
+    );
+  } catch {
+    try {
+      const templateContent = await readFile(templatePath, "utf-8");
+      await writeFile(claudeMdPath, templateContent, "utf-8");
+      console.log(`${tick()} Created CLAUDE.md from template`);
+    } catch {
+      console.log(`${gray("•")} Could not copy CLAUDE.md template — continuing without it`);
     }
   }
 

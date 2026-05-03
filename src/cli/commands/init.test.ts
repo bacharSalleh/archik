@@ -99,4 +99,26 @@ describe("initCommand", () => {
     const content = await readFile(target, "utf-8");
     expect(content).toContain('version: "1.0"');
   });
+
+  it("copies CLAUDE.md template when none exists in the target dir", async () => {
+    // init creates the YAML file; check CLAUDE.md gets copied too
+    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    const claudeMd = path.join(cwd, "CLAUDE.md");
+    let content: string | null = null;
+    try {
+      content = await readFile(claudeMd, "utf-8");
+    } catch {
+      // not created — will fail below
+    }
+    expect(content).not.toBeNull();
+    expect(content).toContain("archik q sequences");
+  });
+
+  it("prints merge note when CLAUDE.md already exists", async () => {
+    // pre-create CLAUDE.md
+    await writeFile(path.join(cwd, "CLAUDE.md"), "existing content");
+    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/CLAUDE\.md/);
+  });
 });
