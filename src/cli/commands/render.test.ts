@@ -153,5 +153,15 @@ describe("renderCommand", () => {
       const code = await renderCommand({ _: [], seq: seqFile, theme: "neon" });
       expect(code).toBe(1);
     });
+
+    it("returns 1 when seq YAML fails schema validation", async () => {
+      const seqFile = path.join(cwd, ".archik/bad.archik.seq.yaml");
+      // missing required `version` and `participants`
+      await writeFile(seqFile, "name: No Version\nsteps: []\n");
+      const code = await renderCommand({ _: [], seq: seqFile, out: path.join(cwd, "out.svg") });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("bad.archik.seq.yaml");
+    });
   });
 });

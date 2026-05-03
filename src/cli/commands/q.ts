@@ -105,6 +105,8 @@ SUBCOMMANDS
   impact <id>              Edges/children that would orphan if removed,
                            plus transitive dependents
   stats                    Counts: files, nodes, edges, kinds, relationships
+  sequences                All sequence diagram files (.archik.seq.yaml)
+                  --node <id>    filter to flows involving that architecture node id
 
 OUTPUT
   Default: human-readable text.
@@ -445,7 +447,7 @@ async function sequencesCommand(
   const { docs, errors } = await discoverSeqDocs(base);
 
   for (const e of errors) {
-    if (!json) console.error(`warn: ${e.relPath}: ${e.message}`);
+    if (!json) console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
   }
 
   const filtered = nodeFilter
@@ -453,11 +455,15 @@ async function sequencesCommand(
     : docs;
 
   if (json) {
-    console.log(JSON.stringify(filtered.map((d) => ({
-      relPath: d.relPath,
-      name: d.doc.name,
-      participants: d.doc.participants.map((p) => ({ id: p.id, nodeId: p.nodeId, label: p.label })),
-    })), null, 2));
+    printJson({
+      ok: true,
+      count: filtered.length,
+      sequences: filtered.map((d) => ({
+        relPath: d.relPath,
+        name: d.doc.name,
+        participants: d.doc.participants.map((p) => ({ id: p.id, nodeId: p.nodeId, label: p.label })),
+      })),
+    });
     return 0;
   }
 

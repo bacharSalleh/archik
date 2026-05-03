@@ -525,9 +525,10 @@ describe("qCommand", () => {
       expect(code).toBe(0);
       const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
       const parsed = JSON.parse(out);
-      expect(Array.isArray(parsed)).toBe(true);
-      expect(parsed[0].name).toBe("Login Flow");
-      expect(Array.isArray(parsed[0].participants)).toBe(true);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.count).toBe(1);
+      expect(parsed.sequences[0].name).toBe("Login Flow");
+      expect(Array.isArray(parsed.sequences[0].participants)).toBe(true);
     });
 
     it("filters by --node in human mode", async () => {
