@@ -70,9 +70,9 @@ export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactE
         />
       ))}
       <g transform={`translate(0, ${PARTICIPANT_HEADER_HEIGHT})`}>
-        {activations.map((a, i) => (
+        {activations.map((a) => (
           <rect
-            key={i}
+            key={`${a.cx}-${a.startY}`}
             x={a.cx - ACTIVATION_W / 2}
             y={a.startY}
             width={ACTIVATION_W}

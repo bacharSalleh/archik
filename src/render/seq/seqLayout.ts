@@ -236,7 +236,7 @@ function collectActivations(steps: LayoutedStep[]): LayoutedActivation[] {
           const stack = openStacks.get(step.fromCx);
           if (stack && stack.length > 0) {
             const startY = stack.pop()!;
-            activations.push({ cx: step.fromCx, startY, endY: step.y + MESSAGE_ROW_HEIGHT / 4 });
+            activations.push({ cx: step.fromCx, startY, endY: step.y });
             if (stack.length === 0) openStacks.delete(step.fromCx);
           }
         }

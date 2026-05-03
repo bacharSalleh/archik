@@ -358,6 +358,7 @@ participants:            # required, at least one
                         # the node's kind (gateway, service, database…) is
                         # automatically applied to the participant header icon/color
     label: Browser      # optional display label (defaults to nodeId)
+    status: proposed    # optional — proposed | active | deprecated (header/lifeline dim + dashed border)
 
 steps:                  # ordered list of messages, notes, groups
   # --- message ---
@@ -373,7 +374,7 @@ steps:                  # ordered list of messages, notes, groups
   # --- note ---
   - type: note
     id: n1
-    position: over      # over | left_of | right_of (currently all render as "over")
+    position: over      # over | left_of | right_of
     participants: [api] # list of participant ids the note spans
     text: "JWT issued here"
     status: proposed    # optional
