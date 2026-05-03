@@ -1,8 +1,12 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initCommand } from "./init.ts";
+
+// Repo root resolved from this file's location (src/cli/commands → three levels up).
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 describe("initCommand", () => {
   let cwd: string;
@@ -101,24 +105,29 @@ describe("initCommand", () => {
   });
 
   it("copies CLAUDE.md template when none exists in the target dir", async () => {
-    // init creates the YAML file; check CLAUDE.md gets copied too
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
-    const claudeMd = path.join(cwd, "CLAUDE.md");
-    let content: string | null = null;
+    process.env["ARCHIK_PKG_ROOT"] = REPO_ROOT;
     try {
-      content = await readFile(claudeMd, "utf-8");
-    } catch {
-      // not created — will fail below
+      await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    } finally {
+      delete process.env["ARCHIK_PKG_ROOT"];
     }
-    expect(content).not.toBeNull();
+    const content = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
     expect(content).toContain("archik q sequences");
   });
 
   it("prints merge note when CLAUDE.md already exists", async () => {
-    // pre-create CLAUDE.md
+    process.env["ARCHIK_PKG_ROOT"] = REPO_ROOT;
     await writeFile(path.join(cwd, "CLAUDE.md"), "existing content");
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    try {
+      await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    } finally {
+      delete process.env["ARCHIK_PKG_ROOT"];
+    }
+    // File must not be overwritten
+    const content = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(content).toBe("existing content");
+    // Log must mention the merge note
     const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(logged).toMatch(/CLAUDE\.md/);
+    expect(logged).toMatch(/already present/i);
   });
 });
