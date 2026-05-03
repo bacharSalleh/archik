@@ -223,8 +223,8 @@ export function Toolbar({
             style={{
               padding: "5px 8px",
               ...(seqHighlight ? {
-                background: "var(--archik-accent)",
-                borderColor: "var(--archik-accent)",
+                background: "var(--archik-status-proposed)",
+                borderColor: "var(--archik-status-proposed)",
                 color: "white",
               } : {}),
             }}

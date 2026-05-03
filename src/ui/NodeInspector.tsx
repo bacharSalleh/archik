@@ -194,7 +194,7 @@ export function NodeInspector({
                     fontSize: 12,
                     padding: "5px 10px",
                     borderRadius: 6,
-                    background: "var(--archik-accent)",
+                    background: "var(--archik-status-proposed)",
                     border: "none",
                     color: "white",
                     fontWeight: 500,

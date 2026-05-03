@@ -161,7 +161,7 @@ export function NodeRenderer({
           height={node.height + 8}
           rx={10}
           fill="none"
-          stroke="var(--archik-accent)"
+          stroke="var(--archik-status-proposed)"
           strokeWidth={2}
           opacity={0.85}
           style={{ pointerEvents: "none" }}
