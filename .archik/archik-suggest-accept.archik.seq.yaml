@@ -1,0 +1,91 @@
+version: "1.0"
+name: suggest → accept workflow
+description: Claude reads the current diagram, stages proposed changes as a sidecar, the canvas shows the diff overlay, and the user accepts.
+participants:
+  - id: claude
+    nodeId: claude-code
+    label: Claude Code
+  - id: srv
+    nodeId: handlers
+    label: HTTP handlers
+  - id: watcher
+    nodeId: file-watcher
+    label: YAML watcher
+  - id: ui
+    nodeId: canvas
+    label: Canvas
+steps:
+  - type: message
+    id: read-yaml
+    from: claude
+    to: srv
+    label: GET /__archik/yaml
+    arrow: sync
+  - type: message
+    id: yaml-response
+    from: srv
+    to: claude
+    label: current YAML document
+    arrow: return
+  - type: message
+    id: put-sidecar
+    from: claude
+    to: srv
+    label: "PUT /__archik/sidecar (proposed full doc)"
+    arrow: sync
+    activate: true
+  - type: message
+    id: sidecar-file-written
+    from: srv
+    to: watcher
+    label: tmp+rename write detected
+    arrow: async
+  - type: message
+    id: sse-suggestion
+    from: watcher
+    to: ui
+    label: "archik:suggestion-changed (SSE)"
+    arrow: async
+  - type: message
+    id: fetch-diff
+    from: ui
+    to: srv
+    label: GET /__archik/diff-svg
+    arrow: sync
+  - type: message
+    id: diff-svg-response
+    from: srv
+    to: ui
+    label: diff SVG with added/removed/changed overlays
+    arrow: return
+  - type: note
+    id: user-reviews-note
+    position: over
+    participants:
+      - ui
+    text: User reviews diff overlay on canvas — green adds, red removes, yellow changes
+  - type: message
+    id: accept
+    from: ui
+    to: srv
+    label: POST /__archik/accept
+    arrow: sync
+    activate: true
+  - type: message
+    id: yaml-promoted
+    from: srv
+    to: watcher
+    label: sidecar merged into main YAML (tmp+rename)
+    arrow: async
+  - type: message
+    id: sse-doc-changed
+    from: watcher
+    to: ui
+    label: "archik:doc-changed (SSE)"
+    arrow: async
+  - type: message
+    id: accept-response
+    from: srv
+    to: ui
+    label: "200 OK — sidecar deleted"
+    arrow: return

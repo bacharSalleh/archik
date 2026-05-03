@@ -31,12 +31,16 @@ nodes:
     description: Headless ELK + React server-side render to a self-contained SVG file.
     parentId: cli
     sourcePath: src/cli/commands/render.ts
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
   - id: cli-dev
     kind: function
     name: dev / start / stop / status
     description: Lifecycle of the canvas server. Single-instance per YAML enforced by the daemon lock.
     parentId: cli
     sourcePath: src/cli/commands/dev.ts
+    seqFiles:
+      - .archik/archik-dev-startup.archik.seq.yaml
   - id: cli-skill
     kind: function
     name: skill
@@ -64,6 +68,8 @@ nodes:
     name: HTTP Handlers
     description: Single source of truth for every dev-surface endpoint — handleYaml, handleSidecar, handleAccept, handleDiffSvg, handleArchikFile, handleArchikAccept, handleListFiles. Atomic tmp+rename on every write so a partial write never truncates the source of truth. Mounted by both `archik dev` (node:http) and the Vite dogfood plugin so the suggest workflow behaves identically in published mode and in-repo `npm run dev`.
     sourcePath: src/server/handlers.ts
+    seqFiles:
+      - .archik/archik-suggest-accept.archik.seq.yaml
   - id: vite-plugin
     kind: adapter
     name: Vite Plugin

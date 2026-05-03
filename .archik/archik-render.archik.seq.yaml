@@ -1,0 +1,111 @@
+version: "1.0"
+name: archik render — headless SVG pipeline
+description: How `archik render` turns a YAML architecture document into a self-contained SVG file via ELK layout and React server-side rendering.
+participants:
+  - id: cmd
+    nodeId: cli-render
+    label: render command
+  - id: resolve
+    nodeId: cli-resolve-doc-path
+    label: resolveDocPath
+  - id: reader
+    nodeId: io
+    label: I/O
+  - id: validator
+    nodeId: schema
+    label: Schema
+  - id: layout-eng
+    nodeId: layout
+    label: layout engine
+  - id: elk
+    nodeId: elk
+    label: ELK
+  - id: svg
+    nodeId: renderer
+    label: SVG renderer
+steps:
+  - type: message
+    id: resolve-path
+    from: cmd
+    to: resolve
+    label: find .archik/main.archik.yaml
+    arrow: sync
+  - type: message
+    id: path-found
+    from: resolve
+    to: cmd
+    label: resolved absolute path
+    arrow: return
+  - type: message
+    id: read-yaml
+    from: cmd
+    to: reader
+    label: readFile + YAML.parse
+    arrow: sync
+  - type: message
+    id: yaml-parsed
+    from: reader
+    to: cmd
+    label: raw JS object
+    arrow: return
+  - type: message
+    id: validate
+    from: cmd
+    to: validator
+    label: DocumentSchema.parse
+    arrow: sync
+  - type: message
+    id: validated
+    from: validator
+    to: cmd
+    label: typed ArchikDocument
+    arrow: return
+  - type: message
+    id: layout-call
+    from: cmd
+    to: layout-eng
+    label: computeLayout(doc)
+    arrow: sync
+    activate: true
+  - type: message
+    id: elk-call
+    from: layout-eng
+    to: elk
+    label: elk.layout(elkGraph)
+    arrow: sync
+  - type: message
+    id: elk-result
+    from: elk
+    to: layout-eng
+    label: positioned graph with edge routes
+    arrow: return
+  - type: message
+    id: layout-result
+    from: layout-eng
+    to: cmd
+    label: LayoutedDocument (absolute coords)
+    arrow: return
+  - type: message
+    id: render-call
+    from: cmd
+    to: svg
+    label: renderToStaticMarkup(<DiagramSvg>)
+    arrow: sync
+  - type: message
+    id: svg-string
+    from: svg
+    to: cmd
+    label: SVG markup string
+    arrow: return
+  - type: message
+    id: write-file
+    from: cmd
+    to: reader
+    label: writeFile(out, svg)
+    arrow: sync
+  - type: message
+    id: write-done
+    from: reader
+    to: cmd
+    label: "done — N nodes rendered"
+    arrow: return

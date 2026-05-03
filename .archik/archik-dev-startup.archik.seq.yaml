@@ -1,0 +1,76 @@
+version: "1.0"
+name: archik dev — startup
+description: From CLI invocation through daemon lock check to canvas being ready in the browser.
+participants:
+  - id: bin
+    nodeId: bin
+    label: bin/archik.js
+  - id: cmd
+    nodeId: cli-dev
+    label: dev command
+  - id: lock
+    nodeId: daemon
+    label: daemon lock
+  - id: srv
+    nodeId: dev-server
+    label: dev server
+  - id: watcher
+    nodeId: file-watcher
+    label: YAML watcher
+steps:
+  - type: message
+    id: route-dev
+    from: bin
+    to: cmd
+    label: "route: dev"
+    arrow: sync
+    activate: true
+  - type: message
+    id: check-lock
+    from: cmd
+    to: lock
+    label: read O_EXCL lock file
+    arrow: sync
+  - type: group
+    id: already-running-guard
+    kind: alt
+    condition: lock exists and pid alive
+    branches:
+      - steps:
+          - type: message
+            id: exit-already-running
+            from: lock
+            to: cmd
+            label: "error: already running at <url>"
+            arrow: return
+  - type: message
+    id: write-lock
+    from: cmd
+    to: lock
+    label: write pid + port + startedAt
+    arrow: sync
+  - type: message
+    id: spawn-server
+    from: cmd
+    to: srv
+    label: start node:http server
+    arrow: async
+    activate: true
+  - type: message
+    id: start-watcher
+    from: srv
+    to: watcher
+    label: chokidar watch .archik/
+    arrow: async
+  - type: message
+    id: server-ready
+    from: srv
+    to: cmd
+    label: "listening on :port"
+    arrow: return
+  - type: message
+    id: open-browser
+    from: cmd
+    to: srv
+    label: open browser → /__archik/canvas
+    arrow: async
