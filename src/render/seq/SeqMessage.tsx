@@ -1,4 +1,5 @@
 import type { LayoutedMessage } from "./seqLayout.ts";
+import { SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
 
 const SELF_LOOP_W = 32;
 const SELF_LOOP_H = 20;
@@ -11,7 +12,7 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
   const isAsync = msg.arrow === "async";
   const isCreate = msg.arrow === "create";
   const dashed = isReturn || isCreate;
-  const markerId = isReturn || isAsync ? "seq-arrow-open" : "seq-arrow-filled";
+  const markerId = isReturn || isAsync ? SEQ_MARKER_OPEN : SEQ_MARKER_FILLED;
   const opacity = msg.status === "proposed" ? 0.5 : msg.status === "deprecated" ? 0.35 : 1;
 
   if (msg.isSelf) {

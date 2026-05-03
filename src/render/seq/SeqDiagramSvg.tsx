@@ -1,5 +1,5 @@
 import type { LayoutedSeqDocument, LayoutedStep } from "./seqLayout.ts";
-import { PARTICIPANT_HEADER_HEIGHT } from "./seqLayout.ts";
+import { PARTICIPANT_HEADER_HEIGHT, SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
 import { SeqParticipantHeader } from "./SeqParticipantHeader.tsx";
 import { SeqLifeline } from "./SeqLifeline.tsx";
 import { SeqMessage } from "./SeqMessage.tsx";
@@ -39,11 +39,12 @@ export function SeqDiagramSvg({ laid, svgRef }: Props): React.ReactElement {
       width={totalWidth}
       height={totalHeight}
       viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+      xmlns="http://www.w3.org/2000/svg"
       style={{ fontFamily: "var(--archik-font, system-ui)" }}
     >
       <defs>
-        <FilledTriangle id="seq-arrow-filled" />
-        <OpenTriangle id="seq-arrow-open" />
+        <FilledTriangle id={SEQ_MARKER_FILLED} />
+        <OpenTriangle id={SEQ_MARKER_OPEN} />
       </defs>
       {participants.map((p) => (
         <SeqLifeline key={p.id} participant={p} />

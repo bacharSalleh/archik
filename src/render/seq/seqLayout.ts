@@ -11,6 +11,9 @@ export const NOTE_HEIGHT = 48;
 export const DIAGRAM_H_PADDING = 32;
 export const DIAGRAM_V_PADDING = 24;
 
+export const SEQ_MARKER_FILLED = "seq-arrow-filled";
+export const SEQ_MARKER_OPEN = "seq-arrow-open";
+
 export type LayoutedParticipant = {
   id: string;
   nodeId: string;

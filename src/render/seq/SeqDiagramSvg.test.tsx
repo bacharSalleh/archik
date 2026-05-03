@@ -42,4 +42,11 @@ describe("SeqDiagramSvg", () => {
     expect(getByText("refresh()")).not.toBeNull();
     expect(container.querySelector("path")).not.toBeNull();
   });
+  it("renders lifelines for each participant", () => {
+    const laid = layoutSeqDocument(doc);
+    const { container } = render(<SeqDiagramSvg laid={laid} />);
+    // lifelines are the only <line> elements with a direct opacity attribute
+    const lifelines = container.querySelectorAll("line[opacity]");
+    expect(lifelines.length).toBe(doc.participants.length);
+  });
 });
