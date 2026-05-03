@@ -3,6 +3,8 @@ import { PARTICIPANT_HEADER_HEIGHT, SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from ".
 import { SeqParticipantHeader } from "./SeqParticipantHeader.tsx";
 import { SeqLifeline } from "./SeqLifeline.tsx";
 import { SeqMessage } from "./SeqMessage.tsx";
+import { SeqGroupFrame } from "./SeqGroupFrame.tsx";
+import { SeqNote } from "./SeqNote.tsx";
 
 function FilledTriangle({ id }: { id: string }): React.ReactElement {
   return (
@@ -22,6 +24,15 @@ function OpenTriangle({ id }: { id: string }): React.ReactElement {
 
 function RenderStep({ step }: { step: LayoutedStep }): React.ReactElement | null {
   if (step.type === "message") return <SeqMessage msg={step} />;
+  if (step.type === "note") return <SeqNote note={step} />;
+  if (step.type === "group") {
+    return (
+      <SeqGroupFrame
+        group={step}
+        renderStep={(s) => <RenderStep key={s.id} step={s} />}
+      />
+    );
+  }
   return null;
 }
 

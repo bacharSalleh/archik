@@ -49,4 +49,51 @@ describe("SeqDiagramSvg", () => {
     const lifelines = container.querySelectorAll("line[opacity]");
     expect(lifelines.length).toBe(doc.participants.length);
   });
+
+  const docWithGroup: SeqDocument = {
+    version: "1.0",
+    name: "With Group",
+    participants: [
+      { id: "a", nodeId: "svc-a" },
+      { id: "b", nodeId: "svc-b" },
+    ],
+    steps: [{
+      type: "group",
+      id: "g1",
+      kind: "alt",
+      condition: "[ok]",
+      branches: [{
+        label: "[ok]",
+        steps: [{ type: "message", id: "m1", from: "a", to: "b", label: "call()", arrow: "sync" }],
+      }],
+    }],
+  };
+
+  const docWithNote: SeqDocument = {
+    version: "1.0",
+    name: "With Note",
+    participants: [
+      { id: "a", nodeId: "svc-a" },
+      { id: "b", nodeId: "svc-b" },
+    ],
+    steps: [{
+      type: "note",
+      id: "n1",
+      position: "over",
+      participants: ["a", "b"],
+      text: "JWT issued here",
+    }],
+  };
+
+  it("renders a group frame with condition", () => {
+    const laid = layoutSeqDocument(docWithGroup);
+    const { getByText } = render(<SeqDiagramSvg laid={laid} />);
+    expect(getByText("[ok]")).not.toBeNull();
+  });
+
+  it("renders a note with text", () => {
+    const laid = layoutSeqDocument(docWithNote);
+    const { getByText } = render(<SeqDiagramSvg laid={laid} />);
+    expect(getByText("JWT issued here")).not.toBeNull();
+  });
 });
