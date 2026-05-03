@@ -599,7 +599,13 @@ export async function handleSeqFile(
     res.end("path must end in .archik.seq.yaml");
     return;
   }
-  const abs = path.resolve(projectRoot, relPath);
+  const normalRoot = path.resolve(projectRoot);
+  const abs = path.resolve(normalRoot, relPath);
+  if (abs !== normalRoot && !abs.startsWith(normalRoot + path.sep)) {
+    res.writeHead(400, { "Content-Type": "text/plain" });
+    res.end("path escapes project root");
+    return;
+  }
   let text: string;
   try {
     text = await fs.readFile(abs, "utf-8");

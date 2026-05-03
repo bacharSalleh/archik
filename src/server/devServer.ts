@@ -18,6 +18,7 @@ import {
   handleArchikFile,
   handleDiffSvg,
   handleListFiles,
+  handleSeqFile,
   handleSidecar,
   handleYaml,
 } from "./handlers.ts";
@@ -57,6 +58,7 @@ const FILE_ACCEPT_URL = "/__archik/file-accept";
 /** List every archik file under the project root, with a
  *  has-suggestion flag — drives the file-switcher dropdown. */
 const FILES_URL = "/__archik/files";
+const SEQ_FILE_URL = "/__archik/seq-file";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -264,6 +266,11 @@ export async function startDevServer(
 
     if (url === FILES_URL || url.startsWith(FILES_URL + "?")) {
       void handleListFiles(root, docPath, req, res);
+      return;
+    }
+
+    if (url === SEQ_FILE_URL || url.startsWith(SEQ_FILE_URL + "?")) {
+      void handleSeqFile(root, req, res);
       return;
     }
 
