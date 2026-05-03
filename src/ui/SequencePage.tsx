@@ -89,7 +89,6 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
         </span>
         <div className="ml-auto">
           <ExportMenu
-            document={{ version: "1.0", name: state.doc.name, nodes: [], edges: [] }}
             filename={filename}
             getSvg={() => svgRef.current}
           />

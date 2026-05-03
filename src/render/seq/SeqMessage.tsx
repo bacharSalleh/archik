@@ -12,6 +12,7 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
   const isAsync = msg.arrow === "async";
   const isCreate = msg.arrow === "create";
   const dashed = isReturn || isCreate;
+  const isDestroy = msg.arrow === "destroy";
   const markerId = isReturn || isAsync ? SEQ_MARKER_OPEN : SEQ_MARKER_FILLED;
   const opacity = msg.status === "proposed" ? 0.5 : msg.status === "deprecated" ? 0.35 : 1;
 
@@ -55,7 +56,7 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
         stroke="var(--archik-edge-filled)"
         strokeWidth={1.4}
         strokeDasharray={dashed ? "4 4" : undefined}
-        markerEnd={`url(#${markerId})`}
+        markerEnd={isDestroy ? undefined : `url(#${markerId})`}
       />
       <text x={labelX} y={msg.y + LABEL_OFFSET_Y} textAnchor="middle" fontSize={11} fill="var(--archik-fg)" fontFamily="inherit">
         {isCreate && "«create» "}

@@ -10,7 +10,9 @@ import { saveDocumentAsDownload } from "../io/fileAdapter.ts";
 import { Popover } from "./Popover.tsx";
 
 type Props = {
-  document: Document;
+  /** Architecture document for copy/download YAML options.
+   *  When absent (e.g. on the sequence page) those menu items are hidden. */
+  document?: Document | undefined;
   filename: string;
   /** Returns the live canvas <svg> element, or null when the canvas
    *  hasn't mounted / laid out yet. SVG and PNG downloads are
@@ -59,7 +61,7 @@ export function ExportMenu({
     >
       {(close) => (
         <>
-          {exporters.map((e) => (
+          {document && exporters.map((e) => (
             <button
               key={e.name}
               type="button"
@@ -75,26 +77,30 @@ export function ExportMenu({
               <span>{e.label}</span>
             </button>
           ))}
-          <hr
-            style={{
-              border: 0,
-              borderTop: "1px solid var(--archik-border)",
-              margin: "4px 0",
-            }}
-          />
-          <button
-            type="button"
-            className="archik-menu-item"
-            onClick={() => {
-              saveDocumentAsDownload(filename, document);
-              close();
-            }}
-          >
-            <span style={{ minWidth: 60, color: "var(--archik-fg-dim)" }}>
-              Download
-            </span>
-            <span>YAML</span>
-          </button>
+          {document && (
+            <>
+              <hr
+                style={{
+                  border: 0,
+                  borderTop: "1px solid var(--archik-border)",
+                  margin: "4px 0",
+                }}
+              />
+              <button
+                type="button"
+                className="archik-menu-item"
+                onClick={() => {
+                  saveDocumentAsDownload(filename, document);
+                  close();
+                }}
+              >
+                <span style={{ minWidth: 60, color: "var(--archik-fg-dim)" }}>
+                  Download
+                </span>
+                <span>YAML</span>
+              </button>
+            </>
+          )}
           {getSvg && (
             <>
               <button

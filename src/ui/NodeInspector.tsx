@@ -12,6 +12,9 @@ type Props = {
    *  hidden — used while reviewing a suggestion sidecar so the user
    *  doesn't accidentally write edits to the wrong document. */
   readOnly?: boolean;
+  /** Current document URL — threaded into seq diagram links so the
+   *  back button on the sequence page returns to this file. */
+  viewKey?: string | undefined;
 };
 
 export function NodeInspector({
@@ -20,6 +23,7 @@ export function NodeInspector({
   onStartConnect,
   allNodes = [],
   readOnly = false,
+  viewKey,
 }: Props): React.ReactElement {
   if (!node) {
     return (
@@ -182,7 +186,7 @@ export function NodeInspector({
           <div className="flex flex-col gap-1 mt-1">
             {node.seqFiles.map((seqFile) => {
               const label = seqFile.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
-              const href = `/__archik/seq?path=${encodeURIComponent(seqFile)}`;
+              const href = `/__archik/seq?path=${encodeURIComponent(seqFile)}${viewKey ? `&from=${encodeURIComponent(viewKey)}` : ""}`;
               return (
                 <a
                   key={seqFile}

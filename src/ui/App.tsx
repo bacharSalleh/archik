@@ -1160,6 +1160,7 @@ export function App(): React.ReactElement {
                 onStartConnect={startConnect}
                 allNodes={renderDoc.nodes}
                 readOnly={reviewing}
+                viewKey={currentFile.docUrl}
               />
             ) : null}
           </div>

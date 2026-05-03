@@ -55,14 +55,14 @@ export type SeqGroup = {
 export type SeqStep = SeqMessage | SeqNote | SeqGroup;
 
 const SeqBranchSchema: z.ZodType<SeqBranch> = z.lazy(() =>
-  z.object({
+  z.strictObject({
     label: z.string().optional(),
     steps: z.array(SeqStepSchema),
   }),
 );
 
 export const SeqGroupSchema: z.ZodType<SeqGroup> = z.lazy(() =>
-  z.object({
+  z.strictObject({
     type: z.literal("group"),
     id: IdSchema,
     kind: SeqGroupKindSchema,
@@ -96,7 +96,7 @@ export const SeqDocumentSchema = z
     version: z.literal("1.0"),
     name: z.string().min(1),
     description: z.string().optional(),
-    participants: z.array(SeqParticipantSchema),
+    participants: z.array(SeqParticipantSchema).min(1),
     steps: z.array(SeqStepSchema),
   })
   .superRefine((doc, ctx) => {
