@@ -142,14 +142,16 @@ export async function validateCommand(
   const seqDiscovery = await discoverSeqDocs(root);
   let seqErrorCount = 0;
   for (const e of seqDiscovery.errors) {
-    console.error(`✗ ${e.relPath}: ${e.message}`);
+    if (!json) console.error(`✗ ${e.relPath}: ${e.message}`);
     seqErrorCount++;
   }
   for (const { relPath, doc: seqDoc } of seqDiscovery.docs) {
     const refErrors = checkSeqNodeRefs(seqDoc, allNodeIds);
     if (refErrors.length > 0) {
-      console.error(`✗ ${relPath}`);
-      for (const e of refErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
+      if (!json) {
+        console.error(`✗ ${relPath}`);
+        for (const e of refErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
+      }
       seqErrorCount += refErrors.length;
     }
   }
