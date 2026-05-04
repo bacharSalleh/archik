@@ -129,6 +129,13 @@ function buildSchema(): SchemaSpec {
         notes:
           'proposed | active | deprecated — drift only checks active nodes (default when absent)',
       },
+      {
+        name: "stereotype",
+        required: false,
+        type: "enum",
+        notes:
+          'boundary | control | entity — Jacobson ECB classification. When set on both endpoints of a message in a `realizes`-bound seq diagram, the validator enforces the robustness transition rules (boundary→control, control→{boundary|control|entity}, entity→{control|entity}). Adoption is incremental: untagged nodes are skipped.',
+      },
       { name: "metadata", required: false, type: "object" },
     ],
     edge: [
@@ -229,6 +236,7 @@ function buildSchema(): SchemaSpec {
       "Every code-bearing node (service/function/worker/module/page/component/store/hook) MUST declare sourcePath, and that path MUST exist on disk — UNLESS the node has status proposed or deprecated (those are explicitly \"code may not exist\" lifecycle states).",
       "Every node MUST have a non-empty `description` explaining what it does. Empty / omitted descriptions are rejected.",
       "Edges may carry a `status` field with the same enum (proposed / active / deprecated). The renderer applies the same dashed + coloured-border treatment used for node status.",
+      "Optional `stereotype: boundary | control | entity` on a node enables Jacobson ECB validation inside `realizes`-bound seq diagrams. Forbidden transitions: boundary→boundary, boundary→entity, entity→boundary. Untagged nodes are skipped (gradual adoption).",
     ],
   };
 }

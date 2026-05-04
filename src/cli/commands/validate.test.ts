@@ -351,6 +351,166 @@ describe("validateCommand cross-file existence", () => {
       expect(err).toMatch(/does not exist on disk/);
     });
 
+    it("fails when a realizes-bound seq violates ECB rules", async () => {
+      // ui = boundary, db = entity → forbidden direct call.
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: ui",
+          "    kind: frontend",
+          "    name: UI",
+          "    description: x",
+          "    sourcePath: src/ui",
+          "    stereotype: boundary",
+          "  - id: db",
+          "    kind: database",
+          "    name: DB",
+          "    description: x",
+          "    stereotype: entity",
+          "    seqFiles:",
+          "      - .archik/bad.archik.seq.yaml",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "src/ui"), { recursive: true });
+      await writeActors();
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: x",
+          "flows:",
+          "  basic:",
+          "    steps: [a]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "    realization:",
+          "      seqFile: .archik/bad.archik.seq.yaml",
+          "",
+        ].join("\n"),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/bad.archik.seq.yaml"),
+        [
+          'version: "1.0"',
+          "name: Bad ECB",
+          "realizes:",
+          "  useCase: place-order",
+          "  slice: happy",
+          "participants:",
+          "  - id: u",
+          "    nodeId: ui",
+          "  - id: d",
+          "    nodeId: db",
+          "steps:",
+          "  - type: message",
+          "    id: m1",
+          "    from: u",
+          "    to: d",
+          "    label: query",
+          "    arrow: sync",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/ECB violation/);
+      expect(err).toMatch(/boundary → entity/);
+    });
+
+    it("passes when a realizes-bound seq follows ECB rules", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: ui",
+          "    kind: frontend",
+          "    name: UI",
+          "    description: x",
+          "    sourcePath: src/ui",
+          "    stereotype: boundary",
+          "  - id: orch",
+          "    kind: service",
+          "    name: Orch",
+          "    description: x",
+          "    sourcePath: src/orch",
+          "    stereotype: control",
+          "    seqFiles:",
+          "      - .archik/good.archik.seq.yaml",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "src/ui"), { recursive: true });
+      await mkdir(path.join(cwd, "src/orch"), { recursive: true });
+      await writeActors();
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/x.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: x",
+          "name: X",
+          "primaryActor: customer",
+          "goal: x",
+          "flows:",
+          "  basic:",
+          "    steps: [a]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "    realization:",
+          "      seqFile: .archik/good.archik.seq.yaml",
+          "",
+        ].join("\n"),
+      );
+      await writeFile(
+        path.join(cwd, ".archik/good.archik.seq.yaml"),
+        [
+          'version: "1.0"',
+          "name: Good ECB",
+          "realizes:",
+          "  useCase: x",
+          "  slice: happy",
+          "participants:",
+          "  - id: u",
+          "    nodeId: ui",
+          "  - id: o",
+          "    nodeId: orch",
+          "steps:",
+          "  - type: message",
+          "    id: m1",
+          "    from: u",
+          "    to: o",
+          "    label: go",
+          "    arrow: sync",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+    });
+
     it("fails on bidirectional realizes mismatch", async () => {
       // Main file exposes an `agent` node so the seq file's
       // participant.nodeId resolves; seq file says it realizes

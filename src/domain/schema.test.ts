@@ -127,6 +127,26 @@ describe("NodeSchema", () => {
     ).toBe(false);
   });
 
+  describe("stereotype", () => {
+    it.each(["boundary", "control", "entity"] as const)(
+      "accepts %s",
+      (s) => {
+        expect(
+          NodeSchema.safeParse({ ...minimal, stereotype: s }).success,
+        ).toBe(true);
+      },
+    );
+    it("rejects an unknown stereotype", () => {
+      expect(
+        NodeSchema.safeParse({ ...minimal, stereotype: "actor" }).success,
+      ).toBe(false);
+    });
+    it("is optional", () => {
+      // The minimal node already excludes it; reaffirms shape doesn't change.
+      expect(NodeSchema.safeParse(minimal).success).toBe(true);
+    });
+  });
+
   describe("archikFile", () => {
     const accept = (p: string): boolean =>
       NodeSchema.safeParse({ ...minimal, archikFile: p }).success;

@@ -68,6 +68,7 @@ nodes:
     name: HTTP Handlers
     description: Single source of truth for every dev-surface endpoint — handleYaml, handleSidecar, handleAccept, handleDiffSvg, handleArchikFile, handleArchikAccept, handleListFiles. Atomic tmp+rename on every write so a partial write never truncates the source of truth. Mounted by both `archik dev` (node:http) and the Vite dogfood plugin so the suggest workflow behaves identically in published mode and in-repo `npm run dev`.
     sourcePath: src/server/handlers.ts
+    stereotype: control
     seqFiles:
       - .archik/archik-suggest-accept.archik.seq.yaml
   - id: vite-plugin
@@ -87,6 +88,7 @@ nodes:
     description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth. Holds a navigation stack (drill-down via a node's `archikFile`, breadcrumbs to walk back) and toggles an in-canvas diff overlay for pending suggestions instead of opening a separate tab.
     stack: React + Vite (build-time only)
     sourcePath: src/render/Canvas.tsx
+    stereotype: boundary
   - id: inspector
     kind: module
     name: Inspectors

@@ -121,6 +121,14 @@ CHECKS
   • Cross-file existence — archikFile / fromFile / toFile must be on disk.
   • IDs unique within nodes, within edges; edges reference real nodes.
   • No self-loop edges, no parentId cycles.
+  • Use cases (*.archik.uc.yaml): slice tests exist on disk; primaryActor /
+    secondaryActors resolve in the actor index; realization.seqFile points
+    at a discovered seq file; bidirectional realizes integrity.
+  • ECB transition rules (Jacobson robustness) on realizes-bound seq
+    diagrams: boundary->control, control->{boundary|control|entity},
+    entity->{control|entity}. Boundaries don't talk to boundaries or
+    entities; entities don't talk to boundaries. Untagged nodes are
+    skipped (gradual adoption).
 
 EXIT CODES
   0  valid
