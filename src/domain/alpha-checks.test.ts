@@ -292,13 +292,15 @@ describe("evaluateAlphaState — work", () => {
       evaluateAlphaState("work", "started", ctx({ ucDocs: [ucProposed] })),
     ).toMatchObject({ ok: false });
   });
-  it("under-control: requires loaded architecture docs", () => {
+  it("under-control: subjective (returns null) — no machine check", () => {
+    // The previous implementation rubber-stamped the claim by checking
+    // archDocs.length > 0, which doesn't actually verify "under control"
+    // (validate green, drift clean, tests passing). Demoted to subjective
+    // so the canvas badge says "?" rather than a misleading ✓.
+    expect(evaluateAlphaState("work", "under-control", ctx())).toBeNull();
     expect(
       evaluateAlphaState("work", "under-control", ctx({ archDocs: [arch([])] })),
-    ).toEqual({ ok: true });
-    expect(
-      evaluateAlphaState("work", "under-control", ctx()),
-    ).toMatchObject({ ok: false });
+    ).toBeNull();
   });
 });
 

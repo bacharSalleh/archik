@@ -130,15 +130,22 @@ export function archikWatch(): Plugin {
 
       // Watch the main file, its sidecar, and the project's .archik/
       // folder so sub-file edits also fire SSE for the live canvas.
+      // Match every archik artifact under .archik/, not just the
+      // architecture YAML — `.archik.uc.yaml`, `.archik.actors.yaml`,
+      // `.archik.alphas.yaml`, `.archik.seq.yaml` all need to fire
+      // DOC_EVENT so the canvas / panels reload. Otherwise editing
+      // a use case file in `npm run dev` mode goes silent.
       server.watcher.add([docPath, sidecarPath, path.join(root, ".archik")]);
+      const isArchikArtifact = (p: string): boolean =>
+        // Anything ending in `.archik.<word>.yaml` (or just `.archik.yaml`),
+        // and NOT a sidecar (which has its own event).
+        /\.archik(\.[a-z]+)?\.yaml$/.test(p) &&
+        !p.endsWith(".archik.suggested.yaml");
       const onChange = (changedPath: string): void => {
         const resolved = path.resolve(changedPath);
         if (resolved.endsWith(".archik.suggested.yaml")) {
           server.ws.send({ type: "custom", event: SUGGESTION_EVENT });
-        } else if (
-          resolved === docPath ||
-          resolved.endsWith(".archik.yaml")
-        ) {
+        } else if (resolved === docPath || isArchikArtifact(resolved)) {
           server.ws.send({ type: "custom", event: DOC_EVENT });
         }
       };

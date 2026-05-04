@@ -102,6 +102,12 @@ export function checkUseCaseActorRefs(
  * Active slices must have ≥ 1 test path and every test path must
  * exist on disk. The schema's superRefine already rejects active
  * slices without tests; this layer checks on-disk existence.
+ *
+ * Proposed and deprecated slices are exempt — `proposed` explicitly
+ * means "the test may not exist yet" (mirroring the sourcePath rule
+ * in `checkSourcePaths`), and `deprecated` means the test may have
+ * already been removed. Without this exemption a user couldn't
+ * sketch a future slice in the use case file.
  */
 export function checkUseCaseTestPaths(
   ucDocs: LoadedUseCaseDoc[],
@@ -110,6 +116,9 @@ export function checkUseCaseTestPaths(
   const errors: ValidationError[] = [];
   for (const { relPath, doc } of ucDocs) {
     doc.slices.forEach((slice, i) => {
+      const isPlanned =
+        slice.status === "proposed" || slice.status === "deprecated";
+      if (isPlanned) return;
       if (slice.tests === undefined) return;
       slice.tests.forEach((testPath, j) => {
         if (!exists(testPath)) {
@@ -129,9 +138,11 @@ export function checkUseCaseTestPaths(
 
 /**
  * Every `slice.realization.seqFile` must point at a real, discovered
- * seq file. The bidirectional `realizes` integrity check (does the
- * seq file's `realizes` block point back?) lives in seq-validate to
- * keep the seq-side check next to the seq schema.
+ * seq file AND that seq file's `realizes` block must point back at
+ * this slice. The seq-side bidirectional check in `seq-validate.ts`
+ * only catches cases where the seq HAS a `realizes` block; this UC-side
+ * pass closes the loop for the case where a slice claims a seq with
+ * NO `realizes` block at all (silent traceability drift).
  */
 export function checkUseCaseRealizationPaths(
   ucDocs: LoadedUseCaseDoc[],
@@ -142,13 +153,40 @@ export function checkUseCaseRealizationPaths(
   for (const { relPath, doc } of ucDocs) {
     doc.slices.forEach((slice, i) => {
       if (slice.realization === undefined) return;
-      if (!seqByRel.has(slice.realization.seqFile)) {
+      const seq = seqByRel.get(slice.realization.seqFile);
+      if (seq === undefined) {
         errors.push({
           path: `${relPath}:slices.${i}.realization.seqFile`,
           message:
             `slice "${slice.id}" realization seqFile ` +
             `"${slice.realization.seqFile}" does not exist or did not parse. ` +
             `Run \`npx archik q sequences\` to see available seq files.`,
+        });
+        return;
+      }
+      // Bidirectional integrity: does the seq point back?
+      if (seq.doc.realizes === undefined) {
+        errors.push({
+          path: `${relPath}:slices.${i}.realization.seqFile`,
+          message:
+            `slice "${slice.id}" claims realization "${slice.realization.seqFile}", ` +
+            `but that seq diagram has no \`realizes\` block. Add ` +
+            `\`realizes: { useCase: "${doc.id}", slice: "${slice.id}" }\` ` +
+            `to ${seq.relPath}, or remove the realization claim.`,
+        });
+        return;
+      }
+      if (
+        seq.doc.realizes.useCase !== doc.id ||
+        seq.doc.realizes.slice !== slice.id
+      ) {
+        errors.push({
+          path: `${relPath}:slices.${i}.realization.seqFile`,
+          message:
+            `slice "${slice.id}" claims realization "${slice.realization.seqFile}", ` +
+            `but that seq diagram's \`realizes\` points at ` +
+            `"${seq.doc.realizes.useCase}/${seq.doc.realizes.slice}", ` +
+            `not at "${doc.id}/${slice.id}". Pick one canonical link.`,
         });
       }
     });

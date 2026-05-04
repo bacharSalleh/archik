@@ -521,6 +521,7 @@ async function useCasesCommand(
         secondaryActors: d.doc.secondaryActors,
         slices: d.doc.slices.map((s) => ({
           id: s.id,
+          description: s.description,
           status: s.status,
           flows: s.flows,
           tests: s.tests,
@@ -674,37 +675,16 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
       return qImpact(opts);
     case "stats":
       return qStats(opts);
-    case "sequences": {
-      let abs: string;
-      try {
-        abs = await resolveDocPath(getString(opts, "doc"));
-      } catch (err) {
-        console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
-        return 2;
-      }
-      return sequencesCommand(opts, projectRoot(abs));
-    }
-    case "usecases": {
-      let abs: string;
-      try {
-        abs = await resolveDocPath(getString(opts, "doc"));
-      } catch (err) {
-        console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
-        return 2;
-      }
-      return useCasesCommand(opts, projectRoot(abs));
-    }
-    case "describe-usecase": {
-      let abs: string;
-      try {
-        abs = await resolveDocPath(getString(opts, "doc"));
-      } catch (err) {
-        console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
-        return 2;
-      }
-      return describeUseCaseCommand(opts, projectRoot(abs));
-    }
+    case "sequences":
+    case "usecases":
+    case "describe-usecase":
     case "actors": {
+      // Verify the root file loads before peering into the M1+ artifact
+      // walks. Otherwise a corrupt main.archik.yaml gives "no use cases
+      // found" with exit 1, indistinguishable from "no work yet". The
+      // rest of `q` already gates on loadAll; mirror that.
+      const load = await loadAll(opts);
+      if (!load.ok) return load.exit;
       let abs: string;
       try {
         abs = await resolveDocPath(getString(opts, "doc"));
@@ -712,7 +692,11 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
         console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
         return 2;
       }
-      return actorsCommand(opts, projectRoot(abs));
+      const base = projectRoot(abs);
+      if (sub === "sequences") return sequencesCommand(opts, base);
+      if (sub === "usecases") return useCasesCommand(opts, base);
+      if (sub === "describe-usecase") return describeUseCaseCommand(opts, base);
+      return actorsCommand(opts, base);
     }
     case undefined:
     case "help":

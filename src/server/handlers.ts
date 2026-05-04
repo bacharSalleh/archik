@@ -769,6 +769,7 @@ export async function handleUseCases(
       secondaryActors: d.doc.secondaryActors,
       slices: d.doc.slices.map((s) => ({
         id: s.id,
+        description: s.description,
         status: s.status,
         flows: s.flows,
         tests: s.tests,

@@ -17,6 +17,7 @@ import { Popover } from "./Popover.tsx";
 
 type Slice = {
   id: string;
+  description: string;
   status?: "active" | "proposed" | "deprecated";
   flows: string[];
   tests?: string[];
@@ -77,12 +78,18 @@ function UseCasesPanelBody(): React.ReactElement {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
+    let cancelled = false;
     const ctrl = new AbortController();
     Promise.all([
       fetchJson<{ ok: boolean; useCases: UseCase[] }>(USECASES_URL, ctrl.signal),
       fetchJson<{ ok: boolean; rows: TraceRow[] }>(TRACE_URL, ctrl.signal),
     ])
       .then(([uc, tr]) => {
+        // Guard against setState after unmount: the popover can close
+        // between fetch resolution and React re-render. AbortController
+        // cancels the request in flight; this flag covers the resolved
+        // response that's already in the microtask queue.
+        if (cancelled) return;
         setState({
           status: "ready",
           useCases: uc.useCases ?? [],
@@ -90,13 +97,16 @@ function UseCasesPanelBody(): React.ReactElement {
         });
       })
       .catch((err: unknown) => {
-        if (ctrl.signal.aborted) return;
+        if (cancelled || ctrl.signal.aborted) return;
         setState({
           status: "error",
           message: err instanceof Error ? err.message : String(err),
         });
       });
-    return () => ctrl.abort();
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
   }, []);
 
   return (
@@ -282,6 +292,15 @@ function SliceRow({
             paddingBottom: 4,
           }}
         >
+          <div
+            style={{
+              color: "var(--archik-fg)",
+              marginBottom: 4,
+              lineHeight: 1.4,
+            }}
+          >
+            {slice.description}
+          </div>
           {slice.tests && slice.tests.length > 0 && (
             <div>
               tests:{" "}

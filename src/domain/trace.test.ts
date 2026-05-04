@@ -254,4 +254,26 @@ describe("buildTraceMatrix", () => {
     expect(matrix.rows[0]!.realization).toBeNull();
     expect(matrix.rows[0]!.coverage.hasRealization).toBe(false);
   });
+
+  it("excludes deprecated slices entirely from rows + summary (M6 fix A4)", () => {
+    // Deprecated slices represent archived work; they shouldn't pollute
+    // coverage metrics. Without this, --fail-on partial in CI would fire
+    // on deprecated rows that the team intentionally retired.
+    const ucDoc = uc("uc.archik.uc.yaml", "x", [
+      {
+        id: "happy",
+        tests: ["t.spec.ts"],
+        realization: { seqFile: "flow.archik.seq.yaml" },
+      },
+      {
+        id: "old",
+        tests: ["t-old.spec.ts"],
+        status: "deprecated",
+      },
+    ]);
+    const matrix = buildTraceMatrix([ucDoc], [], []);
+    expect(matrix.rows).toHaveLength(1);
+    expect(matrix.rows[0]!.slice).toBe("happy");
+    expect(matrix.summary.slices).toBe(1);
+  });
 });

@@ -17,6 +17,7 @@
  */
 import { existsSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import YAML from "yaml";
 import { discoverDocs, type LoadedDoc } from "../../io/discovery.ts";
@@ -84,7 +85,10 @@ async function writeAlphaDoc(
   doc: AlphaDocument,
 ): Promise<void> {
   await mkdir(path.dirname(abs), { recursive: true });
-  const tmp = `${abs}.tmp-${process.pid}`;
+  // Use a random suffix (matches `atomicWrite` in handlers.ts) so two
+  // writers in the same process can't share the tmp filename. PID alone
+  // collided when called twice from one Node process.
+  const tmp = `${abs}.archik-tmp-${randomUUID().slice(0, 8)}`;
   const text = YAML.stringify(doc);
   await writeFile(tmp, text, "utf-8");
   await rename(tmp, abs);

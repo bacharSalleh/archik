@@ -19,14 +19,16 @@ import { IdSchema, NodeStatusSchema, SeqFilePathSchema } from "./schema.ts";
  */
 
 /**
- * Test path — same structural rules as SourcePath. Existence is
- * checked at validate time, mirroring the sourcePath pattern.
+ * Test path — same structural rules as SourcePath / SeqFilePath:
+ * relative, forward slashes, no `..`, and reject Windows-drive paths
+ * like `C:\\` so cross-platform projects don't trip over a
+ * platform-specific authoring mistake.
  */
 export const TestPathSchema = z
   .string()
   .min(1)
-  .refine((p) => !p.startsWith("/"), {
-    message: "test path must be relative (no leading /)",
+  .refine((p) => !p.startsWith("/") && !/^[a-zA-Z]:[\\/]/.test(p), {
+    message: "test path must be relative (no leading / or drive letter)",
   })
   .refine((p) => !p.includes("\\"), {
     message: "test path must use forward slashes",

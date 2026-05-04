@@ -76,9 +76,12 @@ function AlphasPanelBody(): React.ReactElement {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
+    let cancelled = false;
     const ctrl = new AbortController();
     fetchAlphas(ctrl.signal)
       .then((data) => {
+        // See UseCasesPanel — guard against setState after unmount.
+        if (cancelled) return;
         setState({
           status: "ready",
           file: data.file,
@@ -86,13 +89,16 @@ function AlphasPanelBody(): React.ReactElement {
         });
       })
       .catch((err: unknown) => {
-        if (ctrl.signal.aborted) return;
+        if (cancelled || ctrl.signal.aborted) return;
         setState({
           status: "error",
           message: err instanceof Error ? err.message : String(err),
         });
       });
-    return () => ctrl.abort();
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
   }, []);
 
   return (

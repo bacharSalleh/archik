@@ -270,19 +270,12 @@ function workChecks(): Record<
               "with status active (or absent, which defaults to active).",
           );
     },
-    "under-control": (ctx) => {
-      // Proxy: validate-equivalent — every loaded doc is schema-clean
-      // (discovery would have errored otherwise) AND ECB checks pass
-      // (covered by validate; we don't re-run here, we trust prior
-      // validate runs the same constraints). The strongest signal
-      // archik can offer for "under control" is "validate is green",
-      // which is true at this point because we successfully loaded
-      // everything required. So we just check the doc loaded.
-      if (ctx.archDocs.length === 0) {
-        return fail("No architecture documents loaded.");
-      }
-      return ok();
-    },
+    // "under-control" needs the kind of evidence archik can't gather
+    // on its own (CI history, PR cadence, escalation procedures). Marking
+    // it subjective so the user attests; the canvas / show output flags
+    // it with `?` rather than a misleading ✓. A future milestone could
+    // add a real check that runs the validator + drift + tests inline.
+    "under-control": null,
     concluded: null,
     closed: null,
   };

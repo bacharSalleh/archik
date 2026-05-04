@@ -110,6 +110,70 @@ describe("diffDocuments", () => {
     expect(d.nodes.changed[0]!.changes[0]!.field).toBe("archikFile");
   });
 
+  it("notices a stereotype change on a node (M6 fix G7)", () => {
+    const a: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "ui", kind: "frontend", name: "UI", description: "x" }],
+      edges: [],
+    };
+    const b: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{
+        id: "ui",
+        kind: "frontend",
+        name: "UI",
+        description: "x",
+        stereotype: "boundary",
+      }],
+      edges: [],
+    };
+    const d = diffDocuments(a, b);
+    expect(d.nodes.changed).toHaveLength(1);
+    expect(d.nodes.changed[0]!.changes.map((c) => c.field)).toContain(
+      "stereotype",
+    );
+  });
+
+  it("notices a status change on a node (M6 fix G7)", () => {
+    const a: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "ui", kind: "frontend", name: "UI", description: "x", status: "proposed" }],
+      edges: [],
+    };
+    const b: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "ui", kind: "frontend", name: "UI", description: "x", status: "active" }],
+      edges: [],
+    };
+    const d = diffDocuments(a, b);
+    expect(d.nodes.changed.length).toBeGreaterThan(0);
+    expect(d.nodes.changed[0]!.changes.map((c) => c.field)).toContain("status");
+  });
+
+  it("notices a sourcePath change on a node (M6 fix G7)", () => {
+    const a: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "api", kind: "service", name: "API", description: "x", sourcePath: "src/api" }],
+      edges: [],
+    };
+    const b: Document = {
+      version: "1.0",
+      name: "x",
+      nodes: [{ id: "api", kind: "service", name: "API", description: "x", sourcePath: "src/api-v2" }],
+      edges: [],
+    };
+    const d = diffDocuments(a, b);
+    expect(d.nodes.changed.length).toBeGreaterThan(0);
+    expect(d.nodes.changed[0]!.changes.map((c) => c.field)).toContain(
+      "sourcePath",
+    );
+  });
+
   it("notices an edge's fromFile / toFile cross-file change", () => {
     const a: Document = {
       version: "1.0",

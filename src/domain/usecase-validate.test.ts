@@ -159,21 +159,59 @@ describe("checkUseCaseTestPaths", () => {
     );
     expect(errors).toHaveLength(0);
   });
+
+  it("skips test existence checks for proposed slices even when tests are listed (M6 fix H3)", () => {
+    // Proposed slices may sketch tests that haven't been written yet —
+    // skip the on-disk existence pass to mirror the sourcePath rule.
+    const errors = checkUseCaseTestPaths(
+      [ucDoc(".archik/usecases/x.archik.uc.yaml", {
+        slices: [{
+          id: "future",
+          description: "Sketch.",
+          flows: ["basic"],
+          tests: ["tests/not-yet-written.spec.ts"],
+          status: "proposed",
+        }],
+      })],
+      () => false,
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it("skips test existence checks for deprecated slices too (M6 fix H3)", () => {
+    const errors = checkUseCaseTestPaths(
+      [ucDoc(".archik/usecases/x.archik.uc.yaml", {
+        slices: [{
+          id: "old",
+          description: "Removed flow.",
+          flows: ["basic"],
+          tests: ["tests/already-deleted.spec.ts"],
+          status: "deprecated",
+        }],
+      })],
+      () => false,
+    );
+    expect(errors).toHaveLength(0);
+  });
 });
 
 describe("checkUseCaseRealizationPaths", () => {
-  const seq = (relPath: string): LoadedSeqDoc => ({
+  const seq = (
+    relPath: string,
+    realizes?: { useCase: string; slice: string },
+  ): LoadedSeqDoc => ({
     abs: `/abs/${relPath}`,
     relPath,
     doc: {
       version: "1.0",
       name: "Flow",
+      ...(realizes ? { realizes } : {}),
       participants: [{ id: "p", nodeId: "n" }],
       steps: [],
     },
   });
 
-  it("passes when realization seqFile exists in discovered seqs", () => {
+  it("passes when realization seqFile exists AND seq's realizes points back", () => {
     const errors = checkUseCaseRealizationPaths(
       [ucDoc(".archik/usecases/x.archik.uc.yaml", {
         slices: [{
@@ -184,7 +222,10 @@ describe("checkUseCaseRealizationPaths", () => {
           realization: { seqFile: ".archik/place-order.archik.seq.yaml" },
         }],
       })],
-      [seq(".archik/place-order.archik.seq.yaml")],
+      [seq(".archik/place-order.archik.seq.yaml", {
+        useCase: "place-order",
+        slice: "happy-path",
+      })],
     );
     expect(errors).toHaveLength(0);
   });
@@ -204,5 +245,45 @@ describe("checkUseCaseRealizationPaths", () => {
     );
     expect(errors).toHaveLength(1);
     expect(errors[0]!.message).toMatch(/does not exist or did not parse/);
+  });
+
+  it("rejects a realization pointing at a seq with NO realizes block", () => {
+    // The case the seq-side check can't catch — a slice claims a seq
+    // that has no realizes block at all. UC-side bidirectional pass
+    // closes the loop.
+    const errors = checkUseCaseRealizationPaths(
+      [ucDoc(".archik/usecases/x.archik.uc.yaml", {
+        slices: [{
+          id: "happy-path",
+          description: "Happy.",
+          flows: ["basic"],
+          tests: ["tests/happy.spec.ts"],
+          realization: { seqFile: ".archik/orphan.archik.seq.yaml" },
+        }],
+      })],
+      [seq(".archik/orphan.archik.seq.yaml")],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/no `realizes` block/);
+  });
+
+  it("rejects a realization pointing at a seq whose realizes points elsewhere", () => {
+    const errors = checkUseCaseRealizationPaths(
+      [ucDoc(".archik/usecases/x.archik.uc.yaml", {
+        slices: [{
+          id: "happy-path",
+          description: "Happy.",
+          flows: ["basic"],
+          tests: ["tests/happy.spec.ts"],
+          realization: { seqFile: ".archik/wrong.archik.seq.yaml" },
+        }],
+      })],
+      [seq(".archik/wrong.archik.seq.yaml", {
+        useCase: "other-case",
+        slice: "other-slice",
+      })],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/Pick one canonical link/);
   });
 });

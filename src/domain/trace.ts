@@ -118,6 +118,10 @@ export function buildTraceMatrix(
   for (const { relPath, doc } of ucDocs) {
     for (const slice of doc.slices) {
       const status = slice.status ?? "active";
+      // Deprecated slices represent intentionally-archived work; they
+      // shouldn't pollute coverage metrics or trip --fail-on partial
+      // gates in CI. Skip them entirely from both rows and summary.
+      if (status === "deprecated") continue;
       const tests = slice.tests ?? [];
       const hasTests = tests.length > 0;
 

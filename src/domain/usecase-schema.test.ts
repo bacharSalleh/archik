@@ -311,4 +311,18 @@ describe("UseCaseDocumentSchema", () => {
     const result = UseCaseDocumentSchema.safeParse(doc);
     expect(result.success).toBe(false);
   });
+
+  it("rejects test path with a Windows drive letter (M6 fix B4)", () => {
+    const doc = {
+      ...minimal(),
+      slices: [{
+        id: "happy-path",
+        description: "x",
+        flows: ["basic"],
+        tests: ["C:/tmp/foo.test.ts"],
+      }],
+    };
+    const result = UseCaseDocumentSchema.safeParse(doc);
+    expect(result.success).toBe(false);
+  });
 });

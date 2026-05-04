@@ -60,4 +60,18 @@ describe("discoverSeqDocs", () => {
     expect(result.errors[0]!.relPath).toBe(".archik/bad.archik.seq.yaml");
     expect(result.errors[0]!.message).toBeTruthy();
   });
+
+  it("walks nested subdirectories under .archik (M6 fix A2)", async () => {
+    await mkdir(path.join(archikDir, "seqs", "billing"), { recursive: true });
+    await writeFile(
+      path.join(archikDir, "seqs", "billing", "checkout.archik.seq.yaml"),
+      VALID_SEQ_YAML,
+    );
+    const result = await discoverSeqDocs(projectBase);
+    expect(result.errors).toHaveLength(0);
+    expect(result.docs).toHaveLength(1);
+    expect(result.docs[0]!.relPath).toBe(
+      ".archik/seqs/billing/checkout.archik.seq.yaml",
+    );
+  });
 });

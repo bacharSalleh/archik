@@ -107,6 +107,10 @@ export async function discoverAlphaDoc(
   await walk(path.join(projectBase, ".archik"), 0);
 
   if (found.length === 0) return { doc: null, errors };
+  // Sort by relPath so the "first wins" choice is filesystem-independent.
+  // Without this, two CI runs on different OSes can disagree about
+  // which file is canonical when (incorrectly) more than one exists.
+  found.sort((a, b) => a.relPath.localeCompare(b.relPath));
   // First file wins; surface the rest as errors so the user picks one.
   for (let i = 1; i < found.length; i++) {
     errors.push({

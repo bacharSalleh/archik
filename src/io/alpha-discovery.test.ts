@@ -88,4 +88,21 @@ describe("discoverAlphaDoc", () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]!.message).toMatch(/multiple alphas files/);
   });
+
+  it("picks the lexicographically-first file deterministically (M6 fix A3)", async () => {
+    // Without the sort, picking-first depends on readdir ordering which
+    // varies across filesystems (ext4 vs APFS vs tmpfs vs CI tmp). Sort
+    // by relPath gives us a portable answer.
+    await mkdir(path.join(projectBase, ".archik"), { recursive: true });
+    await writeFile(
+      path.join(projectBase, ".archik/zeta.archik.alphas.yaml"),
+      VALID_YAML,
+    );
+    await writeFile(
+      path.join(projectBase, ".archik/alpha.archik.alphas.yaml"),
+      VALID_YAML,
+    );
+    const result = await discoverAlphaDoc(projectBase);
+    expect(result.doc?.relPath).toBe(".archik/alpha.archik.alphas.yaml");
+  });
 });

@@ -763,5 +763,38 @@ describe("qCommand", () => {
       const code = await qCommand({ _: ["stats"], json: "true" });
       expect(code).toBe(2);
     });
+
+    it("q usecases returns exit 2 when root fails to parse (M6 fix A8)", async () => {
+      // Without the fix, q usecases / actors / describe-usecase would
+      // silently return "no use cases" with exit 1 even when the root
+      // file is corrupt. They now gate on loadAll like the rest of `q`.
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({ _: ["usecases"], json: "true" });
+      expect(code).toBe(2);
+    });
+
+    it("q actors also returns exit 2 on corrupt root (M6 fix A8)", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({ _: ["actors"], json: "true" });
+      expect(code).toBe(2);
+    });
+
+    it("q describe-usecase also returns exit 2 on corrupt root (M6 fix A8)", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({
+        _: ["describe-usecase", "place-order"],
+        json: "true",
+      });
+      expect(code).toBe(2);
+    });
   });
 });
