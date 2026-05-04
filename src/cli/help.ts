@@ -399,4 +399,54 @@ EXAMPLES
   archik trace --coverage partial --json
   archik trace --fail-on partial          # CI gate
 `,
+
+  alpha: `archik alpha — Essence alpha state tracker
+
+USAGE
+  archik alpha show [--json]
+  archik alpha promote <alpha> <state> [--note '<text>'] [--json]
+  archik alpha demote  <alpha> <state> [--json]
+
+ALPHAS  (the four archik tracks; the rest of the Essence kernel is out of scope)
+  stakeholders     recognised | represented | involved | in-agreement |
+                   satisfied-for-deployment | satisfied-in-use
+  requirements     conceived | bounded | coherent | acceptable | addressed | fulfilled
+  softwareSystem   architecture-selected | demonstrable | usable | ready |
+                   operational | retired
+  work             initiated | prepared | started | under-control |
+                   concluded | closed
+
+DESCRIPTION
+  Tracks the four Essence alphas archik can directly evidence from
+  the artifacts it manages. Each state ladder is ordered; promote
+  walks UP and runs a machine-checkable condition before writing
+  (subjective states succeed without a check). Demote walks DOWN
+  freely.
+
+  show re-runs every check against the claimed state and renders a
+  verification badge:
+    tick  verified           — claim holds against current artifacts
+    cross over-claimed       — claim FAILS the check; downgrade or fix
+    ?     subjective         — no machine check; user attests
+
+  Machine checks (subset of states):
+    requirements.acceptable      every active slice has on-disk tests
+    requirements.addressed       every active slice has a discovered seq
+    softwareSystem.demonstrable  every active code-bearing node has on-disk source
+    softwareSystem.ready         every active slice is "level: full" in trace
+    work.started                 at least one active slice exists
+    stakeholders.represented     at least one human actor exists
+
+EXIT CODES
+  0  success
+  1  promote/demote rejected (check failed, ladder violation, etc.)
+  2  argument error or root file failed to load
+
+EXAMPLES
+  archik alpha show
+  archik alpha show --json
+  archik alpha promote requirements acceptable
+  archik alpha promote stakeholders involved --note 'kickoff with finance'
+  archik alpha demote softwareSystem demonstrable
+`,
 };
