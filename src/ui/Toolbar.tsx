@@ -1,4 +1,4 @@
-import { GitBranch, LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
+import { GitBranch, LayoutGrid, Redo2, Rows3, Shield, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
@@ -41,6 +41,12 @@ type Props = {
   seqHighlight?: boolean;
   onToggleSeqHighlight?: () => void;
   seqNodeCount?: number;
+  /** Robustness mode (M5c) — when true, the canvas dims nodes that
+   *  lack a `stereotype`. Toolbar surfaces a toggle so the user can
+   *  flip the view; the colour bands themselves are always painted. */
+  robustnessMode?: boolean;
+  onToggleRobustness?: () => void;
+  stereotypedCount?: number;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -81,6 +87,9 @@ export function Toolbar({
   seqHighlight,
   onToggleSeqHighlight,
   seqNodeCount,
+  robustnessMode,
+  onToggleRobustness,
+  stereotypedCount,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -232,6 +241,32 @@ export function Toolbar({
             }}
           >
             <GitBranch size={14} strokeWidth={1.8} />
+          </button>
+        )}
+        {onToggleRobustness !== undefined && (stereotypedCount ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={onToggleRobustness}
+            title={
+              robustnessMode
+                ? "Exit robustness view"
+                : `Robustness view — focus on ${stereotypedCount} stereotyped node${stereotypedCount === 1 ? "" : "s"} (boundary / control / entity)`
+            }
+            aria-label="Toggle robustness view"
+            aria-pressed={robustnessMode}
+            className="archik-btn"
+            style={{
+              padding: "5px 8px",
+              ...(robustnessMode
+                ? {
+                    background: "var(--archik-stereotype-boundary)",
+                    borderColor: "var(--archik-stereotype-boundary)",
+                    color: "white",
+                  }
+                : {}),
+            }}
+          >
+            <Shield size={14} strokeWidth={1.8} />
           </button>
         )}
         <UseCasesPanel />

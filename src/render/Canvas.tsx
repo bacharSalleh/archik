@@ -50,6 +50,12 @@ type Props = {
   /** When set, layer diff frames + edge tints over the diagram (review mode). */
   diffStatuses?: StatusMap;
   glowNodeIds?: ReadonlySet<string>;
+  /** When true, sets `data-archik-robustness-mode="true"` on the SVG
+   *  root so CSS can dim nodes that lack a `stereotype`. The colour
+   *  bands themselves stay painted whether or not robustness mode is
+   *  on; the toggle just tells the canvas to fade non-stereotyped
+   *  nodes so the ECB-tagged subset reads at a glance. */
+  robustnessMode?: boolean;
   /** Optional external ref so callers (App, ExportMenu) can reach the
    *  rendered <svg> for snapshot / export. When omitted, Canvas keeps
    *  its own internal ref and nothing changes. */
@@ -92,6 +98,7 @@ export function Canvas({
   viewKey,
   diffStatuses,
   glowNodeIds,
+  robustnessMode,
   svgRef: externalSvgRef,
 }: Props): React.ReactElement {
   const layoutPromise = useMemo(
@@ -344,6 +351,7 @@ export function Canvas({
             : {})}
           {...(diffStatuses !== undefined ? { diffStatuses } : {})}
           {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
+          {...(robustnessMode !== undefined ? { robustnessMode } : {})}
         />
       </div>
       <ZoomControls
