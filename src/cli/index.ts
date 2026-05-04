@@ -17,6 +17,7 @@ import { statusCommand } from "./commands/status.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
+import { traceCommand } from "./commands/trace.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -86,6 +87,13 @@ COMMANDS
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
+  trace             Use case x slice x test x seq x node coverage matrix
+                    --use-case <id>  filter to one use case
+                    --actor <id>     filter to use cases involving an actor
+                    --status <s>     filter slices by status
+                    --coverage <l>   filter rows by coverage (full/partial/none)
+                    --fail-on <l>    exit 1 if any row meets that level (partial or none)
+                    --json           structured output for agents
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -151,6 +159,8 @@ async function main(): Promise<number> {
       return suggestCommand(opts);
     case "drift":
       return driftCommand(opts);
+    case "trace":
+      return traceCommand(opts);
     case "--version":
     case "-v":
     case "version":

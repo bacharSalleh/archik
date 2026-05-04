@@ -358,4 +358,45 @@ EXAMPLES
   archik drift --json
   archik drift --ignore .archik/custom-ignore
 `,
+
+  trace: `archik trace — use case x slice x test x seq x node coverage matrix
+
+USAGE
+  archik trace [--use-case <id>] [--actor <id>] [--status <s>]
+               [--coverage <l>] [--fail-on <l>] [--json]
+
+FLAGS
+  --use-case <id>    filter rows to one use case
+  --actor <id>       filter to use cases involving an actor (primary or secondary)
+  --status <s>       filter slices by status (active | proposed | deprecated)
+  --coverage <l>     filter rows by coverage level (full | partial | none)
+  --fail-on <l>      exit 1 if any row is at that level or worse (partial or none)
+  --json             structured TraceMatrix output for CI
+
+DESCRIPTION
+  Walks every slice in every *.archik.uc.yaml and threads the chain
+  through its tests, sequence diagram realization, and the architecture
+  nodes that participate in the seq. Each row is classified:
+
+    full     - tests + realization + every participant has a stereotype,
+               and the slice is active.
+    partial  - some of {tests, realization} present but not fully wired.
+    none     - no tests AND no realization.
+
+  This is the read side of Jacobson traceability: the validator catches
+  broken links; trace surfaces coverage. CI scripts that want "fail on
+  partial coverage" use --fail-on partial; default is no gate.
+
+EXIT CODES
+  0  success (or --fail-on threshold not reached)
+  1  any row meets the --fail-on threshold
+  2  argument error or root file failed to load
+
+EXAMPLES
+  archik trace
+  archik trace --use-case place-order
+  archik trace --actor customer
+  archik trace --coverage partial --json
+  archik trace --fail-on partial          # CI gate
+`,
 };
