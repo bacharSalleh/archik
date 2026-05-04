@@ -15,6 +15,7 @@ import { discoverSeqDocs } from "../../io/seq-discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { discoverActorDocs } from "../../io/actor-discovery.ts";
 import {
+  checkSeqEcbRules,
   checkSeqNodeRefs,
   checkSeqRealizesIntegrity,
 } from "../../domain/seq-validate.ts";
@@ -211,6 +212,11 @@ export async function validateCommand(
       );
       ucActorErrors.push(
         ...checkSeqRealizesIntegrity(seqDiscovery.docs, ucDiscovery.docs),
+      );
+      // ECB transition rules — only fire on `realizes`-bound seqs;
+      // skip when either endpoint lacks a stereotype (gradual adoption).
+      ucActorErrors.push(
+        ...checkSeqEcbRules(seqDiscovery.docs, discovery.docs),
       );
     }
   }

@@ -191,6 +191,7 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
     console.log(`  ${bold("status")}: ${badge}`);
   }
   if (n.stack) console.log(`  ${bold("stack")}: ${n.stack}`);
+  if (n.stereotype) console.log(`  ${bold("stereotype")}: ${n.stereotype}`);
   if (n.description) console.log(`  ${bold("description")}: ${n.description}`);
   if (n.sourcePath) console.log(`  ${bold("sourcePath")}: ${n.sourcePath}`);
   if (n.parentId) console.log(`  ${bold("parentId")}: ${n.parentId}`);

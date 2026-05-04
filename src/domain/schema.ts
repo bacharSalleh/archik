@@ -5,6 +5,29 @@ import { RelationshipSchema } from "./relationships.ts";
 export const NodeStatusSchema = z.enum(["proposed", "active", "deprecated"]);
 
 /**
+ * ECB stereotype — Jacobson's robustness-analysis classification of an
+ * analysis class. Optional on every node; when both endpoints of a
+ * message in a `realizes`-bound sequence diagram have a stereotype,
+ * the validator enforces the classical ECB transition rules:
+ *
+ *   - boundary → control          ✓
+ *   - control  → boundary | control | entity  ✓
+ *   - entity   → control | entity ✓
+ *   - boundary → boundary         ✗ (boundaries don't talk to each other)
+ *   - boundary → entity           ✗ (must go via a control)
+ *   - entity   → boundary         ✗ (entities don't drive UIs)
+ *
+ * The rule applies only inside seq diagrams that carry a `realizes`
+ * block — robustness analysis is per-use-case in OOSE. Nodes without
+ * a stereotype are exempt from the check, so adoption is incremental:
+ * tag the obvious ones first, leave the rest until you're ready.
+ *
+ * The canvas uses the stereotype to colour-band nodes when the user
+ * filters to a use case's realised sequence (the "robustness view").
+ */
+export const StereotypeSchema = z.enum(["boundary", "control", "entity"]);
+
+/**
  * Relative path from project root to a node's source code.
  * Constraints: no leading `/`, no `..`, forward slashes only.
  */
@@ -112,6 +135,10 @@ export const NodeSchema = z.strictObject({
    *  Validation also exempts proposed/deprecated from the required
    *  sourcePath rule — they're explicitly "code may not exist" states. */
   status: NodeStatusSchema.optional(),
+  /** Optional ECB stereotype — boundary | control | entity. Used by
+   *  `checkSeqEcbRules` to enforce robustness-analysis transitions
+   *  inside `realizes`-bound seq diagrams. See StereotypeSchema docs. */
+  stereotype: StereotypeSchema.optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

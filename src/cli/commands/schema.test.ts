@@ -134,6 +134,20 @@ describe("schemaCommand", () => {
     expect(parsed.actorKinds).toContain("external-system");
   });
 
+  it("node schema includes the optional stereotype field", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: [], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    const stereotypeField = parsed.node.find(
+      (f: { name: string }) => f.name === "stereotype",
+    );
+    expect(stereotypeField).toBeDefined();
+    expect(stereotypeField.required).toBe(false);
+    expect(stereotypeField.type).toBe("enum");
+    expect(stereotypeField.notes).toMatch(/boundary \| control \| entity/);
+  });
+
   it("schema seq output includes the optional realizes binding", () => {
     const output: string[] = [];
     vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
