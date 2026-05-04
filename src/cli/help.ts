@@ -164,8 +164,13 @@ NOTES
   schema: `archik schema — print the document schema in agent-readable form
 
 USAGE
-  archik schema
-  archik schema --json
+  archik schema [seq | uc | actors] [--json]
+
+SUBCOMMANDS
+  (none)             architecture document (*.archik.yaml)
+  seq                sequence diagram (*.archik.seq.yaml)
+  uc | usecase       use case (*.archik.uc.yaml)
+  actors | actor     actor file (*.archik.actors.yaml)
 
 FLAGS
   --json             structured shape: { document, node, edge, kinds, ... }
@@ -181,6 +186,9 @@ NOTES
 
 EXAMPLES
   archik schema
+  archik schema seq
+  archik schema uc --json | jq '.slice'
+  archik schema actors
   archik schema --json | jq '.kinds'
   archik schema --json | jq '.edge[] | select(.required)'
 `,
@@ -195,6 +203,10 @@ USAGE
   archik q edges [--from <id>] [--to <id>] [--rel <name>] [--status <s>]
   archik q impact <id>
   archik q stats
+  archik q sequences [--node <id>]
+  archik q usecases [--actor <id>]
+  archik q describe-usecase <id>
+  archik q actors
 
 FLAGS (any subcommand)
   --json             stable machine-readable shape on stdout

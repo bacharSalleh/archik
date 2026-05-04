@@ -240,4 +240,172 @@ describe("validateCommand cross-file existence", () => {
       expect(code).toBe(0);
     });
   });
+
+  describe("use cases + actors (Milestone 1)", () => {
+    const writeMain = async () =>
+      writeFile(path.join(cwd, ".archik/main.archik.yaml"), validBody());
+
+    const writeActors = async () => {
+      await writeFile(
+        path.join(cwd, ".archik/actors.archik.actors.yaml"),
+        [
+          'version: "1.0"',
+          "actors:",
+          "  - id: customer",
+          "    kind: human",
+          "    description: End-user buying products.",
+          "",
+        ].join("\n"),
+      );
+    };
+
+    it("passes when actors + use case + tests all line up", async () => {
+      await writeMain();
+      await writeActors();
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: Customer pays.",
+          "flows:",
+          "  basic:",
+          "    steps: [a, b]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy path.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toMatch(/1 use case/);
+      expect(out).toMatch(/1 actor/);
+    });
+
+    it("fails when a use case references an unknown actor", async () => {
+      await writeMain();
+      // No actors file at all → primaryActor "customer" is unknown.
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: x",
+          "flows:",
+          "  basic:",
+          "    steps: [a]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/unknown primaryActor/);
+    });
+
+    it("fails when a slice's test path doesn't exist on disk", async () => {
+      await writeMain();
+      await writeActors();
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: x",
+          "flows:",
+          "  basic:",
+          "    steps: [a]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy.",
+          "    flows: [basic]",
+          "    tests: [tests/missing.spec.ts]",
+          "",
+        ].join("\n"),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/does not exist on disk/);
+    });
+
+    it("fails on bidirectional realizes mismatch", async () => {
+      // Main file exposes an `agent` node so the seq file's
+      // participant.nodeId resolves; seq file says it realizes
+      // place-order/happy but the slice's realization.seqFile
+      // points at a different file.
+      await writeMain();
+      await writeActors();
+      // The seq file (must end in .archik.seq.yaml).
+      await writeFile(
+        path.join(cwd, ".archik/place-order.archik.seq.yaml"),
+        [
+          'version: "1.0"',
+          "name: Place order seq",
+          "realizes:",
+          "  useCase: place-order",
+          "  slice: happy",
+          "participants:",
+          "  - id: a",
+          "    nodeId: agent",
+          "steps: []",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: x",
+          "flows:",
+          "  basic:",
+          "    steps: [a]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "    realization:",
+          // Wrong target → bidirectional check fails.
+          "      seqFile: .archik/other.archik.seq.yaml",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      // Either side of the bidirectional check can fire — the
+      // realization.seqFile points at a missing file, so the
+      // realization-paths check trips before the seq-side check.
+      expect(err).toMatch(/other\.archik\.seq\.yaml|Pick one canonical/);
+    });
+  });
 });

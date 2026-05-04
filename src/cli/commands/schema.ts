@@ -256,6 +256,13 @@ function buildSeqSchema(): SeqSchemaSpec {
       { name: "version", required: true, type: 'literal "1.0"' },
       { name: "name", required: true, type: "string" },
       { name: "description", required: false, type: "string" },
+      {
+        name: "realizes",
+        required: false,
+        type: "Realizes",
+        notes:
+          "optional binding to a use-case slice — { useCase: <id>, slice: <id> }. When set, validate enforces bidirectional integrity with the .archik.uc.yaml file.",
+      },
       { name: "participants", required: true, type: "array of Participant" },
       { name: "steps", required: true, type: "array of Step (message | note | group)" },
     ],
@@ -303,8 +310,243 @@ function buildSeqSchema(): SeqSchemaSpec {
       "Self-calls (from === to) are valid — rendered as a looped arrow.",
       "ref group seqFile path must exist on disk.",
       "File naming: *.archik.seq.yaml — place under .archik/",
+      "If `realizes` is set, the named useCase + slice must exist, and that slice's realization.seqFile must point back at THIS file (bidirectional Jacobson-style use-case realization link).",
     ],
   };
+}
+
+type UseCaseSchemaSpec = {
+  useCaseDocument: FieldSpec[];
+  flows: FieldSpec[];
+  basicFlow: FieldSpec[];
+  alternateFlow: FieldSpec[];
+  slice: FieldSpec[];
+  realization: FieldSpec[];
+  constraints: string[];
+};
+
+function buildUseCaseSchema(): UseCaseSchemaSpec {
+  return {
+    useCaseDocument: [
+      { name: "version", required: true, type: 'literal "1.0"' },
+      {
+        name: "id",
+        required: true,
+        type: "string",
+        notes:
+          "kebab-case; the use case id. Seq files reference this via `realizes.useCase`.",
+      },
+      { name: "name", required: true, type: "string" },
+      { name: "description", required: false, type: "string" },
+      {
+        name: "status",
+        required: false,
+        type: "enum",
+        notes: "proposed | active | deprecated",
+      },
+      {
+        name: "primaryActor",
+        required: true,
+        type: "string",
+        notes: "actor id; must resolve in some *.archik.actors.yaml file",
+      },
+      {
+        name: "secondaryActors",
+        required: false,
+        type: "array of string",
+        notes: "actor ids; each must resolve",
+      },
+      {
+        name: "goal",
+        required: true,
+        type: "string",
+        notes: "one sentence: what value the actor walks away with",
+      },
+      { name: "preconditions", required: false, type: "array of string" },
+      { name: "postconditions", required: false, type: "array of string" },
+      { name: "flows", required: true, type: "Flows" },
+      { name: "slices", required: true, type: "array of Slice (≥1)" },
+    ],
+    flows: [
+      { name: "basic", required: true, type: "BasicFlow" },
+      {
+        name: "alternates",
+        required: false,
+        type: "array of AlternateFlow",
+        notes: "each branches off the basic (or another) flow at a step number",
+      },
+    ],
+    basicFlow: [
+      {
+        name: "steps",
+        required: true,
+        type: "array of string (≥1)",
+        notes: "imperative sentences from the actor's POV (\"Customer submits cart\")",
+      },
+    ],
+    alternateFlow: [
+      { name: "id", required: true, type: "string", notes: "kebab-case; can't be 'basic'" },
+      {
+        name: "branchFrom",
+        required: true,
+        type: "string",
+        notes: "<flowId>.<stepNumber> — e.g. basic.3 — must reference a real step",
+      },
+      { name: "steps", required: true, type: "array of string (≥1)" },
+    ],
+    slice: [
+      { name: "id", required: true, type: "string", notes: "kebab-case, unique within the use case" },
+      { name: "description", required: true, type: "string", notes: "one sentence on what the slice covers" },
+      {
+        name: "flows",
+        required: true,
+        type: "array of string (≥1)",
+        notes:
+          "must include 'basic'; alternate ids are appended for slices covering branches",
+      },
+      {
+        name: "tests",
+        required: false,
+        type: "array of string",
+        notes:
+          "test paths (relative to project root); REQUIRED for active slices; each must exist on disk",
+      },
+      {
+        name: "realization",
+        required: false,
+        type: "Realization",
+        notes:
+          "binds this slice to a sequence diagram (the Jacobson use-case realization)",
+      },
+      {
+        name: "status",
+        required: false,
+        type: "enum",
+        notes: "proposed | active | deprecated",
+      },
+    ],
+    realization: [
+      {
+        name: "seqFile",
+        required: true,
+        type: "string",
+        notes:
+          "relative path to a *.archik.seq.yaml file; must exist; the seq file's `realizes` block must point back at this slice",
+      },
+    ],
+    constraints: [
+      "File naming: *.archik.uc.yaml — one file per use case under .archik/usecases/",
+      "Every active slice MUST declare ≥1 test path; each test path MUST exist on disk.",
+      "primaryActor + secondaryActors MUST resolve in the actor index built from *.archik.actors.yaml.",
+      "Every slice MUST include the `basic` flow (alternates branch off basic; a slice without basic has no prefix).",
+      "alternate.branchFrom MUST reference a real <flowId>.<stepNumber> within the same use case.",
+      "Slice realization.seqFile (when set) MUST point at a discovered seq file; that seq file's `realizes` MUST point back here (bidirectional).",
+      "Use case ids are unique across all *.archik.uc.yaml files.",
+    ],
+  };
+}
+
+type ActorSchemaSpec = {
+  actorDocument: FieldSpec[];
+  actor: FieldSpec[];
+  actorKinds: string[];
+  constraints: string[];
+};
+
+function buildActorSchema(): ActorSchemaSpec {
+  return {
+    actorDocument: [
+      { name: "version", required: true, type: 'literal "1.0"' },
+      { name: "description", required: false, type: "string" },
+      { name: "actors", required: true, type: "array of Actor (≥1)" },
+    ],
+    actor: [
+      { name: "id", required: true, type: "string", notes: "kebab-case, unique across all actor files" },
+      { name: "kind", required: true, type: "enum", notes: "see ACTOR KINDS" },
+      { name: "description", required: true, type: "string", notes: "explain who/what the actor is" },
+      {
+        name: "goals",
+        required: false,
+        type: "array of string",
+        notes: "free-form goal labels; future milestone may bind to use case ids",
+      },
+      {
+        name: "status",
+        required: false,
+        type: "enum",
+        notes: "proposed | active | deprecated",
+      },
+    ],
+    actorKinds: ["human", "external-system", "time", "device"],
+    constraints: [
+      "File naming: *.archik.actors.yaml — anywhere under .archik/",
+      "Actor ids are unique across all *.archik.actors.yaml files in the project.",
+      "Use case primaryActor + secondaryActors MUST reference a defined actor id.",
+    ],
+  };
+}
+
+function formatUseCaseSchema(spec: UseCaseSchemaSpec): string {
+  const sections: string[] = [];
+  sections.push("USE CASE DOCUMENT  (*.archik.uc.yaml)");
+  for (const f of spec.useCaseDocument) sections.push(formatField(f));
+  sections.push("");
+  sections.push("FLOWS");
+  for (const f of spec.flows) sections.push(formatField(f));
+  sections.push("");
+  sections.push("BASIC FLOW");
+  for (const f of spec.basicFlow) sections.push(formatField(f));
+  sections.push("");
+  sections.push("ALTERNATE FLOW");
+  for (const f of spec.alternateFlow) sections.push(formatField(f));
+  sections.push("");
+  sections.push("SLICE");
+  for (const f of spec.slice) sections.push(formatField(f));
+  sections.push("");
+  sections.push("REALIZATION  (slice.realization)");
+  for (const f of spec.realization) sections.push(formatField(f));
+  sections.push("");
+  sections.push("CONSTRAINTS");
+  for (const c of spec.constraints) sections.push(`  • ${c}`);
+  sections.push("");
+  return sections.join("\n");
+}
+
+function formatActorSchema(spec: ActorSchemaSpec): string {
+  const sections: string[] = [];
+  sections.push("ACTOR DOCUMENT  (*.archik.actors.yaml)");
+  for (const f of spec.actorDocument) sections.push(formatField(f));
+  sections.push("");
+  sections.push("ACTOR");
+  for (const f of spec.actor) sections.push(formatField(f));
+  sections.push("");
+  sections.push("ACTOR KINDS");
+  sections.push("  " + spec.actorKinds.join(", "));
+  sections.push("");
+  sections.push("CONSTRAINTS");
+  for (const c of spec.constraints) sections.push(`  • ${c}`);
+  sections.push("");
+  return sections.join("\n");
+}
+
+function useCaseSchemaCommand(opts: ParsedOptions): number {
+  const spec = buildUseCaseSchema();
+  if (isJson(opts)) {
+    console.log(JSON.stringify(spec, null, 2));
+    return 0;
+  }
+  console.log(formatUseCaseSchema(spec));
+  return 0;
+}
+
+function actorSchemaCommand(opts: ParsedOptions): number {
+  const spec = buildActorSchema();
+  if (isJson(opts)) {
+    console.log(JSON.stringify(spec, null, 2));
+    return 0;
+  }
+  console.log(formatActorSchema(spec));
+  return 0;
 }
 
 function formatSeqSchema(spec: SeqSchemaSpec): string {
@@ -350,8 +592,12 @@ function seqSchemaCommand(opts: ParsedOptions): number {
 }
 
 export function schemaCommand(opts: ParsedOptions): number {
-  if (opts._[0] === "seq") {
-    return seqSchemaCommand(opts);
+  if (opts._[0] === "seq") return seqSchemaCommand(opts);
+  if (opts._[0] === "uc" || opts._[0] === "usecase") {
+    return useCaseSchemaCommand(opts);
+  }
+  if (opts._[0] === "actors" || opts._[0] === "actor") {
+    return actorSchemaCommand(opts);
   }
   const spec = buildSchema();
   if (isJson(opts)) {

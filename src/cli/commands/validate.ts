@@ -12,7 +12,19 @@ import {
 } from "../../domain/validate.ts";
 import { discoverDocs } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
-import { checkSeqNodeRefs } from "../../domain/seq-validate.ts";
+import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
+import { discoverActorDocs } from "../../io/actor-discovery.ts";
+import {
+  checkSeqNodeRefs,
+  checkSeqRealizesIntegrity,
+} from "../../domain/seq-validate.ts";
+import {
+  buildActorIndex,
+  buildUseCaseIndex,
+  checkUseCaseActorRefs,
+  checkUseCaseRealizationPaths,
+  checkUseCaseTestPaths,
+} from "../../domain/usecase-validate.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -161,12 +173,69 @@ export async function validateCommand(
     return 1;
   }
 
+  // Use cases + actors (Milestone 1 of Jacobson alignment).
+  // Discover both, build indexes, then run cross-file checks:
+  //   • duplicate use case ids / actor ids across files
+  //   • use case actor refs resolve in actor index
+  //   • slice test paths exist on disk
+  //   • slice realization.seqFile points at a discovered seq file
+  //   • seq `realizes` block is bidirectional with the use case slice
+  // Each check produces ValidationError[]; we accumulate and emit
+  // them with the same shape as the structural errors above.
+  const ucDiscovery = await discoverUseCaseDocs(root);
+  const actorDiscovery = await discoverActorDocs(root);
+  const ucActorErrors: ValidationError[] = [];
+  for (const e of ucDiscovery.errors) {
+    ucActorErrors.push({ path: e.relPath, message: e.message });
+  }
+  for (const e of actorDiscovery.errors) {
+    ucActorErrors.push({ path: e.relPath, message: e.message });
+  }
+  if (ucActorErrors.length === 0) {
+    const actorIndex = buildActorIndex(actorDiscovery.docs);
+    ucActorErrors.push(...actorIndex.errors);
+    const ucIndex = buildUseCaseIndex(ucDiscovery.docs);
+    ucActorErrors.push(...ucIndex.errors);
+    if (ucActorErrors.length === 0) {
+      ucActorErrors.push(
+        ...checkUseCaseActorRefs(ucDiscovery.docs, actorIndex.index),
+      );
+      ucActorErrors.push(
+        ...checkUseCaseTestPaths(ucDiscovery.docs, fileExists),
+      );
+      ucActorErrors.push(
+        ...checkUseCaseRealizationPaths(
+          ucDiscovery.docs,
+          seqDiscovery.docs,
+        ),
+      );
+      ucActorErrors.push(
+        ...checkSeqRealizesIntegrity(seqDiscovery.docs, ucDiscovery.docs),
+      );
+    }
+  }
+  if (ucActorErrors.length > 0) {
+    if (json) emitJson({ ok: false, file, errors: ucActorErrors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(ucActorErrors));
+    }
+    return 1;
+  }
+
+  const totalActors = actorDiscovery.docs.reduce(
+    (acc, d) => acc + d.doc.actors.length,
+    0,
+  );
+  const totalUseCases = ucDiscovery.docs.length;
   if (json) {
     emitJson({
       ok: true,
       file,
       nodes: validated.value.nodes.length,
       edges: validated.value.edges.length,
+      useCases: totalUseCases,
+      actors: totalActors,
     });
   } else {
     const totalNodes = discovery.docs.reduce(
@@ -179,8 +248,10 @@ export async function validateCommand(
     );
     const fileCount = discovery.docs.length;
     const suffix = fileCount > 1 ? ` (${fileCount} files)` : "";
+    const uc = totalUseCases > 0 ? `, ${totalUseCases} use case${totalUseCases === 1 ? "" : "s"}` : "";
+    const actors = totalActors > 0 ? `, ${totalActors} actor${totalActors === 1 ? "" : "s"}` : "";
     console.log(
-      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges`,
+      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges${uc}${actors}`,
     );
   }
   return 0;

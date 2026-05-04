@@ -1,5 +1,7 @@
 import { SeqDocumentSchema } from "./seq-schema.ts";
 import type { SeqDocument, SeqStep } from "./seq-schema.ts";
+import type { LoadedSeqDoc } from "../io/seq-discovery.ts";
+import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
 import type { ValidateResult, ValidationError } from "./validate.ts";
 
 export function validateSeqDocument(input: unknown): ValidateResult<SeqDocument> {
@@ -82,4 +84,84 @@ export function checkSeqFilePaths(
       path: "seqFiles",
       message: `seqFile "${p}" does not exist on disk (resolved relative to the project root)`,
     }));
+}
+
+/**
+ * Bidirectional `realizes` integrity. Two checks per seq file with a
+ * `realizes` block:
+ *
+ *   1. The referenced use case + slice must exist in the use case
+ *      index. Otherwise the realization claim is dangling.
+ *
+ *   2. The named slice's `realization.seqFile` (if any) must point
+ *      back at THIS seq file. Otherwise the seq is claiming to
+ *      realize a slice the slice doesn't claim back — silent drift,
+ *      exactly the failure mode the Jacobson traceability rule is
+ *      meant to prevent.
+ *
+ * Both directions of the check matter: a seq saying "I realize X"
+ * with no use case to back it is a dangling reference; a seq saying
+ * "I realize X" while X claims a different seq realizes it is the
+ * more confusing failure (the diagram looks correct on each side but
+ * the link between them is wrong).
+ */
+export function checkSeqRealizesIntegrity(
+  seqDocs: LoadedSeqDoc[],
+  ucDocs: LoadedUseCaseDoc[],
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const ucIndex = new Map(ucDocs.map((d) => [d.doc.id, d]));
+
+  for (const seq of seqDocs) {
+    if (seq.doc.realizes === undefined) continue;
+    const { useCase: ucId, slice: sliceId } = seq.doc.realizes;
+    const uc = ucIndex.get(ucId);
+    if (uc === undefined) {
+      errors.push({
+        path: `${seq.relPath}:realizes.useCase`,
+        message:
+          `seq diagram "${seq.doc.name}" claims to realize use case ` +
+          `"${ucId}" but no such use case file was found.`,
+      });
+      continue;
+    }
+    const slice = uc.doc.slices.find((s) => s.id === sliceId);
+    if (slice === undefined) {
+      errors.push({
+        path: `${seq.relPath}:realizes.slice`,
+        message:
+          `seq diagram "${seq.doc.name}" claims to realize slice ` +
+          `"${sliceId}" of use case "${ucId}", but that use case has ` +
+          `no slice with that id. Available slices: ${uc.doc.slices
+            .map((s) => s.id)
+            .join(", ")}.`,
+      });
+      continue;
+    }
+    // The slice exists. Now: does it point back?
+    if (slice.realization === undefined) {
+      errors.push({
+        path: `${seq.relPath}:realizes.slice`,
+        message:
+          `seq diagram "${seq.doc.name}" realizes slice "${sliceId}" of ` +
+          `"${ucId}", but the slice does not declare ` +
+          `\`realization.seqFile\`. Add ` +
+          `\`realization: { seqFile: "${seq.relPath}" }\` to slice ` +
+          `"${sliceId}" in ${uc.relPath}.`,
+      });
+      continue;
+    }
+    if (slice.realization.seqFile !== seq.relPath) {
+      errors.push({
+        path: `${seq.relPath}:realizes.slice`,
+        message:
+          `seq diagram "${seq.doc.name}" realizes slice "${sliceId}" of ` +
+          `"${ucId}", but that slice's realization.seqFile points at ` +
+          `"${slice.realization.seqFile}", not at this file ("${seq.relPath}"). ` +
+          `Pick one canonical seq file and update both sides.`,
+      });
+    }
+  }
+
+  return errors;
 }

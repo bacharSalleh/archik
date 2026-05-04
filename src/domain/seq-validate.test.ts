@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  checkSeqNodeRefs,
   checkSeqFilePaths,
+  checkSeqNodeRefs,
+  checkSeqRealizesIntegrity,
   validateSeqDocument,
 } from "./seq-validate.ts";
 import type { SeqDocument } from "./seq-schema.ts";
+import type { LoadedSeqDoc } from "../io/seq-discovery.ts";
+import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
 
 const knownNodeIds = new Set(["frontend", "api-gateway", "auth-service"]);
 
@@ -101,5 +104,116 @@ describe("checkSeqFilePaths", () => {
     );
     expect(errors).toHaveLength(1);
     expect(errors[0]!.message).toContain("missing.archik.seq.yaml");
+  });
+});
+
+describe("checkSeqRealizesIntegrity", () => {
+  const seqWith = (
+    relPath: string,
+    realizes?: { useCase: string; slice: string },
+  ): LoadedSeqDoc => ({
+    abs: `/abs/${relPath}`,
+    relPath,
+    doc: {
+      version: "1.0",
+      name: "Flow",
+      ...(realizes ? { realizes } : {}),
+      participants: [{ id: "p", nodeId: "n" }],
+      steps: [],
+    },
+  });
+
+  const ucWith = (
+    relPath: string,
+    id: string,
+    slices: Array<{ id: string; realization?: { seqFile: string } }>,
+  ): LoadedUseCaseDoc => ({
+    abs: `/abs/${relPath}`,
+    relPath,
+    doc: {
+      version: "1.0",
+      id,
+      name: "UC",
+      primaryActor: "actor",
+      goal: "goal",
+      flows: { basic: { steps: ["a"] } },
+      slices: slices.map((s) => ({
+        id: s.id,
+        description: "x",
+        flows: ["basic"],
+        tests: ["t.spec.ts"],
+        ...(s.realization ? { realization: s.realization } : {}),
+      })),
+    },
+  });
+
+  it("ignores seq files without a realizes block", () => {
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(".archik/x.archik.seq.yaml")],
+      [ucWith(".archik/usecases/x.archik.uc.yaml", "x", [{ id: "happy" }])],
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it("passes when both sides agree", () => {
+    const seqRel = ".archik/place-order.archik.seq.yaml";
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(seqRel, { useCase: "place-order", slice: "happy" })],
+      [ucWith(".archik/usecases/place-order.archik.uc.yaml", "place-order", [
+        { id: "happy", realization: { seqFile: seqRel } },
+      ])],
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it("reports unknown use case", () => {
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(".archik/x.archik.seq.yaml", { useCase: "ghost", slice: "a" })],
+      [],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/no such use case file was found/);
+  });
+
+  it("reports unknown slice within a known use case", () => {
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(".archik/x.archik.seq.yaml", {
+        useCase: "place-order",
+        slice: "ghost",
+      })],
+      [ucWith(".archik/usecases/place-order.archik.uc.yaml", "place-order", [
+        { id: "happy" },
+      ])],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/no slice with that id/);
+  });
+
+  it("reports a slice that doesn't declare realization.seqFile", () => {
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(".archik/x.archik.seq.yaml", {
+        useCase: "place-order",
+        slice: "happy",
+      })],
+      [ucWith(".archik/usecases/place-order.archik.uc.yaml", "place-order", [
+        { id: "happy" },
+      ])],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/does not declare/);
+  });
+
+  it("reports a mismatched seqFile pointer (one-way claim)", () => {
+    const errors = checkSeqRealizesIntegrity(
+      [seqWith(".archik/A.archik.seq.yaml", {
+        useCase: "place-order",
+        slice: "happy",
+      })],
+      [ucWith(".archik/usecases/place-order.archik.uc.yaml", "place-order", [
+        { id: "happy", realization: { seqFile: ".archik/B.archik.seq.yaml" } },
+      ])],
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toMatch(/Pick one canonical seq file/);
   });
 });
