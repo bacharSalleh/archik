@@ -18,6 +18,7 @@ import { diffCommand } from "./commands/diff.ts";
 import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
 import { traceCommand } from "./commands/trace.ts";
+import { alphaCommand } from "./commands/alpha.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -94,6 +95,12 @@ COMMANDS
                     --coverage <l>   filter rows by coverage (full/partial/none)
                     --fail-on <l>    exit 1 if any row meets that level (partial or none)
                     --json           structured output for agents
+  alpha <sub>       Essence alpha state tracker (Stakeholders, Requirements,
+                                     Software System, Work)
+                    show             render claimed states + verification badges
+                    promote <a> <s>  walk UP the ladder; runs machine check
+                                     --note '<text>'  attach a note
+                    demote <a> <s>   walk DOWN the ladder (no check)
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -161,6 +168,8 @@ async function main(): Promise<number> {
       return driftCommand(opts);
     case "trace":
       return traceCommand(opts);
+    case "alpha":
+      return alphaCommand(opts);
     case "--version":
     case "-v":
     case "version":

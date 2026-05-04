@@ -1,0 +1,36 @@
+version: "1.0"
+description: |
+  Archik's own Essence alpha snapshot. Tracked across the four alphas
+  M4 surfaces (stakeholders, requirements, softwareSystem, work). Each
+  state is verifiable against the artifacts in this repo via
+  `archik alpha show`.
+
+alphas:
+  stakeholders:
+    state: represented
+    note: "Two actors modelled: developer (human) and claude (external-system)."
+    evidence:
+      - "developer (human) actor in .archik/actors.archik.actors.yaml"
+      - "claude (external-system) actor in .archik/actors.archik.actors.yaml"
+
+  requirements:
+    state: acceptable
+    note: "All active slices test-backed; pending: realisation seq for the rejected slice."
+    evidence:
+      - "1 use case: suggest-accept"
+      - "2 slices, both with on-disk tests in src/cli/commands/suggest.test.ts"
+      - "addressed requires every active slice to declare realization.seqFile; the rejected slice does not yet"
+
+  softwareSystem:
+    state: usable
+    note: "validate + drift clean; trace matrix shows partial slices, so not yet 'ready'."
+    evidence:
+      - "Every active code-bearing node has sourcePath that resolves on disk"
+      - "Trace matrix has 2 partial slices (insufficient for 'ready')"
+
+  work:
+    state: under-control
+    note: "validate + tests pass; CI would fail on schema drift before merge."
+    evidence:
+      - "npm test green"
+      - "archik validate green"
