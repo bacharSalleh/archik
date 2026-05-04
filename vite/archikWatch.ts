@@ -7,6 +7,8 @@ import {
 } from "../src/cli/resolveDocPath.ts";
 import {
   handleAccept,
+  handleActors,
+  handleAlphas,
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
@@ -14,6 +16,8 @@ import {
   handleNodeKinds,
   handleSeqFile,
   handleSidecar,
+  handleTrace,
+  handleUseCases,
   handleYaml,
 } from "../src/server/handlers.ts";
 
@@ -29,6 +33,11 @@ const SEQ_FILE_URL = `/__archik/seq-file`;
 const NODE_KINDS_URL = `/__archik/node-kinds`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
+// Read-only JSON endpoints surfacing M1-M4 artifacts to the canvas.
+const USECASES_URL = `/__archik/usecases`;
+const ACTORS_URL = `/__archik/actors`;
+const ALPHAS_URL = `/__archik/alphas`;
+const TRACE_URL = `/__archik/trace`;
 const DOC_EVENT = "archik:doc-changed";
 const SUGGESTION_EVENT = "archik:suggestion-changed";
 
@@ -97,6 +106,26 @@ export function archikWatch(): Plugin {
 
       server.middlewares.use(NODE_KINDS_URL, (_req, res) => {
         void handleNodeKinds(root, docPath, res);
+      });
+
+      server.middlewares.use(USECASES_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleUseCases(root, req, res);
+      });
+
+      server.middlewares.use(ACTORS_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleActors(root, req, res);
+      });
+
+      server.middlewares.use(ALPHAS_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleAlphas(root, docPath, req, res);
+      });
+
+      server.middlewares.use(TRACE_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleTrace(root, docPath, req, res);
       });
 
       // Watch the main file, its sidecar, and the project's .archik/
