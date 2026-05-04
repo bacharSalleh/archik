@@ -2,11 +2,13 @@ import { GitBranch, LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
+import { AlphasPanel } from "./AlphasPanel.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
 import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
+import { UseCasesPanel } from "./UseCasesPanel.tsx";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -232,6 +234,8 @@ export function Toolbar({
             <GitBranch size={14} strokeWidth={1.8} />
           </button>
         )}
+        <UseCasesPanel />
+        <AlphasPanel />
         <Legend />
         <ExportMenu
           document={document}
