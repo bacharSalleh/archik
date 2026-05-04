@@ -101,6 +101,9 @@ type Props = {
   onCrossFileNavigate?: (archikFile: string, label: string) => void;
   /** When set, layer per-status diff frames + edge tints over the diagram. */
   diffStatuses?: StatusMap;
+  /** When true, stamps `data-archik-robustness-mode="true"` on the
+   *  outer <svg> so CSS can dim non-stereotyped nodes. */
+  robustnessMode?: boolean;
 };
 
 type InnerProps = {
@@ -230,6 +233,7 @@ export function DiagramSvg({
   onOpenSubFile,
   onCrossFileNavigate,
   diffStatuses,
+  robustnessMode,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
   const h = Math.max(positioned.height, 1);
@@ -252,6 +256,7 @@ export function DiagramSvg({
       preserveAspectRatio="xMidYMid meet"
       style={{ display: "block", flexShrink: 0 }}
       onClick={onSelectNothing}
+      {...(robustnessMode ? { "data-archik-robustness-mode": "true" } : {})}
     >
       {diffStatuses && (
         <RemovedNodeDimmer statuses={diffStatuses} scopeClass="archik-diff-base" />

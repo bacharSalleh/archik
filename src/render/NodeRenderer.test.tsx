@@ -194,4 +194,33 @@ describe("NodeRenderer", () => {
         ?.hasAttribute("data-archik-status"),
     ).toBe(false);
   });
+
+  describe("ECB stereotype", () => {
+    it.each(["boundary", "control", "entity"] as const)(
+      "stamps data-archik-stereotype=%s and renders the colour band",
+      (s) => {
+        const { container } = render(
+          <svg>
+            <NodeRenderer node={make({ id: "n", stereotype: s })} />
+          </svg>,
+        );
+        const wrap = container.querySelector("[data-archik-node-id='n']");
+        expect(wrap?.getAttribute("data-archik-stereotype")).toBe(s);
+        expect(
+          wrap?.querySelector(".archik-stereotype-band"),
+        ).not.toBeNull();
+      },
+    );
+
+    it("omits both attribute and band when stereotype is unset", () => {
+      const { container } = render(
+        <svg>
+          <NodeRenderer node={make({ id: "n" })} />
+        </svg>,
+      );
+      const wrap = container.querySelector("[data-archik-node-id='n']");
+      expect(wrap?.hasAttribute("data-archik-stereotype")).toBe(false);
+      expect(wrap?.querySelector(".archik-stereotype-band")).toBeNull();
+    });
+  });
 });
