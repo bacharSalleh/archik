@@ -90,6 +90,76 @@ describe("schemaCommand", () => {
     expect(parsed.groupKinds).toContain("alt");
   });
 
+  it("schema uc prints use case schema in human format", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    const exit = schemaCommand({ _: ["uc"] });
+    expect(exit).toBe(0);
+    const joined = output.join("\n");
+    expect(joined).toContain("USE CASE DOCUMENT");
+    expect(joined).toContain("primaryActor");
+    expect(joined).toContain("flows");
+    expect(joined).toContain("SLICE");
+    expect(joined).toContain("REALIZATION");
+  });
+
+  it("schema usecase (alias) returns same schema", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: ["usecase"], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    expect(parsed.useCaseDocument).toBeDefined();
+    expect(parsed.slice).toBeDefined();
+  });
+
+  it("schema actors prints actor schema in human format", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    const exit = schemaCommand({ _: ["actors"] });
+    expect(exit).toBe(0);
+    const joined = output.join("\n");
+    expect(joined).toContain("ACTOR DOCUMENT");
+    expect(joined).toContain("ACTOR KINDS");
+    expect(joined).toContain("human");
+    expect(joined).toContain("external-system");
+  });
+
+  it("schema actors --json returns structured actor schema", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: ["actors"], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    expect(parsed.actor).toBeDefined();
+    expect(parsed.actorKinds).toContain("human");
+    expect(parsed.actorKinds).toContain("external-system");
+  });
+
+  it("node schema includes the optional stereotype field", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: [], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    const stereotypeField = parsed.node.find(
+      (f: { name: string }) => f.name === "stereotype",
+    );
+    expect(stereotypeField).toBeDefined();
+    expect(stereotypeField.required).toBe(false);
+    expect(stereotypeField.type).toBe("enum");
+    expect(stereotypeField.notes).toMatch(/boundary \| control \| entity/);
+  });
+
+  it("schema seq output includes the optional realizes binding", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: ["seq"], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    const realizesField = parsed.seqDocument.find(
+      (f: { name: string }) => f.name === "realizes",
+    );
+    expect(realizesField).toBeDefined();
+    expect(realizesField.required).toBe(false);
+  });
+
   it("json mode: emits a parseable object on stdout", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     try {

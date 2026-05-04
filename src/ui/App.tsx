@@ -164,6 +164,10 @@ export function App(): React.ReactElement {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [seqHighlight, setSeqHighlight] = useState(false);
+  // M5c — robustness view toggle. The colour bands stay painted whether
+  // or not the toggle is on; flipping it sets data-archik-robustness-mode
+  // on the SVG so non-stereotyped nodes fade.
+  const [robustnessMode, setRobustnessMode] = useState(false);
   // Pending Claude-authored suggestion sidecar. Banner shows when
   // present; user picks Review (opens server-rendered diff in a new
   // tab), Accept (POST → main becomes sidecar), or Reject (DELETE).
@@ -207,6 +211,16 @@ export function App(): React.ReactElement {
       state.status === "ready"
         ? new Set(state.document.nodes.filter((n) => (n.seqFiles?.length ?? 0) > 0).map((n) => n.id))
         : new Set<string>(),
+    [state],
+  );
+  // Count stereotyped nodes so the toolbar can hide the robustness
+  // toggle when the project hasn't tagged anything yet — mirrors the
+  // seq-highlight button's visibility rule.
+  const stereotypedCount = useMemo(
+    () =>
+      state.status === "ready"
+        ? state.document.nodes.filter((n) => n.stereotype !== undefined).length
+        : 0,
     [state],
   );
   const loadedOnceRef = useRef(false);
@@ -959,6 +973,9 @@ export function App(): React.ReactElement {
         seqHighlight={seqHighlight}
         onToggleSeqHighlight={() => setSeqHighlight((h) => !h)}
         seqNodeCount={seqNodeIds.size}
+        robustnessMode={robustnessMode}
+        onToggleRobustness={() => setRobustnessMode((r) => !r)}
+        stereotypedCount={stereotypedCount}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {
@@ -1119,6 +1136,7 @@ export function App(): React.ReactElement {
               svgRef={canvasSvgRef}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
               {...(seqHighlight && seqNodeIds.size > 0 ? { glowNodeIds: seqNodeIds } : {})}
+              {...(robustnessMode ? { robustnessMode: true } : {})}
             />
           </div>
         </div>

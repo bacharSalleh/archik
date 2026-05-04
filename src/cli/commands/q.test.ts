@@ -551,6 +551,200 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q usecases", () => {
+    const writeUC = async (
+      filename: string,
+      ucId: string,
+      primary = "customer",
+      secondary?: string[],
+    ) => {
+      const lines = [
+        'version: "1.0"',
+        `id: ${ucId}`,
+        `name: ${ucId}`,
+        `primaryActor: ${primary}`,
+        "goal: x",
+        "flows:",
+        "  basic:",
+        "    steps: [a]",
+        "slices:",
+        "  - id: happy",
+        "    description: Happy.",
+        "    flows: [basic]",
+        "    tests: [tests/happy.spec.ts]",
+      ];
+      if (secondary) {
+        lines.splice(4, 0, `secondaryActors: [${secondary.join(", ")}]`);
+      }
+      lines.push("");
+      await writeFile(filename, lines.join("\n"));
+    };
+
+    beforeEach(async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), minimalDoc());
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+    });
+
+    it("emits stable JSON for q usecases", async () => {
+      await writeUC(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        "place-order",
+      );
+      const code = await qCommand({ _: ["usecases"], json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.count).toBe(1);
+      expect(parsed.useCases[0].id).toBe("place-order");
+      expect(parsed.useCases[0].slices[0].id).toBe("happy");
+    });
+
+    it("filters by --actor (primary)", async () => {
+      await writeUC(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        "place-order",
+        "customer",
+      );
+      await writeUC(
+        path.join(cwd, ".archik/usecases/admin-only.archik.uc.yaml"),
+        "admin-only",
+        "admin",
+      );
+      const code = await qCommand({
+        _: ["usecases"],
+        actor: "customer",
+        json: "true",
+      });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.count).toBe(1);
+      expect(parsed.useCases[0].id).toBe("place-order");
+    });
+
+    it("filters by --actor (secondary)", async () => {
+      await writeUC(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        "place-order",
+        "customer",
+        ["stripe"],
+      );
+      const code = await qCommand({
+        _: ["usecases"],
+        actor: "stripe",
+        json: "true",
+      });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.count).toBe(1);
+    });
+
+    it("returns 1 when no use cases exist", async () => {
+      const code = await qCommand({ _: ["usecases"] });
+      expect(code).toBe(1);
+    });
+  });
+
+  describe("q describe-usecase", () => {
+    beforeEach(async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), minimalDoc());
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "secondaryActors: [stripe]",
+          "goal: Customer pays.",
+          "preconditions:",
+          "  - Cart is non-empty",
+          "flows:",
+          "  basic:",
+          "    steps: [Submit, Charge, Confirm]",
+          "  alternates:",
+          "    - id: declined",
+          "      branchFrom: basic.2",
+          "      steps: [Show error]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy path",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "  - id: failed",
+          "    description: Payment fails",
+          "    flows: [basic, declined]",
+          "    tests: [tests/failed.spec.ts]",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    it("emits the full doc as JSON", async () => {
+      const code = await qCommand({
+        _: ["describe-usecase", "place-order"],
+        json: "true",
+      });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.useCase.id).toBe("place-order");
+      expect(parsed.useCase.flows.alternates).toHaveLength(1);
+      expect(parsed.useCase.slices).toHaveLength(2);
+    });
+
+    it("returns 1 for unknown id", async () => {
+      const code = await qCommand({
+        _: ["describe-usecase", "ghost"],
+        json: "true",
+      });
+      expect(code).toBe(1);
+    });
+
+    it("returns 2 with no id arg", async () => {
+      const code = await qCommand({ _: ["describe-usecase"] });
+      expect(code).toBe(2);
+    });
+  });
+
+  describe("q actors", () => {
+    beforeEach(async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), minimalDoc());
+    });
+
+    it("emits actors as JSON", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/people.archik.actors.yaml"),
+        [
+          'version: "1.0"',
+          "actors:",
+          "  - id: customer",
+          "    kind: human",
+          "    description: End-user.",
+          "  - id: admin",
+          "    kind: human",
+          "    description: Operator.",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["actors"], json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.count).toBe(2);
+      expect(parsed.actors[0].actor.id).toBe("customer");
+    });
+
+    it("returns 1 when no actors exist", async () => {
+      const code = await qCommand({ _: ["actors"] });
+      expect(code).toBe(1);
+    });
+  });
+
   describe("root file failures are fatal", () => {
     it("returns exit 2 when the root file fails to parse, even if sub-files are fine", async () => {
       await writeFile(
@@ -567,6 +761,39 @@ describe("qCommand", () => {
 
     it("returns exit 2 when no root file exists at all", async () => {
       const code = await qCommand({ _: ["stats"], json: "true" });
+      expect(code).toBe(2);
+    });
+
+    it("q usecases returns exit 2 when root fails to parse (M6 fix A8)", async () => {
+      // Without the fix, q usecases / actors / describe-usecase would
+      // silently return "no use cases" with exit 1 even when the root
+      // file is corrupt. They now gate on loadAll like the rest of `q`.
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({ _: ["usecases"], json: "true" });
+      expect(code).toBe(2);
+    });
+
+    it("q actors also returns exit 2 on corrupt root (M6 fix A8)", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({ _: ["actors"], json: "true" });
+      expect(code).toBe(2);
+    });
+
+    it("q describe-usecase also returns exit 2 on corrupt root (M6 fix A8)", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        "::: not yaml :::",
+      );
+      const code = await qCommand({
+        _: ["describe-usecase", "place-order"],
+        json: "true",
+      });
       expect(code).toBe(2);
     });
   });

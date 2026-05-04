@@ -149,10 +149,26 @@ export function NodeRenderer({
       {...(node.status !== undefined && node.status !== "active"
         ? { "data-archik-status": node.status }
         : {})}
+      {...(node.stereotype !== undefined
+        ? { "data-archik-stereotype": node.stereotype }
+        : {})}
       transform={`translate(${node.x}, ${node.y})`}
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
+      {node.stereotype !== undefined && (
+        // Thin ECB accent rect at the top of the node. The colour is
+        // applied by CSS via the parent's data-archik-stereotype attr,
+        // so the same component covers all three stereotypes.
+        <rect
+          className="archik-stereotype-band"
+          x={0}
+          y={0}
+          width={node.width}
+          height={3}
+          rx={1.5}
+        />
+      )}
       {isGlowed && (
         <rect
           x={-4}

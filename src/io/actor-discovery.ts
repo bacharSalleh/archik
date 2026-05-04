@@ -1,19 +1,25 @@
+/**
+ * Walk a project for actor files (`*.archik.actors.yaml`). Recursive
+ * under `.archik/`; depth-bounded. Most projects will keep one file
+ * (e.g. `.archik/actors.archik.actors.yaml`) but multiple are allowed
+ * — the validator merges actor ids across files and rejects duplicates.
+ */
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
-import { SeqDocumentSchema } from "../domain/seq-schema.ts";
-import type { SeqDocument } from "../domain/seq-schema.ts";
+import { ActorDocumentSchema } from "../domain/actor-schema.ts";
+import type { ActorDocument } from "../domain/actor-schema.ts";
 
 const MAX_DEPTH = 6;
 
-export type LoadedSeqDoc = {
+export type LoadedActorDoc = {
   abs: string;
   relPath: string;
-  doc: SeqDocument;
+  doc: ActorDocument;
 };
 
-export type SeqDiscoveryResult = {
-  docs: LoadedSeqDoc[];
+export type ActorDiscoveryResult = {
+  docs: LoadedActorDoc[];
   errors: Array<{ abs: string; relPath: string; message: string }>;
 };
 
@@ -24,19 +30,15 @@ function relFromRoot(projectBase: string, abs: string): string {
   );
 }
 
-/**
- * Recursive walk over `.archik/` for `*.archik.seq.yaml`. Mirrors
- * `discoverDocs` / `discoverUseCaseDocs` so a project organising
- * seq files under e.g. `.archik/seqs/billing-checkout.archik.seq.yaml`
- * still has them picked up by the validator + the canvas. Bounded by
- * MAX_DEPTH the same way as the other walkers so a pathological
- * symlink tree can't trap us.
- */
-export async function discoverSeqDocs(
+function isActorFile(name: string): boolean {
+  return name.endsWith(".archik.actors.yaml");
+}
+
+export async function discoverActorDocs(
   projectBase: string,
-): Promise<SeqDiscoveryResult> {
-  const docs: LoadedSeqDoc[] = [];
-  const errors: SeqDiscoveryResult["errors"] = [];
+): Promise<ActorDiscoveryResult> {
+  const docs: LoadedActorDoc[] = [];
+  const errors: ActorDiscoveryResult["errors"] = [];
 
   const tryLoad = async (abs: string): Promise<void> => {
     const relPath = relFromRoot(projectBase, abs);
@@ -51,25 +53,27 @@ export async function discoverSeqDocs(
       });
       return;
     }
+    let raw: unknown;
     try {
-      const raw = YAML.parse(text);
-      const result = SeqDocumentSchema.safeParse(raw);
-      if (!result.success) {
-        errors.push({
-          abs,
-          relPath,
-          message: result.error.issues.map((i) => i.message).join("; "),
-        });
-        return;
-      }
-      docs.push({ abs, relPath, doc: result.data });
+      raw = YAML.parse(text);
     } catch (err) {
       errors.push({
         abs,
         relPath,
         message: err instanceof Error ? err.message : String(err),
       });
+      return;
     }
+    const result = ActorDocumentSchema.safeParse(raw);
+    if (!result.success) {
+      errors.push({
+        abs,
+        relPath,
+        message: result.error.issues.map((i) => i.message).join("; "),
+      });
+      return;
+    }
+    docs.push({ abs, relPath, doc: result.data });
   };
 
   const walk = async (dir: string, depth: number): Promise<void> => {
@@ -86,7 +90,7 @@ export async function discoverSeqDocs(
         await walk(full, depth + 1);
         continue;
       }
-      if (e.isFile() && e.name.endsWith(".archik.seq.yaml")) {
+      if (e.isFile() && isActorFile(e.name)) {
         await tryLoad(full);
       }
     }

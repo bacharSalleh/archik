@@ -6,6 +6,8 @@
  */
 import { discoverDocs, type LoadedDoc } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
+import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
+import { discoverActorDocs } from "../../io/actor-discovery.ts";
 import {
   deps,
   dependents,
@@ -107,6 +109,10 @@ SUBCOMMANDS
   stats                    Counts: files, nodes, edges, kinds, relationships
   sequences                All sequence diagram files (.archik.seq.yaml)
                   --node <id>    filter to flows involving that architecture node id
+  usecases                 All use case files (.archik.uc.yaml)
+                  --actor <id>   filter to use cases involving that actor
+  describe-usecase <id>    Use case detail: actors, flows, slices, realizations
+  actors                   All actors (across .archik.actors.yaml files)
 
 OUTPUT
   Default: human-readable text.
@@ -185,6 +191,7 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
     console.log(`  ${bold("status")}: ${badge}`);
   }
   if (n.stack) console.log(`  ${bold("stack")}: ${n.stack}`);
+  if (n.stereotype) console.log(`  ${bold("stereotype")}: ${n.stereotype}`);
   if (n.description) console.log(`  ${bold("description")}: ${n.description}`);
   if (n.sourcePath) console.log(`  ${bold("sourcePath")}: ${n.sourcePath}`);
   if (n.parentId) console.log(`  ${bold("parentId")}: ${n.parentId}`);
@@ -481,6 +488,174 @@ async function sequencesCommand(
   return 0;
 }
 
+async function useCasesCommand(
+  opts: ParsedOptions,
+  base: string,
+): Promise<number> {
+  const json = isJson(opts);
+  const actorFilter = getString(opts, "actor");
+  const { docs, errors } = await discoverUseCaseDocs(base);
+
+  for (const e of errors) {
+    if (!json) console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
+  }
+
+  const filtered = actorFilter
+    ? docs.filter(
+      (d) =>
+        d.doc.primaryActor === actorFilter ||
+        (d.doc.secondaryActors?.includes(actorFilter) ?? false),
+    )
+    : docs;
+
+  if (json) {
+    printJson({
+      ok: true,
+      count: filtered.length,
+      useCases: filtered.map((d) => ({
+        relPath: d.relPath,
+        id: d.doc.id,
+        name: d.doc.name,
+        status: d.doc.status,
+        primaryActor: d.doc.primaryActor,
+        secondaryActors: d.doc.secondaryActors,
+        slices: d.doc.slices.map((s) => ({
+          id: s.id,
+          description: s.description,
+          status: s.status,
+          flows: s.flows,
+          tests: s.tests,
+          realization: s.realization,
+        })),
+      })),
+    });
+    return filtered.length === 0 ? 1 : 0;
+  }
+
+  if (filtered.length === 0) {
+    console.log("No use cases found.");
+    if (actorFilter) console.log(`(filtered by --actor ${actorFilter})`);
+    return 1;
+  }
+
+  for (const d of filtered) {
+    const status = fmtStatusBadge(d.doc.status);
+    console.log(`${bold(d.doc.id)}  ${d.doc.name}${status}  ${gray(d.relPath)}`);
+    console.log(`  ${dim("primary:")} ${d.doc.primaryActor}`);
+    if (d.doc.secondaryActors && d.doc.secondaryActors.length > 0) {
+      console.log(`  ${dim("secondary:")} ${d.doc.secondaryActors.join(", ")}`);
+    }
+    console.log(`  ${dim("slices:")} ${d.doc.slices.map((s) => s.id).join(", ")}`);
+  }
+  return 0;
+}
+
+async function describeUseCaseCommand(
+  opts: ParsedOptions,
+  base: string,
+): Promise<number> {
+  const id = opts._[1];
+  if (!id) {
+    console.error(`${cross()} usage: archik q describe-usecase <id>`);
+    return 2;
+  }
+  const json = isJson(opts);
+  const { docs } = await discoverUseCaseDocs(base);
+  const found = docs.find((d) => d.doc.id === id);
+  if (found === undefined) {
+    if (json) printJson({ ok: false, error: `use case "${id}" not found` });
+    else console.error(`${cross()} use case "${id}" not found`);
+    return 1;
+  }
+  if (json) {
+    printJson({
+      ok: true,
+      file: found.relPath,
+      useCase: found.doc,
+    });
+    return 0;
+  }
+  const uc = found.doc;
+  console.log(`${bold(uc.id)}  ${uc.name}${fmtStatusBadge(uc.status)}  ${gray(found.relPath)}`);
+  console.log(`  ${bold("goal")}: ${uc.goal}`);
+  console.log(`  ${bold("primaryActor")}: ${uc.primaryActor}`);
+  if (uc.secondaryActors && uc.secondaryActors.length > 0) {
+    console.log(`  ${bold("secondaryActors")}: ${uc.secondaryActors.join(", ")}`);
+  }
+  if (uc.preconditions && uc.preconditions.length > 0) {
+    console.log(`  ${bold("preconditions")}:`);
+    for (const p of uc.preconditions) console.log(`    - ${p}`);
+  }
+  if (uc.postconditions && uc.postconditions.length > 0) {
+    console.log(`  ${bold("postconditions")}:`);
+    for (const p of uc.postconditions) console.log(`    - ${p}`);
+  }
+  console.log(`  ${bold("flows")}:`);
+  console.log(`    ${cyan("basic")}:`);
+  uc.flows.basic.steps.forEach((s, i) => {
+    console.log(`      ${i + 1}. ${s}`);
+  });
+  if (uc.flows.alternates) {
+    for (const alt of uc.flows.alternates) {
+      console.log(`    ${cyan(alt.id)}  ${dim("(branches from " + alt.branchFrom + ")")}`);
+      alt.steps.forEach((s, i) => {
+        console.log(`      ${i + 1}. ${s}`);
+      });
+    }
+  }
+  console.log(`  ${bold("slices")}:`);
+  for (const s of uc.slices) {
+    const badge = fmtStatusBadge(s.status);
+    console.log(`    ${cyan(s.id)}${badge}  ${dim(s.description)}`);
+    console.log(`      ${dim("flows:")} ${s.flows.join(", ")}`);
+    if (s.tests && s.tests.length > 0) {
+      console.log(`      ${dim("tests:")} ${s.tests.join(", ")}`);
+    }
+    if (s.realization) {
+      console.log(`      ${dim("realizes:")} ${s.realization.seqFile}`);
+    }
+  }
+  return 0;
+}
+
+async function actorsCommand(
+  opts: ParsedOptions,
+  base: string,
+): Promise<number> {
+  const json = isJson(opts);
+  const { docs, errors } = await discoverActorDocs(base);
+
+  for (const e of errors) {
+    if (!json) console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
+  }
+
+  const flat = docs.flatMap((d) =>
+    d.doc.actors.map((a) => ({ actor: a, relPath: d.relPath })),
+  );
+
+  if (json) {
+    printJson({
+      ok: true,
+      count: flat.length,
+      actors: flat.map(({ actor, relPath }) => ({ actor, file: relPath })),
+    });
+    return flat.length === 0 ? 1 : 0;
+  }
+
+  if (flat.length === 0) {
+    console.log("No actors found.");
+    return 1;
+  }
+
+  for (const { actor, relPath } of flat) {
+    const badge = fmtStatusBadge(actor.status);
+    console.log(
+      `${cyan(actor.kind.padEnd(16))} ${bold(actor.id.padEnd(20))} ${actor.description}${badge}  ${gray(relPath)}`,
+    );
+  }
+  return 0;
+}
+
 // ---------- entry point ----------
 
 export async function qCommand(opts: ParsedOptions): Promise<number> {
@@ -500,7 +675,16 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
       return qImpact(opts);
     case "stats":
       return qStats(opts);
-    case "sequences": {
+    case "sequences":
+    case "usecases":
+    case "describe-usecase":
+    case "actors": {
+      // Verify the root file loads before peering into the M1+ artifact
+      // walks. Otherwise a corrupt main.archik.yaml gives "no use cases
+      // found" with exit 1, indistinguishable from "no work yet". The
+      // rest of `q` already gates on loadAll; mirror that.
+      const load = await loadAll(opts);
+      if (!load.ok) return load.exit;
       let abs: string;
       try {
         abs = await resolveDocPath(getString(opts, "doc"));
@@ -508,7 +692,11 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
         console.error(`${cross()} ${err instanceof Error ? err.message : String(err)}`);
         return 2;
       }
-      return sequencesCommand(opts, projectRoot(abs));
+      const base = projectRoot(abs);
+      if (sub === "sequences") return sequencesCommand(opts, base);
+      if (sub === "usecases") return useCasesCommand(opts, base);
+      if (sub === "describe-usecase") return describeUseCaseCommand(opts, base);
+      return actorsCommand(opts, base);
     }
     case undefined:
     case "help":

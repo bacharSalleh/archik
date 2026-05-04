@@ -1,0 +1,52 @@
+version: "1.0"
+id: suggest-accept
+name: Stage and accept an architecture suggestion
+description: |
+  Claude proposes a structural change to the archik diagram by writing a
+  sidecar; the developer reviews the diff overlay on the canvas and either
+  accepts (the sidecar is merged into the main YAML) or rejects. This is
+  the canonical write path — every structural change goes through it.
+status: active
+primaryActor: claude
+secondaryActors:
+  - developer
+goal: A proposed structural change to the diagram is reviewed and either applied or discarded, with the YAML on disk staying canonical at every step.
+preconditions:
+  - A main archik file exists on disk.
+  - The dev canvas is reachable for the developer to review the diff.
+postconditions:
+  - On accept, the sidecar is gone and the main YAML reflects the proposed change.
+  - On reject, the sidecar is gone and the main YAML is unchanged.
+flows:
+  basic:
+    steps:
+      - Claude reads the current YAML via GET /__archik/yaml.
+      - Claude PUTs the proposed full document as a sidecar.
+      - The file watcher detects the sidecar and broadcasts archik:suggestion-changed via SSE.
+      - The canvas fetches the diff SVG and renders the added/removed/changed overlay.
+      - The developer reviews the diff and POSTs /__archik/accept.
+      - The handler atomically merges the sidecar into the main YAML.
+      - The watcher broadcasts archik:doc-changed; the canvas reloads.
+  alternates:
+    - id: rejected
+      branchFrom: basic.5
+      steps:
+        - The developer POSTs /__archik/reject instead of /__archik/accept.
+        - The handler deletes the sidecar without modifying the main YAML.
+        - The watcher broadcasts archik:suggestion-changed (cleared).
+slices:
+  - id: happy
+    description: The proposed change is reviewed and accepted; main YAML now reflects the change.
+    flows:
+      - basic
+    tests:
+      - src/cli/commands/suggest.test.ts
+    realization:
+      seqFile: .archik/archik-suggest-accept.archik.seq.yaml
+  - id: rejected
+    description: The proposed change is reviewed and rejected; main YAML is unchanged.
+    flows:
+      - basic
+      - rejected
+    tests:
+      - src/cli/commands/suggest.test.ts

@@ -56,6 +56,16 @@
   --archik-status-proposed:  #6366f1;
   --archik-status-deprecated: #d97706;
 
+  /* ECB stereotype palette — Jacobson robustness analysis.
+     Three distinct hues kept clearly separable from the lifecycle
+     palette above so a "proposed boundary" still reads correctly:
+       boundary = teal (data flowing in/out at the edge)
+       control  = orange (orchestration, the verb in the middle)
+       entity   = violet (long-lived state, the noun) */
+  --archik-stereotype-boundary: #0d9488;
+  --archik-stereotype-control:  #c2410c;
+  --archik-stereotype-entity:   #7c3aed;
+
   color-scheme: light;
 }
 
@@ -105,6 +115,11 @@
      reads against the dark canvas. */
   --archik-status-proposed:  #818cf8;
   --archik-status-deprecated: #fbbf24;
+
+  /* ECB stereotype palette — brighter variants for dark canvas. */
+  --archik-stereotype-boundary: #2dd4bf;
+  --archik-stereotype-control:  #fb923c;
+  --archik-stereotype-entity:   #a78bfa;
 
   color-scheme: dark;
 }
@@ -308,6 +323,40 @@ body,
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   text-decoration-color: var(--archik-status-deprecated);
+}
+
+/* --- ECB stereotype --------------------------------------------------------
+   A small accent rect at the top edge of any node carrying a `stereotype`
+   field (boundary | control | entity). Painted by NodeRenderer; the colour
+   comes from the data-attribute. The stripe is intentionally thin (3px tall)
+   so it doesn't compete with the lifecycle dashed border or the selection
+   glow — both can co-exist on the same node.
+
+   `data-archik-robustness-mode` on the SVG root, set by App when the
+   toolbar toggle is active, dims any node WITHOUT a stereotype so the
+   ECB-tagged subset reads visually. The colour band itself stays painted
+   even outside robustness mode — the user always benefits from seeing
+   their ECB tagging once it exists.
+   --------------------------------------------------------------------------- */
+.archik-stereotype-band {
+  pointer-events: none;
+}
+[data-archik-stereotype="boundary"] .archik-stereotype-band {
+  fill: var(--archik-stereotype-boundary);
+}
+[data-archik-stereotype="control"] .archik-stereotype-band {
+  fill: var(--archik-stereotype-control);
+}
+[data-archik-stereotype="entity"] .archik-stereotype-band {
+  fill: var(--archik-stereotype-entity);
+}
+
+[data-archik-robustness-mode="true"] [data-archik-node-id]:not([data-archik-stereotype]) {
+  opacity: 0.35;
+}
+[data-archik-robustness-mode="true"] [data-archik-node-id][data-archik-stereotype] {
+  /* Make the stripe a touch taller in robustness mode so the ECB
+     structure reads at a glance even when zoomed out. */
 }
 
 /* --- Edges: status stroke is set as an SVG attribute by EdgeRenderer --- */

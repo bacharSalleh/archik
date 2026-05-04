@@ -121,6 +121,14 @@ CHECKS
   • Cross-file existence — archikFile / fromFile / toFile must be on disk.
   • IDs unique within nodes, within edges; edges reference real nodes.
   • No self-loop edges, no parentId cycles.
+  • Use cases (*.archik.uc.yaml): slice tests exist on disk; primaryActor /
+    secondaryActors resolve in the actor index; realization.seqFile points
+    at a discovered seq file; bidirectional realizes integrity.
+  • ECB transition rules (Jacobson robustness) on realizes-bound seq
+    diagrams: boundary->control, control->{boundary|control|entity},
+    entity->{control|entity}. Boundaries don't talk to boundaries or
+    entities; entities don't talk to boundaries. Untagged nodes are
+    skipped (gradual adoption).
 
 EXIT CODES
   0  valid
@@ -164,8 +172,13 @@ NOTES
   schema: `archik schema — print the document schema in agent-readable form
 
 USAGE
-  archik schema
-  archik schema --json
+  archik schema [seq | uc | actors] [--json]
+
+SUBCOMMANDS
+  (none)             architecture document (*.archik.yaml)
+  seq                sequence diagram (*.archik.seq.yaml)
+  uc | usecase       use case (*.archik.uc.yaml)
+  actors | actor     actor file (*.archik.actors.yaml)
 
 FLAGS
   --json             structured shape: { document, node, edge, kinds, ... }
@@ -181,6 +194,9 @@ NOTES
 
 EXAMPLES
   archik schema
+  archik schema seq
+  archik schema uc --json | jq '.slice'
+  archik schema actors
   archik schema --json | jq '.kinds'
   archik schema --json | jq '.edge[] | select(.required)'
 `,
@@ -195,6 +211,10 @@ USAGE
   archik q edges [--from <id>] [--to <id>] [--rel <name>] [--status <s>]
   archik q impact <id>
   archik q stats
+  archik q sequences [--node <id>]
+  archik q usecases [--actor <id>]
+  archik q describe-usecase <id>
+  archik q actors
 
 FLAGS (any subcommand)
   --json             stable machine-readable shape on stdout
@@ -337,5 +357,96 @@ EXAMPLES
   archik drift
   archik drift --json
   archik drift --ignore .archik/custom-ignore
+`,
+
+  trace: `archik trace — use case x slice x test x seq x node coverage matrix
+
+USAGE
+  archik trace [--use-case <id>] [--actor <id>] [--status <s>]
+               [--coverage <l>] [--fail-on <l>] [--json]
+
+FLAGS
+  --use-case <id>    filter rows to one use case
+  --actor <id>       filter to use cases involving an actor (primary or secondary)
+  --status <s>       filter slices by status (active | proposed | deprecated)
+  --coverage <l>     filter rows by coverage level (full | partial | none)
+  --fail-on <l>      exit 1 if any row is at that level or worse (partial or none)
+  --json             structured TraceMatrix output for CI
+
+DESCRIPTION
+  Walks every slice in every *.archik.uc.yaml and threads the chain
+  through its tests, sequence diagram realization, and the architecture
+  nodes that participate in the seq. Each row is classified:
+
+    full     - tests + realization + every participant has a stereotype,
+               and the slice is active.
+    partial  - some of {tests, realization} present but not fully wired.
+    none     - no tests AND no realization.
+
+  This is the read side of Jacobson traceability: the validator catches
+  broken links; trace surfaces coverage. CI scripts that want "fail on
+  partial coverage" use --fail-on partial; default is no gate.
+
+EXIT CODES
+  0  success (or --fail-on threshold not reached)
+  1  any row meets the --fail-on threshold
+  2  argument error or root file failed to load
+
+EXAMPLES
+  archik trace
+  archik trace --use-case place-order
+  archik trace --actor customer
+  archik trace --coverage partial --json
+  archik trace --fail-on partial          # CI gate
+`,
+
+  alpha: `archik alpha — Essence alpha state tracker
+
+USAGE
+  archik alpha show [--json]
+  archik alpha promote <alpha> <state> [--note '<text>'] [--json]
+  archik alpha demote  <alpha> <state> [--json]
+
+ALPHAS  (the four archik tracks; the rest of the Essence kernel is out of scope)
+  stakeholders     recognised | represented | involved | in-agreement |
+                   satisfied-for-deployment | satisfied-in-use
+  requirements     conceived | bounded | coherent | acceptable | addressed | fulfilled
+  softwareSystem   architecture-selected | demonstrable | usable | ready |
+                   operational | retired
+  work             initiated | prepared | started | under-control |
+                   concluded | closed
+
+DESCRIPTION
+  Tracks the four Essence alphas archik can directly evidence from
+  the artifacts it manages. Each state ladder is ordered; promote
+  walks UP and runs a machine-checkable condition before writing
+  (subjective states succeed without a check). Demote walks DOWN
+  freely.
+
+  show re-runs every check against the claimed state and renders a
+  verification badge:
+    tick  verified           — claim holds against current artifacts
+    cross over-claimed       — claim FAILS the check; downgrade or fix
+    ?     subjective         — no machine check; user attests
+
+  Machine checks (subset of states):
+    requirements.acceptable      every active slice has on-disk tests
+    requirements.addressed       every active slice has a discovered seq
+    softwareSystem.demonstrable  every active code-bearing node has on-disk source
+    softwareSystem.ready         every active slice is "level: full" in trace
+    work.started                 at least one active slice exists
+    stakeholders.represented     at least one human actor exists
+
+EXIT CODES
+  0  success
+  1  promote/demote rejected (check failed, ladder violation, etc.)
+  2  argument error or root file failed to load
+
+EXAMPLES
+  archik alpha show
+  archik alpha show --json
+  archik alpha promote requirements acceptable
+  archik alpha promote stakeholders involved --note 'kickoff with finance'
+  archik alpha demote softwareSystem demonstrable
 `,
 };

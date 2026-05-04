@@ -7,6 +7,8 @@ import {
 } from "../src/cli/resolveDocPath.ts";
 import {
   handleAccept,
+  handleActors,
+  handleAlphas,
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
@@ -14,6 +16,8 @@ import {
   handleNodeKinds,
   handleSeqFile,
   handleSidecar,
+  handleTrace,
+  handleUseCases,
   handleYaml,
 } from "../src/server/handlers.ts";
 
@@ -29,6 +33,11 @@ const SEQ_FILE_URL = `/__archik/seq-file`;
 const NODE_KINDS_URL = `/__archik/node-kinds`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
+// Read-only JSON endpoints surfacing M1-M4 artifacts to the canvas.
+const USECASES_URL = `/__archik/usecases`;
+const ACTORS_URL = `/__archik/actors`;
+const ALPHAS_URL = `/__archik/alphas`;
+const TRACE_URL = `/__archik/trace`;
 const DOC_EVENT = "archik:doc-changed";
 const SUGGESTION_EVENT = "archik:suggestion-changed";
 
@@ -99,17 +108,44 @@ export function archikWatch(): Plugin {
         void handleNodeKinds(root, docPath, res);
       });
 
+      server.middlewares.use(USECASES_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleUseCases(root, req, res);
+      });
+
+      server.middlewares.use(ACTORS_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleActors(root, req, res);
+      });
+
+      server.middlewares.use(ALPHAS_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleAlphas(root, docPath, req, res);
+      });
+
+      server.middlewares.use(TRACE_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleTrace(root, docPath, req, res);
+      });
+
       // Watch the main file, its sidecar, and the project's .archik/
       // folder so sub-file edits also fire SSE for the live canvas.
+      // Match every archik artifact under .archik/, not just the
+      // architecture YAML — `.archik.uc.yaml`, `.archik.actors.yaml`,
+      // `.archik.alphas.yaml`, `.archik.seq.yaml` all need to fire
+      // DOC_EVENT so the canvas / panels reload. Otherwise editing
+      // a use case file in `npm run dev` mode goes silent.
       server.watcher.add([docPath, sidecarPath, path.join(root, ".archik")]);
+      const isArchikArtifact = (p: string): boolean =>
+        // Anything ending in `.archik.<word>.yaml` (or just `.archik.yaml`),
+        // and NOT a sidecar (which has its own event).
+        /\.archik(\.[a-z]+)?\.yaml$/.test(p) &&
+        !p.endsWith(".archik.suggested.yaml");
       const onChange = (changedPath: string): void => {
         const resolved = path.resolve(changedPath);
         if (resolved.endsWith(".archik.suggested.yaml")) {
           server.ws.send({ type: "custom", event: SUGGESTION_EVENT });
-        } else if (
-          resolved === docPath ||
-          resolved.endsWith(".archik.yaml")
-        ) {
+        } else if (resolved === docPath || isArchikArtifact(resolved)) {
           server.ws.send({ type: "custom", event: DOC_EVENT });
         }
       };
