@@ -1,6 +1,9 @@
 version: "1.0"
 name: suggest → accept workflow
 description: Claude reads the current diagram, stages proposed changes as a sidecar, the canvas shows the diff overlay, and the user accepts.
+realizes:
+  useCase: suggest-accept
+  slice: happy
 participants:
   - id: claude
     nodeId: claude-code

@@ -92,11 +92,25 @@ function collectStepIds(steps: SeqStep[], ids: Set<string>): string[] {
   return dupes;
 }
 
+/**
+ * Optional `realizes` block — binds this seq diagram to a slice of a
+ * use case. When present, the validator checks bidirectional integrity:
+ * the named use case must declare the named slice with
+ * `realization.seqFile` pointing back at this seq file. This is the
+ * Jacobson "use-case realization" link — the diagram is no longer an
+ * orphan; it explains *which user-visible scenario it implements*.
+ */
+export const SeqRealizesSchema = z.strictObject({
+  useCase: IdSchema,
+  slice: IdSchema,
+});
+
 export const SeqDocumentSchema = z
   .strictObject({
     version: z.literal("1.0"),
     name: z.string().min(1),
     description: z.string().optional(),
+    realizes: SeqRealizesSchema.optional(),
     participants: z.array(SeqParticipantSchema).min(1),
     steps: z.array(SeqStepSchema),
   })

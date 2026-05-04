@@ -1,0 +1,16 @@
+version: "1.0"
+description: Actors interacting with archik — humans on one side, agents on the other.
+actors:
+  - id: developer
+    kind: human
+    description: A human engineer using archik to model their project's architecture, sequence flows, and use cases.
+    goals:
+      - keep-diagram-honest
+      - review-claude-suggestions
+      - understand-system-shape
+  - id: claude
+    kind: external-system
+    description: An LLM-driven agent (Claude Code or similar) that authors archik documents on behalf of the developer via the CLI.
+    goals:
+      - propose-architecture-changes
+      - query-current-diagram
