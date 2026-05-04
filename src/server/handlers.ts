@@ -27,6 +27,18 @@ import {
   validateDocument,
 } from "../domain/validate.ts";
 import { discoverDocs } from "../io/discovery.ts";
+import { discoverActorDocs } from "../io/actor-discovery.ts";
+import { discoverAlphaDoc } from "../io/alpha-discovery.ts";
+import { discoverSeqDocs } from "../io/seq-discovery.ts";
+import { discoverUseCaseDocs } from "../io/usecase-discovery.ts";
+import {
+  ALPHA_NAMES,
+  STATE_LADDERS,
+  stateIndex,
+  type AlphaName,
+} from "../domain/alpha-schema.ts";
+import { evaluateAlphaState } from "../domain/alpha-checks.ts";
+import { buildTraceMatrix } from "../domain/trace.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
@@ -671,4 +683,287 @@ export async function handleDiffSvg(
     res.setHeader("content-type", "text/plain; charset=utf-8");
     res.end(err instanceof Error ? err.message : String(err));
   }
+}
+
+// ============================================================================
+//  Use cases / actors / alphas / trace — read-only JSON endpoints
+// ----------------------------------------------------------------------------
+//  These mirror the CLI's --json shapes 1:1 so the canvas (and any other
+//  HTTP client) can subscribe to the same artefacts the CLI emits, without
+//  shelling out. GET only; non-GET returns 405.
+// ============================================================================
+
+function jsonResponse(res: ServerResponse, status: number, body: unknown): void {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.end(JSON.stringify(body));
+}
+
+function isGet(req: IncomingMessage): boolean {
+  return (req.method ?? "GET").toUpperCase() === "GET";
+}
+
+function methodNotAllowed(res: ServerResponse): void {
+  res.statusCode = 405;
+  res.setHeader("allow", "GET");
+  res.setHeader("content-type", "text/plain; charset=utf-8");
+  res.end("Method Not Allowed");
+}
+
+/**
+ * GET /__archik/usecases
+ *   → { ok, count, useCases: [...] }     (mirrors `archik q usecases --json`)
+ * GET /__archik/usecases?id=<id>
+ *   → { ok, file, useCase }              (mirrors `archik q describe-usecase --json`)
+ *   → 404 { ok: false, error } when the id doesn't resolve
+ */
+export async function handleUseCases(
+  projectRoot: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!isGet(req)) {
+    methodNotAllowed(res);
+    return;
+  }
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const id = url.searchParams.get("id");
+  const actorFilter = url.searchParams.get("actor");
+  const { docs } = await discoverUseCaseDocs(projectRoot);
+
+  if (id !== null) {
+    const found = docs.find((d) => d.doc.id === id);
+    if (found === undefined) {
+      jsonResponse(res, 404, {
+        ok: false,
+        error: `use case "${id}" not found`,
+      });
+      return;
+    }
+    jsonResponse(res, 200, {
+      ok: true,
+      file: found.relPath,
+      useCase: found.doc,
+    });
+    return;
+  }
+
+  const filtered = actorFilter
+    ? docs.filter(
+        (d) =>
+          d.doc.primaryActor === actorFilter ||
+          (d.doc.secondaryActors?.includes(actorFilter) ?? false),
+      )
+    : docs;
+
+  jsonResponse(res, 200, {
+    ok: true,
+    count: filtered.length,
+    useCases: filtered.map((d) => ({
+      relPath: d.relPath,
+      id: d.doc.id,
+      name: d.doc.name,
+      status: d.doc.status,
+      primaryActor: d.doc.primaryActor,
+      secondaryActors: d.doc.secondaryActors,
+      slices: d.doc.slices.map((s) => ({
+        id: s.id,
+        status: s.status,
+        flows: s.flows,
+        tests: s.tests,
+        realization: s.realization,
+      })),
+    })),
+  });
+}
+
+/**
+ * GET /__archik/actors
+ *   → { ok, count, actors: [{ actor, file }, ...] }
+ *   (mirrors `archik q actors --json`)
+ */
+export async function handleActors(
+  projectRoot: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!isGet(req)) {
+    methodNotAllowed(res);
+    return;
+  }
+  const { docs } = await discoverActorDocs(projectRoot);
+  const flat = docs.flatMap((d) =>
+    d.doc.actors.map((a) => ({ actor: a, file: d.relPath })),
+  );
+  jsonResponse(res, 200, {
+    ok: true,
+    count: flat.length,
+    actors: flat,
+  });
+}
+
+/**
+ * GET /__archik/alphas
+ *   → { ok, file, alphas: [...] }        (mirrors `archik alpha show --json`)
+ *
+ * Each alpha row carries the claimed state, the ladder index, the current
+ * verification result (verified | over-claimed | subjective | missing), and
+ * the user-authored note + evidence (if any). Identical to the CLI output —
+ * the canvas can render it directly without re-running checks client-side.
+ */
+export async function handleAlphas(
+  projectRoot: string,
+  rootDocPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!isGet(req)) {
+    methodNotAllowed(res);
+    return;
+  }
+  const archDiscovery = await discoverDocs(rootDocPath, projectRoot);
+  const ucDiscovery = await discoverUseCaseDocs(projectRoot);
+  const seqDiscovery = await discoverSeqDocs(projectRoot);
+  const actorDiscovery = await discoverActorDocs(projectRoot);
+  const alphaResult = await discoverAlphaDoc(projectRoot);
+
+  const fileExists = (rel: string): boolean =>
+    existsSync(path.resolve(projectRoot, rel));
+  const ctx = {
+    archDocs: archDiscovery.docs,
+    ucDocs: ucDiscovery.docs,
+    seqDocs: seqDiscovery.docs,
+    actorDocs: actorDiscovery.docs,
+    fileExists,
+  };
+
+  const alphas = (ALPHA_NAMES as ReadonlyArray<AlphaName>).map((alpha) => {
+    const entry = alphaResult.doc?.doc.alphas[alpha];
+    const ladderLength = STATE_LADDERS[alpha].length;
+    if (entry === undefined) {
+      return {
+        alpha,
+        state: null,
+        ladderIndex: -1,
+        ladderLength,
+        verification: "missing" as const,
+      };
+    }
+    const result = evaluateAlphaState(alpha, entry.state, ctx);
+    let verification: "verified" | "over-claimed" | "subjective";
+    let reason: string | undefined;
+    if (result === null) {
+      verification = "subjective";
+    } else if (result.ok) {
+      verification = "verified";
+    } else {
+      verification = "over-claimed";
+      reason = result.reason;
+    }
+    return {
+      alpha,
+      state: entry.state,
+      ladderIndex: stateIndex(alpha, entry.state),
+      ladderLength,
+      verification,
+      ...(reason ? { reason } : {}),
+      ...(entry.note ? { note: entry.note } : {}),
+      ...(entry.evidence ? { evidence: entry.evidence } : {}),
+    };
+  });
+
+  jsonResponse(res, 200, {
+    ok: true,
+    file: alphaResult.doc?.relPath ?? null,
+    alphas,
+  });
+}
+
+/**
+ * GET /__archik/trace
+ *   → { ok, summary, rows }              (mirrors `archik trace --json`)
+ *
+ * Optional filters via query string:
+ *   ?use-case=<id>    one use case only
+ *   ?actor=<id>       use cases involving this actor
+ *   ?status=<s>       slice status (active|proposed|deprecated)
+ *   ?coverage=<l>     full|partial|none
+ *
+ * Summary is recomputed against the filtered rows so the totals describe
+ * what the caller asked for, not the unfiltered universe.
+ */
+export async function handleTrace(
+  projectRoot: string,
+  rootDocPath: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!isGet(req)) {
+    methodNotAllowed(res);
+    return;
+  }
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const archDiscovery = await discoverDocs(rootDocPath, projectRoot);
+  const ucDiscovery = await discoverUseCaseDocs(projectRoot);
+  const seqDiscovery = await discoverSeqDocs(projectRoot);
+  const matrix = buildTraceMatrix(
+    ucDiscovery.docs,
+    seqDiscovery.docs,
+    archDiscovery.docs,
+  );
+
+  let rows = matrix.rows;
+  const useCaseFilter = url.searchParams.get("use-case");
+  if (useCaseFilter !== null) {
+    rows = rows.filter((r) => r.useCase === useCaseFilter);
+  }
+  const actorFilter = url.searchParams.get("actor");
+  if (actorFilter !== null) {
+    rows = rows.filter(
+      (r) =>
+        r.primaryActor === actorFilter ||
+        r.secondaryActors.includes(actorFilter),
+    );
+  }
+  const statusFilter = url.searchParams.get("status");
+  if (statusFilter !== null) {
+    if (
+      statusFilter !== "active" &&
+      statusFilter !== "proposed" &&
+      statusFilter !== "deprecated"
+    ) {
+      jsonResponse(res, 400, {
+        ok: false,
+        error: "status must be active | proposed | deprecated",
+      });
+      return;
+    }
+    rows = rows.filter((r) => r.status === statusFilter);
+  }
+  const coverageFilter = url.searchParams.get("coverage");
+  if (coverageFilter !== null) {
+    if (
+      coverageFilter !== "full" &&
+      coverageFilter !== "partial" &&
+      coverageFilter !== "none"
+    ) {
+      jsonResponse(res, 400, {
+        ok: false,
+        error: "coverage must be full | partial | none",
+      });
+      return;
+    }
+    rows = rows.filter((r) => r.level === coverageFilter);
+  }
+
+  const summary = {
+    useCases: new Set(rows.map((r) => r.useCase)).size,
+    slices: rows.length,
+    fullyTraced: rows.filter((r) => r.level === "full").length,
+    partial: rows.filter((r) => r.level === "partial").length,
+    untraced: rows.filter((r) => r.level === "none").length,
+  };
+
+  jsonResponse(res, 200, { ok: true, summary, rows });
 }

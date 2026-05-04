@@ -14,6 +14,8 @@ import { suggestionPath } from "../domain/suggestion.ts";
 import { projectRoot as deriveProjectRoot } from "../cli/resolveDocPath.ts";
 import {
   handleAccept,
+  handleActors,
+  handleAlphas,
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
@@ -21,6 +23,8 @@ import {
   handleNodeKinds,
   handleSeqFile,
   handleSidecar,
+  handleTrace,
+  handleUseCases,
   handleYaml,
 } from "./handlers.ts";
 
@@ -61,6 +65,13 @@ const FILE_ACCEPT_URL = "/__archik/file-accept";
 const FILES_URL = "/__archik/files";
 const SEQ_FILE_URL = "/__archik/seq-file";
 const NODE_KINDS_URL = "/__archik/node-kinds";
+/** Read-only JSON endpoints surfacing the M1-M4 artifacts to the
+ *  canvas. Each mirrors a `--json` CLI shape 1:1 so the UI never
+ *  has to re-implement validation logic. */
+const USECASES_URL = "/__archik/usecases";
+const ACTORS_URL = "/__archik/actors";
+const ALPHAS_URL = "/__archik/alphas";
+const TRACE_URL = "/__archik/trace";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -278,6 +289,26 @@ export async function startDevServer(
 
     if (url === NODE_KINDS_URL || url.startsWith(NODE_KINDS_URL + "?")) {
       void handleNodeKinds(root, docPath, res);
+      return;
+    }
+
+    if (url === USECASES_URL || url.startsWith(USECASES_URL + "?")) {
+      void handleUseCases(root, req, res);
+      return;
+    }
+
+    if (url === ACTORS_URL || url.startsWith(ACTORS_URL + "?")) {
+      void handleActors(root, req, res);
+      return;
+    }
+
+    if (url === ALPHAS_URL || url.startsWith(ALPHAS_URL + "?")) {
+      void handleAlphas(root, docPath, req, res);
+      return;
+    }
+
+    if (url === TRACE_URL || url.startsWith(TRACE_URL + "?")) {
+      void handleTrace(root, docPath, req, res);
       return;
     }
 
