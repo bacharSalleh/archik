@@ -173,30 +173,23 @@ export function NodeRenderer({
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
 
       {/* ECB stereotype band — painted after Shape so it isn't buried under the node fill.
-          Height is 3px normally; CSS bumps it to 14px in robustness mode and reveals the label. */}
+          A clipPath matching the node's rx=8 rounded rect makes the band follow the corners
+          instead of cutting straight across them. Height is 4px; CSS can bump it in robustness
+          mode via the SVG geometry CSS property. No label text — the colour is the signal. */}
       {node.stereotype !== undefined && (
         <>
+          <clipPath id={`archik-nclip-${node.id}`}>
+            <rect width={node.width} height={node.height} rx={8} ry={8} />
+          </clipPath>
           <rect
             className="archik-stereotype-band"
             x={0}
             y={0}
             width={node.width}
-            height={3}
-            rx={1.5}
+            height={4}
+            clipPath={`url(#archik-nclip-${node.id})`}
             style={{ pointerEvents: "none" }}
           />
-          <text
-            className="archik-stereotype-label"
-            x={node.width / 2}
-            y={11}
-            textAnchor="middle"
-            fontSize={8}
-            fontWeight={700}
-            letterSpacing="0.08em"
-            style={{ pointerEvents: "none", userSelect: "none" }}
-          >
-            {node.stereotype.toUpperCase()}
-          </text>
         </>
       )}
       {viewMode === "detailed" && !isContainer && (() => {
