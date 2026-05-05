@@ -400,6 +400,42 @@ EXAMPLES
   archik trace --fail-on partial          # CI gate
 `,
 
+  upgrade: `archik upgrade — upgrade archik to latest and refresh Claude artifacts
+
+USAGE
+  archik upgrade
+  archik upgrade --user
+  archik upgrade --skip-install
+
+FLAGS
+  --user             refresh skill + commands user-wide (~/.claude/) instead of project-local
+  --skip-install     skip the npm upgrade; only re-copy the skill and slash commands
+
+WHAT IT DOES
+  1. Checks the installed version against the npm registry.
+  2. Upgrades the package using your project's package manager
+     (npm / pnpm / yarn / bun — detected from lockfile).
+  3. Re-copies the bundled SKILL.md and /archik:* slash commands
+     from the newly installed version (--force, so stale files are
+     always overwritten).
+  4. Tells you to start a new Claude Code conversation so the
+     updated skill is loaded into context.
+
+NOTES
+  If archik is not in the project's package.json (global or npx
+  usage), the package upgrade step is skipped and you are shown
+  the manual upgrade command. The skill and commands are still
+  refreshed from the currently running version.
+
+  Use --skip-install when you have already upgraded the package
+  manually and just need the skill/commands to catch up.
+
+EXAMPLES
+  archik upgrade
+  archik upgrade --user
+  archik upgrade --skip-install
+`,
+
   alpha: `archik alpha — Essence alpha state tracker
 
 USAGE

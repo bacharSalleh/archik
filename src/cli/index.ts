@@ -19,6 +19,7 @@ import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
 import { traceCommand } from "./commands/trace.ts";
 import { alphaCommand } from "./commands/alpha.ts";
+import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
 import { pkgRoot } from "./paths.ts";
 
@@ -107,6 +108,9 @@ COMMANDS
   commands          Install the /archik:* slash commands for Claude Code
                     --user           install to ~/.claude/commands (all projects)
                     --force          overwrite if any already exist
+  upgrade           Upgrade archik to latest and refresh the Claude skill + commands
+                    --user           refresh skill/commands user-wide (~/.claude/)
+                    --skip-install   skip the npm upgrade; only re-copy skill/commands
 
 Default file resolution (when no [path] is given):
   1. .archik/main.archik.yaml      (preferred new convention)
@@ -170,6 +174,8 @@ async function main(): Promise<number> {
       return traceCommand(opts);
     case "alpha":
       return alphaCommand(opts);
+    case "upgrade":
+      return upgradeCommand(opts);
     case "--version":
     case "-v":
     case "version":
