@@ -109,19 +109,4 @@ describe("DiagramSvg", () => {
     expect(vy).toBeLessThanOrEqual(0);
   });
 
-  it("omits data-archik-robustness-mode by default", () => {
-    const { container } = render(<DiagramSvg positioned={populated} />);
-    expect(
-      container.querySelector("svg")?.hasAttribute("data-archik-robustness-mode"),
-    ).toBe(false);
-  });
-
-  it("sets data-archik-robustness-mode='true' when robustnessMode prop is true", () => {
-    const { container } = render(
-      <DiagramSvg positioned={populated} robustnessMode />,
-    );
-    expect(
-      container.querySelector("svg")?.getAttribute("data-archik-robustness-mode"),
-    ).toBe("true");
-  });
 });

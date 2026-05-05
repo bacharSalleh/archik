@@ -326,17 +326,10 @@ body,
 }
 
 /* --- ECB stereotype --------------------------------------------------------
-   A small accent rect at the top edge of any node carrying a `stereotype`
-   field (boundary | control | entity). Painted by NodeRenderer; the colour
-   comes from the data-attribute. The stripe is intentionally thin (3px tall)
-   so it doesn't compete with the lifecycle dashed border or the selection
-   glow — both can co-exist on the same node.
-
-   `data-archik-robustness-mode` on the SVG root, set by App when the
-   toolbar toggle is active, dims any node WITHOUT a stereotype so the
-   ECB-tagged subset reads visually. The colour band itself stays painted
-   even outside robustness mode — the user always benefits from seeing
-   their ECB tagging once it exists.
+   A 4px coloured stripe flush against the top edge of any node carrying a
+   `stereotype` field (boundary | control | entity). Painted by NodeRenderer;
+   the fill comes from the data-attribute. The band is thin enough to coexist
+   with the lifecycle dashed border and the selection stroke without competing.
    --------------------------------------------------------------------------- */
 .archik-stereotype-band {
   pointer-events: none;
@@ -348,71 +341,6 @@ body,
   fill: var(--archik-stereotype-control);
 }
 [data-archik-stereotype="entity"] .archik-stereotype-band {
-  fill: var(--archik-stereotype-entity);
-}
-
-/* Robustness mode: bring stereotyped nodes forward with a coloured outline ring
-   and a thicker top band. Non-stereotyped nodes fade to 0.5 so they stay legible
-   as context. No `filter: drop-shadow` — it bleeds across the header and reads
-   as "broken" at any meaningful zoom. */
-/* Dim only non-stereotyped LEAVES (and non-stereotyped containers whose
-   subtree contains no stereotype). Skipping containers that wrap a tagged
-   descendant prevents the descendant from inheriting parent opacity and
-   getting dimmed despite being the focus — SVG group opacity composes
-   multiplicatively, so a 0.5 parent silently halves any child. */
-[data-archik-robustness-mode="true"]
-  [data-archik-node-id]:not([data-archik-stereotype]):not(
-    :has([data-archik-stereotype])
-  ) {
-  opacity: 0.5;
-}
-[data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-band {
-  height: 8px;
-}
-
-/* Outline ring — hidden in normal mode, revealed in robustness mode in the
-   matching stereotype colour. */
-.archik-stereotype-outline {
-  display: none;
-}
-[data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-outline {
-  display: block;
-}
-[data-archik-robustness-mode="true"]
-  [data-archik-stereotype="boundary"]
-  .archik-stereotype-outline {
-  stroke: var(--archik-stereotype-boundary);
-}
-[data-archik-robustness-mode="true"]
-  [data-archik-stereotype="control"]
-  .archik-stereotype-outline {
-  stroke: var(--archik-stereotype-control);
-}
-[data-archik-robustness-mode="true"]
-  [data-archik-stereotype="entity"]
-  .archik-stereotype-outline {
-  stroke: var(--archik-stereotype-entity);
-}
-
-/* Badge text — hidden in normal view, shown above the node in robustness mode. */
-.archik-stereotype-badge {
-  display: none;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-  user-select: none;
-}
-[data-archik-robustness-mode="true"] .archik-stereotype-badge {
-  display: block;
-}
-[data-archik-robustness-mode="true"] [data-archik-stereotype="boundary"] .archik-stereotype-badge {
-  fill: var(--archik-stereotype-boundary);
-}
-[data-archik-robustness-mode="true"] [data-archik-stereotype="control"] .archik-stereotype-badge {
-  fill: var(--archik-stereotype-control);
-}
-[data-archik-robustness-mode="true"] [data-archik-stereotype="entity"] .archik-stereotype-badge {
   fill: var(--archik-stereotype-entity);
 }
 

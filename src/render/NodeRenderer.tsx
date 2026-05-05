@@ -173,33 +173,14 @@ export function NodeRenderer({
       )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
 
-      {/* ECB stereotype overlay — painted after Shape so the band isn't buried under
-          the node fill. Three layers, all hidden / dimmed unless the node is tagged:
-            1. outline ring (3px outside the node) — only visible in robustness mode,
-               coloured per stereotype, replaces the previous drop-shadow blur which
-               smudged into the header at any meaningful zoom
-            2. top band (4px stripe at y=0, flush against the node border so there's
-               no dark-navy gap between border and band). Clipped to the node's rx=8
-               corners so it follows the curve. Bumped to 8px via CSS in robustness
-               mode so it stays legible alongside the ring. Selection stroke's outer
-               half (above y=0) remains visible because nothing in the node overlay
-               can paint above the node's own bounds.
-            3. floating badge text (BOUNDARY/CONTROL/ENTITY) above the node,
-               hidden until robustness mode is active */}
+      {/* ECB stereotype band — 4px coloured stripe flush against the node's
+          top border. Painted after Shape so the band isn't buried under the
+          node fill; clipped to the node's rx=8 corners so it follows the
+          curve. Selection stroke's outer half (above y=0) remains visible
+          because nothing in the node overlay can paint above the node's
+          own bounds. */}
       {node.stereotype !== undefined && (
         <>
-          <rect
-            className="archik-stereotype-outline"
-            x={-3}
-            y={-3}
-            width={node.width + 6}
-            height={node.height + 6}
-            rx={11}
-            ry={11}
-            fill="none"
-            strokeWidth={2}
-            style={{ pointerEvents: "none" }}
-          />
           <clipPath id={`archik-nclip-${node.id}`}>
             <rect width={node.width} height={node.height} rx={8} ry={8} />
           </clipPath>
@@ -212,15 +193,6 @@ export function NodeRenderer({
             clipPath={`url(#archik-nclip-${node.id})`}
             style={{ pointerEvents: "none" }}
           />
-          <text
-            className="archik-stereotype-badge"
-            x={node.width / 2}
-            y={-9}
-            textAnchor="middle"
-            style={{ pointerEvents: "none" }}
-          >
-            {node.stereotype.toUpperCase()}
-          </text>
         </>
       )}
       {viewMode === "detailed" && !isContainer && (() => {
