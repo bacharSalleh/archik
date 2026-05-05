@@ -41,6 +41,7 @@ function Shape({
     case "queue":
       return <QueueNode node={node} selected={selected} />;
     case "external":
+    case "human":
       return <ExternalNode node={node} selected={selected} />;
     case "database":
       return <DatabaseNode node={node} selected={selected} />;

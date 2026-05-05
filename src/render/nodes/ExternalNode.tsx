@@ -24,7 +24,7 @@ export function ExternalNode({ node, selected }: Props): React.ReactElement {
     : "var(--archik-node-stroke-soft)";
 
   return (
-    <g className="archik-node archik-node--external">
+    <g className={`archik-node archik-node--${node.kind}`}>
       <rect
         className={selected ? "archik-selected-glow" : undefined}
         width={w}
@@ -46,7 +46,7 @@ export function ExternalNode({ node, selected }: Props): React.ReactElement {
         strokeWidth={1}
       />
       <NodeHeader
-        kind="external"
+        kind={node.kind}
         iconAt={{ cx: 18, cy: HEADER_HEIGHT / 2 }}
         labelAt={{ cx: w / 2, cy: HEADER_HEIGHT / 2 + 3 }}
       />

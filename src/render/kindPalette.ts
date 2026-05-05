@@ -26,6 +26,7 @@ import {
   SendHorizontal,
   Server,
   Sparkles,
+  UserRound,
   Waves,
   Wrench,
 } from "lucide-react";
@@ -215,11 +216,16 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
     description: "Reusable client logic — React hook, Vue composable.",
   },
 
-  // External -----------------------------------------------------------
+  // External / Actors --------------------------------------------------
   external: {
     color: "#94a3b8",
     icon: ExternalLink,
     description: "Third-party system you don't own.",
+  },
+  human: {
+    color: "#60a5fa",
+    icon: UserRound,
+    description: "Human actor — end user, operator, or customer.",
   },
 
   // Structural ---------------------------------------------------------

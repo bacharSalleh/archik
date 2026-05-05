@@ -33,9 +33,10 @@ export const NODE_KINDS = [
   "observability",
   // cloud / infra
   "cloud",
-  // ui / external
+  // ui / external / actors
   "frontend",
   "external",
+  "human",
   // frontend (client-side)
   "page",
   "component",

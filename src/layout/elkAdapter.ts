@@ -96,8 +96,9 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   component: CARD,
   store: CARD,
   hook: CARD,
-  // External
+  // External / Actors
   external: { width: 184, height: 100 },
+  human: { width: 184, height: 100 },
   // Structural
   module: { width: 240, height: 130 },
   custom: { width: 240, height: 130 },
@@ -139,6 +140,7 @@ const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   store: CHIP,
   hook: CHIP,
   external: { width: 168, height: 40 },
+  human: { width: 168, height: 40 },
   module: CHIP_CONTAINER,
   custom: CHIP_CONTAINER,
 };
