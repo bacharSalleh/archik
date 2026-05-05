@@ -130,8 +130,63 @@ function UseCasesPanelBody(): React.ReactElement {
         </PanelMsg>
       )}
       {state.status === "ready" && state.useCases.length > 0 && (
-        <UseCaseList useCases={state.useCases} trace={state.trace} />
+        <>
+          <TraceSummary trace={state.trace} />
+          <UseCaseList useCases={state.useCases} trace={state.trace} />
+        </>
       )}
+    </div>
+  );
+}
+
+function TraceSummary({ trace }: { trace: TraceRow[] }): React.ReactElement {
+  const totals = useMemo(() => {
+    let full = 0;
+    let partial = 0;
+    let none = 0;
+    for (const row of trace) {
+      if (row.level === "full") full++;
+      else if (row.level === "partial") partial++;
+      else none++;
+    }
+    return { full, partial, none, total: trace.length };
+  }, [trace]);
+
+  if (totals.total === 0) return <></>;
+
+  return (
+    <div
+      title="Coverage matrix — same as `npx archik trace`. ● fully traced (test + seq), ◐ partial, ○ untraced."
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "6px 10px",
+        margin: "2px 2px 6px",
+        borderRadius: 6,
+        background: "var(--archik-surface)",
+        fontSize: 11,
+        color: "var(--archik-fg-dim)",
+      }}
+    >
+      <span style={{ fontWeight: 600, color: "var(--archik-fg)" }}>
+        Trace
+      </span>
+      <span>
+        <span style={{ color: "var(--archik-success)" }}>●</span>{" "}
+        {totals.full} full
+      </span>
+      <span>
+        <span style={{ color: "var(--archik-warning)" }}>◐</span>{" "}
+        {totals.partial} partial
+      </span>
+      <span>
+        <span style={{ color: "var(--archik-fg-muted)" }}>○</span>{" "}
+        {totals.none} untraced
+      </span>
+      <span style={{ marginLeft: "auto", color: "var(--archik-fg-muted)" }}>
+        {totals.total} {totals.total === 1 ? "slice" : "slices"}
+      </span>
     </div>
   );
 }
