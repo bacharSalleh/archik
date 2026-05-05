@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkSeqEcbRules,
   checkSeqFilePaths,
+  checkSeqNodeBackrefs,
   checkSeqNodeRefs,
   checkSeqRealizesIntegrity,
   validateSeqDocument,
@@ -362,5 +363,102 @@ describe("checkSeqEcbRules", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]!.message).toMatch(/boundary → entity/);
     expect(errors[0]!.path).toMatch(/branches\.0\.steps\.0/);
+  });
+});
+
+describe("checkSeqNodeBackrefs", () => {
+  const seqWith = (
+    relPath: string,
+    participantNodeIds: string[],
+    realizes: { useCase: string; slice: string } | null = {
+      useCase: "uc",
+      slice: "happy",
+    },
+  ): LoadedSeqDoc => ({
+    abs: `/abs/${relPath}`,
+    relPath,
+    doc: {
+      version: "1.0",
+      name: "Flow",
+      ...(realizes ? { realizes } : {}),
+      participants: participantNodeIds.map((nid, i) => ({
+        id: `p${i + 1}`,
+        nodeId: nid,
+      })),
+      steps: [],
+    },
+  });
+
+  const archWith = (
+    nodes: Array<{ id: string; seqFiles?: string[] }>,
+  ): LoadedDoc => ({
+    abs: "/abs/main.archik.yaml",
+    relPath: "main.archik.yaml",
+    doc: {
+      version: "1.0",
+      name: "Demo",
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        kind: "service",
+        name: n.id,
+        description: "x",
+        ...(n.seqFiles ? { seqFiles: n.seqFiles } : {}),
+      })) as Node[],
+      edges: [],
+    } as Document,
+  });
+
+  it("returns no errors when every participant node lists the seq", () => {
+    const seq = seqWith(".archik/x.archik.seq.yaml", ["a", "b"]);
+    const arch = archWith([
+      { id: "a", seqFiles: [".archik/x.archik.seq.yaml"] },
+      { id: "b", seqFiles: [".archik/x.archik.seq.yaml"] },
+    ]);
+    expect(checkSeqNodeBackrefs([seq], [arch])).toHaveLength(0);
+  });
+
+  it("flags participant nodes that don't list the seq", () => {
+    const seq = seqWith(".archik/x.archik.seq.yaml", ["a", "b"]);
+    const arch = archWith([
+      { id: "a", seqFiles: [".archik/x.archik.seq.yaml"] },
+      { id: "b" }, // missing backref
+    ]);
+    const errors = checkSeqNodeBackrefs([seq], [arch]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain('node "b"');
+    expect(errors[0]!.message).toContain(".archik/x.archik.seq.yaml");
+    expect(errors[0]!.path).toContain("participants.p2");
+  });
+
+  it("ignores seqs without a realizes block (ad-hoc / scratch flows)", () => {
+    const seq = seqWith(".archik/x.archik.seq.yaml", ["a"], null);
+    const arch = archWith([{ id: "a" }]);
+    expect(checkSeqNodeBackrefs([seq], [arch])).toHaveLength(0);
+  });
+
+  it("skips unknown nodeIds (handled by checkSeqNodeRefs)", () => {
+    const seq = seqWith(".archik/x.archik.seq.yaml", ["ghost"]);
+    const arch = archWith([{ id: "a" }]);
+    expect(checkSeqNodeBackrefs([seq], [arch])).toHaveLength(0);
+  });
+
+  it("reports each missing node only once even when aliased", () => {
+    const seq: LoadedSeqDoc = {
+      abs: "/abs/x.archik.seq.yaml",
+      relPath: ".archik/x.archik.seq.yaml",
+      doc: {
+        version: "1.0",
+        name: "Flow",
+        realizes: { useCase: "uc", slice: "happy" },
+        participants: [
+          { id: "p1", nodeId: "a" },
+          { id: "p2", nodeId: "a" }, // same node, different alias
+        ],
+        steps: [],
+      },
+    };
+    const arch = archWith([{ id: "a" }]); // missing backref
+    const errors = checkSeqNodeBackrefs([seq], [arch]);
+    expect(errors).toHaveLength(1);
   });
 });

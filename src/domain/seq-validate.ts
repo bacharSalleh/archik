@@ -203,6 +203,69 @@ export function checkSeqEcbRules(
 }
 
 /**
+ * Backref integrity: every architecture node listed as a participant
+ * in a `realizes`-bound seq diagram must declare that seq file in its
+ * own `seqFiles` array. Without this check, Claude (or any author)
+ * can write a perfectly valid seq + use case + realizes block, but
+ * the canvas has no way to surface the diagram on the participating
+ * nodes — it's "linked from the requirements side, orphaned from the
+ * structural side."
+ *
+ * Only realised seqs are checked (matches the ECB rule pattern). An
+ * ad-hoc seq without `realizes` is treated as a scratch / proposal
+ * doc and isn't required to be backreffed by every participant.
+ *
+ * Unknown nodeIds are reported by `checkSeqNodeRefs` already; this
+ * check skips them to avoid double-reporting the same problem.
+ */
+export function checkSeqNodeBackrefs(
+  seqDocs: LoadedSeqDoc[],
+  archDocs: LoadedDoc[],
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // node.id → set of seqFile paths the node already references.
+  // Built once across all architecture docs so cross-file diagrams
+  // (a sub-arch node referencing a seq from elsewhere) are honoured.
+  const seqFilesOf = new Map<string, Set<string>>();
+  for (const { doc } of archDocs) {
+    for (const node of doc.nodes) {
+      const set = seqFilesOf.get(node.id) ?? new Set<string>();
+      for (const p of node.seqFiles ?? []) set.add(p);
+      seqFilesOf.set(node.id, set);
+    }
+  }
+
+  for (const seq of seqDocs) {
+    if (seq.doc.realizes === undefined) continue;
+
+    // One node may appear multiple times in `participants` (e.g. an
+    // alias per role) — only report the missing backref once per
+    // (seq, node) pair so the error list stays scannable.
+    const reported = new Set<string>();
+    for (const p of seq.doc.participants) {
+      if (reported.has(p.nodeId)) continue;
+      const declared = seqFilesOf.get(p.nodeId);
+      if (declared === undefined) continue; // unknown nodeId — handled elsewhere
+      if (declared.has(seq.relPath)) continue; // backref present, all good
+      reported.add(p.nodeId);
+      errors.push({
+        path: `${seq.relPath}:participants.${p.id}`,
+        message:
+          `seq "${seq.doc.name}" lists node "${p.nodeId}" as a ` +
+          `participant, but that node's \`seqFiles\` array does not ` +
+          `reference this diagram. Add ` +
+          `"${seq.relPath}" to node "${p.nodeId}"'s \`seqFiles\` ` +
+          `array via \`npx archik suggest set\` so the canvas can ` +
+          `surface the flow on that node.`,
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
  * Bidirectional `realizes` integrity. Two checks per seq file with a
  * `realizes` block:
  *

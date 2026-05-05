@@ -445,6 +445,8 @@ describe("validateCommand cross-file existence", () => {
           "    description: x",
           "    sourcePath: src/ui",
           "    stereotype: boundary",
+          "    seqFiles:",
+          "      - .archik/good.archik.seq.yaml",
           "  - id: orch",
           "    kind: service",
           "    name: Orch",

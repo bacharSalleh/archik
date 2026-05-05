@@ -16,6 +16,7 @@ import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { discoverActorDocs } from "../../io/actor-discovery.ts";
 import {
   checkSeqEcbRules,
+  checkSeqNodeBackrefs,
   checkSeqNodeRefs,
   checkSeqRealizesIntegrity,
 } from "../../domain/seq-validate.ts";
@@ -217,6 +218,13 @@ export async function validateCommand(
       // skip when either endpoint lacks a stereotype (gradual adoption).
       ucActorErrors.push(
         ...checkSeqEcbRules(seqDiscovery.docs, discovery.docs),
+      );
+      // Structural-side discoverability: every node participating in a
+      // realised seq diagram must list that seq in its `seqFiles` so
+      // the canvas can surface the flow. Catches the "Claude wrote
+      // the seq + use case but forgot the node backref" failure mode.
+      ucActorErrors.push(
+        ...checkSeqNodeBackrefs(seqDiscovery.docs, discovery.docs),
       );
     }
   }
