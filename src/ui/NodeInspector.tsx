@@ -66,6 +66,12 @@ export function NodeInspector({
         />
       </Field>
 
+      <StereotypeField
+        value={node.stereotype}
+        onChange={(v) => update({ stereotype: v })}
+        readOnly={readOnly}
+      />
+
       <Field label="Stack" htmlFor="ni-stack">
         <input
           id="ni-stack"
@@ -237,6 +243,61 @@ export function NodeInspector({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+const STEREOTYPE_DESCRIPTIONS: Record<
+  "boundary" | "control" | "entity",
+  string
+> = {
+  boundary: "Actor-facing surface — UI, API gateway, external adapter.",
+  control: "Orchestrates use-case logic; coordinates boundary ↔ entity.",
+  entity: "Long-lived domain state — persistent data, domain rules.",
+};
+
+function StereotypeField({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: "boundary" | "control" | "entity" | undefined;
+  onChange: (v: "boundary" | "control" | "entity" | undefined) => void;
+  readOnly: boolean;
+}): React.ReactElement {
+  return (
+    <div>
+      <div className="archik-label">ECB Stereotype</div>
+      <div className="flex flex-col gap-2 mt-1">
+        {value && (
+          <span className="archik-stereotype-pill" data-stereotype={value}>
+            {value.toUpperCase()}
+          </span>
+        )}
+        <select
+          value={value ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange(
+              v === ""
+                ? undefined
+                : (v as "boundary" | "control" | "entity"),
+            );
+          }}
+          disabled={readOnly}
+          className="archik-input w-full"
+        >
+          <option value="">(none)</option>
+          <option value="boundary">boundary</option>
+          <option value="control">control</option>
+          <option value="entity">entity</option>
+        </select>
+        {value && (
+          <div className="text-xs" style={{ color: "var(--archik-fg-muted)" }}>
+            {STEREOTYPE_DESCRIPTIONS[value]}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

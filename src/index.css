@@ -351,13 +351,73 @@ body,
   fill: var(--archik-stereotype-entity);
 }
 
+/* Robustness mode: dim non-stereotyped nodes so the ECB subset pops visually.
+   Stereotyped nodes get a coloured drop-shadow glow and a slightly thicker band.
+   The badge text (hidden by default) is revealed so the role is legible at a glance. */
 [data-archik-robustness-mode="true"] [data-archik-node-id]:not([data-archik-stereotype]) {
-  opacity: 0.3;
+  opacity: 0.25;
 }
 [data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-band {
-  /* Slightly thicker in robustness mode so the colour reads at a glance when zoomed out.
-     Stays clipped to the node's rounded corners via the inline clipPath. */
   height: 6px;
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="boundary"] {
+  filter: drop-shadow(0 0 7px var(--archik-stereotype-boundary));
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="control"] {
+  filter: drop-shadow(0 0 7px var(--archik-stereotype-control));
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="entity"] {
+  filter: drop-shadow(0 0 7px var(--archik-stereotype-entity));
+}
+
+/* Badge text — hidden in normal view, shown above the node in robustness mode. */
+.archik-stereotype-badge {
+  display: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+}
+[data-archik-robustness-mode="true"] .archik-stereotype-badge {
+  display: block;
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="boundary"] .archik-stereotype-badge {
+  fill: var(--archik-stereotype-boundary);
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="control"] .archik-stereotype-badge {
+  fill: var(--archik-stereotype-control);
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype="entity"] .archik-stereotype-badge {
+  fill: var(--archik-stereotype-entity);
+}
+
+/* ECB stereotype pill — used in NodeInspector sidebar. */
+.archik-stereotype-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  align-self: flex-start;
+}
+.archik-stereotype-pill[data-stereotype="boundary"] {
+  background: color-mix(in srgb, var(--archik-stereotype-boundary) 15%, transparent);
+  border-color: var(--archik-stereotype-boundary);
+  color: var(--archik-stereotype-boundary);
+}
+.archik-stereotype-pill[data-stereotype="control"] {
+  background: color-mix(in srgb, var(--archik-stereotype-control) 15%, transparent);
+  border-color: var(--archik-stereotype-control);
+  color: var(--archik-stereotype-control);
+}
+.archik-stereotype-pill[data-stereotype="entity"] {
+  background: color-mix(in srgb, var(--archik-stereotype-entity) 15%, transparent);
+  border-color: var(--archik-stereotype-entity);
+  color: var(--archik-stereotype-entity);
 }
 
 /* --- Edges: status stroke is set as an SVG attribute by EdgeRenderer --- */
