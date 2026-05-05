@@ -55,6 +55,17 @@ any file under `.archik/`.
    (These are non-fatal if no UC/actor files exist — note that
    and skip the UC smells below; focus on structural smells only.)
 
+   **Identify nodes at risk of seq breakage.** As you read the
+   node list, mentally note which nodes you're likely to remove,
+   split, or merge. For each such node, run:
+   ```
+   npx archik q sequences --node <id>
+   ```
+   This returns the seq files whose participants reference that
+   node ID. Collect these — you'll need the list in step 6 to
+   warn the user. If the list is empty for all affected nodes,
+   no seq diagrams are at risk.
+
 3. **Identify smells and missing structure.** Don't propose change
    for change's sake — every modification should fix one of:
 
@@ -164,7 +175,13 @@ any file under `.archik/`.
       grouped by motivation (e.g. *"1. Extract a `payments`
       bounded context from `orders`. Why: payment logic was leaking
       into order placement…"*). Keep each item to 2–3 sentences.
-   c. An explicit invitation: *"Tell me what you'd like to keep,
+   c. **Seq diagram impact warning** — if any seq file discovered
+      in step 2 references a node that this proposal removes or
+      renames, list them explicitly:
+      *"⚠️ These seq diagrams reference nodes this refactor
+      changes — they will need updating after accept: `<list>`."*
+      If no seq files are affected, skip this bullet.
+   d. An explicit invitation: *"Tell me what you'd like to keep,
       drop, or rework before you accept. I can re-stage with
       changes — `/archik:accept` is whenever you're ready."*
 

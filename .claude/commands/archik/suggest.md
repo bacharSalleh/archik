@@ -37,6 +37,10 @@ start Build phase here; that's gated on accept.
 0. **Frame + clarify (entering DESIGN).** Before any CLI call, restate
    the user's intent in one sentence and list 1–3 sharp clarifying
    questions if any of these are ambiguous in `$ARGUMENTS`:
+   - **Actor + use case** — which actor initiates this? Does an
+     existing use case cover it, or is this a new user-visible
+     behaviour? (Check `npx archik q actors` and `q usecases` in
+     step 2 before asking if the answer isn't obvious from the brief.)
    - **Boundary** — which existing context owns this, or is it a new
      one? (data ownership = bounded context)
    - **Sync vs async** — request/response (`http_call`) or
@@ -53,6 +57,15 @@ start Build phase here; that's gated on accept.
    don't ask questions for the sake of asking.** When in doubt, ask
    the user "you decide?" so they can defer back if they want.
 
+   **Before the structural sidecar, check if the feature needs
+   requirements artifacts first:**
+   - New human-facing flow or actor? Create/update
+     `*.archik.actors.yaml` (direct-write) before staging the sidecar.
+   - New user-visible behaviour? Author a `*.archik.uc.yaml` under
+     `.archik/usecases/` (direct-write) with the flow and at least one
+     slice before staging the sidecar. The structural model references
+     what the use case requires.
+
 1. **Make sure the canvas is running** so the user can review:
    ```
    npx archik status
@@ -63,7 +76,7 @@ start Build phase here; that's gated on accept.
    ```
    Note the URL it prints — you'll surface it at the end.
 
-2. **Ground yourself in the current diagram** using the query CLI
+2. **Ground yourself in the current models** using the query CLI
    (do not `cat` the YAML):
    ```
    npx archik q stats
@@ -71,6 +84,23 @@ start Build phase here; that's gated on accept.
    ```
    If `$ARGUMENTS` mentions a specific node by name, also run
    `npx archik q describe <id>` for it.
+
+   If the change is **non-trivial** (new actor, new user-visible
+   behaviour, boundary impact, more than one node affected) also
+   ground in the requirements model:
+   ```
+   npx archik q actors
+   npx archik q usecases
+   ```
+   If any use case looks related, run
+   `npx archik q describe-usecase <id>` to see its slices and
+   check whether the proposed change extends, modifies, or
+   introduces a UC — that determines whether you need to update
+   a `*.archik.uc.yaml` before staging the structural sidecar.
+
+   If step 0 already determined the change is trivially small
+   (one node, one edge, no boundary or UC impact), skip the
+   actor/UC queries and go straight to step 3.
 
 3. **Lock in the schema.** Run this before drafting any YAML —
    the prose in this file describes the workflow, not the field
@@ -103,6 +133,18 @@ start Build phase here; that's gated on accept.
    explains what the node DOES (its responsibility / behaviour),
    not just its kind or name. Empty / missing descriptions are
    rejected by the validator.
+
+   **For nodes that participate in a use case flow**, add a
+   `stereotype` field to classify their role in the ECB model:
+   - `stereotype: boundary` — accepts requests from actors / external
+     systems (adapters, gateways, API handlers)
+   - `stereotype: control` — orchestrates the use case logic (services,
+     use-case handlers, orchestrators)
+   - `stereotype: entity` — stores or represents domain data (repos,
+     domain models, DB-backed modules)
+
+   The validator enforces ECB transition rules on seq diagrams that
+   carry a `realizes` block — tag the nodes now so the rules can fire.
 
    ```bash
    npx archik suggest set --note "$ARGUMENTS" - <<'YAML'
