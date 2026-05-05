@@ -293,8 +293,19 @@ export async function startDevServer(
     }
 
     if (url === USECASES_URL || url.startsWith(USECASES_URL + "?")) {
-      void handleUseCases(root, req, res);
-      return;
+      // Dual-purpose URL: browser navigation (Accept: text/html) falls
+      // through to the SPA fallback so the user lands on UseCasesPage;
+      // every other consumer (fetch from JS, curl, CLI) gets the JSON
+      // payload. Mirrors the seq pattern (`/__archik/seq` page,
+      // `/__archik/seq-file` data) without forcing a rename of the
+      // already-published JSON endpoint.
+      const acceptsHtml = (req.headers.accept ?? "").includes("text/html");
+      if (acceptsHtml) {
+        // Fall through to static file server below — serves index.html.
+      } else {
+        void handleUseCases(root, req, res);
+        return;
+      }
     }
 
     if (url === ACTORS_URL || url.startsWith(ACTORS_URL + "?")) {

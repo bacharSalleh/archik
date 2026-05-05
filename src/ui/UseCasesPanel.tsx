@@ -193,7 +193,22 @@ function UseCasesPanelBody({
         padding: 6,
       }}
     >
-      <PanelHeader label="Use cases" />
+      <PanelHeader label="Use cases">
+        <a
+          href="/__archik/usecases"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.04em",
+            textTransform: "none",
+            color: "var(--archik-accent)",
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+          title="Open the full use cases page (clickable test paths + seq links)"
+        >
+          Open page →
+        </a>
+      </PanelHeader>
       {state.status === "loading" && <PanelMsg>Loading…</PanelMsg>}
       {state.status === "error" && (
         <PanelMsg tone="error">Couldn't load: {state.message}</PanelMsg>
@@ -488,7 +503,13 @@ function CoverageBadge({
   );
 }
 
-function PanelHeader({ label }: { label: string }): React.ReactElement {
+function PanelHeader({
+  label,
+  children,
+}: {
+  label: string;
+  children?: React.ReactNode;
+}): React.ReactElement {
   return (
     <div
       style={{
@@ -501,9 +522,14 @@ function PanelHeader({ label }: { label: string }): React.ReactElement {
         color: "var(--archik-fg-muted)",
         padding: "4px 6px 8px",
         zIndex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
       }}
     >
-      {label}
+      <span>{label}</span>
+      {children}
     </div>
   );
 }
