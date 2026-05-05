@@ -39,6 +39,24 @@ function mockFetchWithSuggestionDisabled(...mainResponses: Response[]) {
         json: async () => ({ files: [] }),
       } as unknown as Response;
     }
+    // UseCasesPanel fetches usecases + trace on app mount so the
+    // toolbar trigger button can show "am I done?" without the user
+    // opening the popover. Tests don't drive that surface — return
+    // empty payloads so the mount fetch is harmless.
+    if (url.includes("/__archik/usecases")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, useCases: [] }),
+      } as unknown as Response;
+    }
+    if (url.includes("/__archik/trace")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, rows: [] }),
+      } as unknown as Response;
+    }
     const next = mainResponses[mainCalls++];
     if (next === undefined) {
       throw new Error(`unexpected fetch to ${url} (no more mocked responses)`);
@@ -104,12 +122,16 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText(renamed.name)).toBeInTheDocument();
     });
-    // Two main-doc fetches plus any number of suggestion 404s and
-    // file-list calls — only assert the doc fetches landed.
+    // Two main-doc fetches plus any number of suggestion 404s,
+    // file-list calls, and use-case/trace mounts — only assert the
+    // doc fetches landed.
     const mainCalls = fetchSpy.mock.calls.filter(([input]) => {
       const url = typeof input === "string" ? input : (input as Request).url;
       return (
-        !url.includes(SUGGESTION_URL) && !url.includes("/__archik/files")
+        !url.includes(SUGGESTION_URL) &&
+        !url.includes("/__archik/files") &&
+        !url.includes("/__archik/usecases") &&
+        !url.includes("/__archik/trace")
       );
     });
     expect(mainCalls).toHaveLength(2);

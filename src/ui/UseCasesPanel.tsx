@@ -57,25 +57,13 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 }
 
 export function UseCasesPanel(): React.ReactElement {
-  return (
-    <Popover
-      align="end"
-      trigger={(open) => (
-        <button type="button" className="archik-btn" aria-expanded={open}>
-          Use cases
-          <span style={{ opacity: 0.6 }}>{open ? "▴" : "▾"}</span>
-        </button>
-      )}
-    >
-      {/* Body only mounts while the popover is open, so the fetch effect
-       *  fires per-open with no parent-level state needed. */}
-      {() => <UseCasesPanelBody />}
-    </Popover>
-  );
-}
-
-function UseCasesPanelBody(): React.ReactElement {
+  // State is owned at the panel level (not the popover body) so the
+  // toolbar TRIGGER button itself can show "am I done?" — fully traced
+  // (✓), partial (◐), or untraced (○) — without the user having to
+  // open the popover. We refetch on every open so the badge stays
+  // honest after edits in another window or via the CLI.
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,10 +73,6 @@ function UseCasesPanelBody(): React.ReactElement {
       fetchJson<{ ok: boolean; rows: TraceRow[] }>(TRACE_URL, ctrl.signal),
     ])
       .then(([uc, tr]) => {
-        // Guard against setState after unmount: the popover can close
-        // between fetch resolution and React re-render. AbortController
-        // cancels the request in flight; this flag covers the resolved
-        // response that's already in the microtask queue.
         if (cancelled) return;
         setState({
           status: "ready",
@@ -107,8 +91,99 @@ function UseCasesPanelBody(): React.ReactElement {
       cancelled = true;
       ctrl.abort();
     };
-  }, []);
+  }, [reloadTick]);
 
+  return (
+    <Popover
+      align="end"
+      trigger={(open) => (
+        <button
+          type="button"
+          className="archik-btn"
+          aria-expanded={open}
+          onClick={() => {
+            // Refetch on every open click — popover state flip happens
+            // in the parent Popover wrapper. This way the badge stays
+            // honest if files changed since the last fetch.
+            if (!open) setReloadTick((t) => t + 1);
+          }}
+        >
+          <UseCasesTriggerLabel state={state} />
+          <span style={{ opacity: 0.6, marginLeft: 6 }}>
+            {open ? "▴" : "▾"}
+          </span>
+        </button>
+      )}
+    >
+      {() => <UseCasesPanelBody state={state} />}
+    </Popover>
+  );
+}
+
+function UseCasesTriggerLabel({
+  state,
+}: {
+  state: LoadState;
+}): React.ReactElement {
+  if (state.status !== "ready" || state.trace.length === 0) {
+    return <>Use cases</>;
+  }
+  const totals = countLevels(state.trace);
+  // Worst-case wins: untraced > partial > full. Surfacing the most
+  // actionable problem keeps the label honest at a glance.
+  if (totals.none > 0) {
+    return (
+      <span title={`${totals.none} untraced — needs tests + seq`}>
+        Use cases{" "}
+        <span style={{ color: "var(--archik-danger)" }}>
+          ○ {totals.none} untraced
+        </span>
+      </span>
+    );
+  }
+  if (totals.partial > 0) {
+    return (
+      <span
+        title={`${totals.partial} partial — missing test or realisation`}
+      >
+        Use cases{" "}
+        <span style={{ color: "var(--archik-warning)" }}>
+          ◐ {totals.partial} to finish
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span title={`All ${totals.full} slices traced — ready to ship`}>
+      Use cases{" "}
+      <span style={{ color: "var(--archik-success)", fontWeight: 600 }}>
+        ✓ all traced
+      </span>
+    </span>
+  );
+}
+
+function countLevels(trace: TraceRow[]): {
+  full: number;
+  partial: number;
+  none: number;
+} {
+  let full = 0;
+  let partial = 0;
+  let none = 0;
+  for (const row of trace) {
+    if (row.level === "full") full++;
+    else if (row.level === "partial") partial++;
+    else none++;
+  }
+  return { full, partial, none };
+}
+
+function UseCasesPanelBody({
+  state,
+}: {
+  state: LoadState;
+}): React.ReactElement {
   return (
     <div
       style={{
@@ -140,19 +215,10 @@ function UseCasesPanelBody(): React.ReactElement {
 }
 
 function TraceSummary({ trace }: { trace: TraceRow[] }): React.ReactElement {
-  const totals = useMemo(() => {
-    let full = 0;
-    let partial = 0;
-    let none = 0;
-    for (const row of trace) {
-      if (row.level === "full") full++;
-      else if (row.level === "partial") partial++;
-      else none++;
-    }
-    return { full, partial, none, total: trace.length };
-  }, [trace]);
+  const totals = useMemo(() => countLevels(trace), [trace]);
+  const total = trace.length;
 
-  if (totals.total === 0) return <></>;
+  if (total === 0) return <></>;
 
   return (
     <div
@@ -185,7 +251,7 @@ function TraceSummary({ trace }: { trace: TraceRow[] }): React.ReactElement {
         {totals.none} untraced
       </span>
       <span style={{ marginLeft: "auto", color: "var(--archik-fg-muted)" }}>
-        {totals.total} {totals.total === 1 ? "slice" : "slices"}
+        {total} {total === 1 ? "slice" : "slices"}
       </span>
     </div>
   );
