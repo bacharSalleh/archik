@@ -41,12 +41,12 @@ function mockRes(): MockRes {
     getHeader(name: string) {
       return headers[name.toLowerCase()];
     },
-    writeHead(status: number, h?: Record<string, string | number | string[]>) {
+    writeHead(this: MockRes, status: number, h?: Record<string, string | number | string[]>) {
       this.statusCode = status;
       if (h) for (const [k, v] of Object.entries(h)) headers[k.toLowerCase()] = v;
       return this;
     },
-    end(chunk?: string) {
+    end(this: MockRes, chunk?: string) {
       if (typeof chunk === "string") this._body += chunk;
       this._ended = true;
       return this;

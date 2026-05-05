@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AlphasPanel } from "./AlphasPanel.tsx";
 
-function mockAlphas(body: unknown, ok = true): ReturnType<typeof vi.spyOn> {
+function mockAlphas(body: unknown, ok = true) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(
     async () =>
       ({

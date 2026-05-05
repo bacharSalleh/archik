@@ -10,7 +10,7 @@ import { UseCasesPanel } from "./UseCasesPanel.tsx";
  */
 function mockEndpoints(
   byUrl: Record<string, { status?: number; ok?: boolean; body: unknown }>,
-): ReturnType<typeof vi.spyOn> {
+) {
   return vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (input) => {

@@ -233,7 +233,7 @@ function SliceRow({
   level,
 }: {
   slice: Slice;
-  level?: "full" | "partial" | "none";
+  level?: "full" | "partial" | "none" | undefined;
 }): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -339,7 +339,7 @@ const COVERAGE_BADGE: Record<
 function CoverageBadge({
   level,
 }: {
-  level?: "full" | "partial" | "none";
+  level?: "full" | "partial" | "none" | undefined;
 }): React.ReactElement {
   const meta = COVERAGE_BADGE[level ?? "missing"];
   return (
