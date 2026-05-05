@@ -351,23 +351,47 @@ body,
   fill: var(--archik-stereotype-entity);
 }
 
-/* Robustness mode: dim non-stereotyped nodes so the ECB subset pops visually.
-   Stereotyped nodes get a coloured drop-shadow glow and a slightly thicker band.
-   The badge text (hidden by default) is revealed so the role is legible at a glance. */
-[data-archik-robustness-mode="true"] [data-archik-node-id]:not([data-archik-stereotype]) {
-  opacity: 0.25;
+/* Robustness mode: bring stereotyped nodes forward with a coloured outline ring
+   and a thicker top band. Non-stereotyped nodes fade to 0.5 so they stay legible
+   as context. No `filter: drop-shadow` — it bleeds across the header and reads
+   as "broken" at any meaningful zoom. */
+/* Dim only non-stereotyped LEAVES (and non-stereotyped containers whose
+   subtree contains no stereotype). Skipping containers that wrap a tagged
+   descendant prevents the descendant from inheriting parent opacity and
+   getting dimmed despite being the focus — SVG group opacity composes
+   multiplicatively, so a 0.5 parent silently halves any child. */
+[data-archik-robustness-mode="true"]
+  [data-archik-node-id]:not([data-archik-stereotype]):not(
+    :has([data-archik-stereotype])
+  ) {
+  opacity: 0.5;
 }
 [data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-band {
-  height: 6px;
+  height: 8px;
 }
-[data-archik-robustness-mode="true"] [data-archik-stereotype="boundary"] {
-  filter: drop-shadow(0 0 7px var(--archik-stereotype-boundary));
+
+/* Outline ring — hidden in normal mode, revealed in robustness mode in the
+   matching stereotype colour. */
+.archik-stereotype-outline {
+  display: none;
 }
-[data-archik-robustness-mode="true"] [data-archik-stereotype="control"] {
-  filter: drop-shadow(0 0 7px var(--archik-stereotype-control));
+[data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-outline {
+  display: block;
 }
-[data-archik-robustness-mode="true"] [data-archik-stereotype="entity"] {
-  filter: drop-shadow(0 0 7px var(--archik-stereotype-entity));
+[data-archik-robustness-mode="true"]
+  [data-archik-stereotype="boundary"]
+  .archik-stereotype-outline {
+  stroke: var(--archik-stereotype-boundary);
+}
+[data-archik-robustness-mode="true"]
+  [data-archik-stereotype="control"]
+  .archik-stereotype-outline {
+  stroke: var(--archik-stereotype-control);
+}
+[data-archik-robustness-mode="true"]
+  [data-archik-stereotype="entity"]
+  .archik-stereotype-outline {
+  stroke: var(--archik-stereotype-entity);
 }
 
 /* Badge text — hidden in normal view, shown above the node in robustness mode. */

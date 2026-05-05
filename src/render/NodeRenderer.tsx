@@ -173,14 +173,30 @@ export function NodeRenderer({
       )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
 
-      {/* ECB stereotype band — painted after Shape so it isn't buried under the node fill.
-          A clipPath matching the node's rx=8 rounded rect makes the band follow the corners
-          instead of cutting straight across them. Band starts at y=2 (not 0) so the selection
-          stroke at the top edge remains fully visible; robustness mode bumps height to 6px via CSS.
-          The badge text floats above the node (y=-9) and is hidden by CSS until robustness mode
-          is active, at which point it shows the stereotype label in the matching colour. */}
+      {/* ECB stereotype overlay — painted after Shape so the band isn't buried under
+          the node fill. Three layers, all hidden / dimmed unless the node is tagged:
+            1. outline ring (3px outside the node) — only visible in robustness mode,
+               coloured per stereotype, replaces the previous drop-shadow blur which
+               smudged into the header at any meaningful zoom
+            2. top band (4px stripe at y=2 — clears the selection stroke), clipped to
+               the node's rx=8 corners so it follows the curve. Bumped to 8px via CSS
+               in robustness mode so it stays legible alongside the ring
+            3. floating badge text (BOUNDARY/CONTROL/ENTITY) above the node,
+               hidden until robustness mode is active */}
       {node.stereotype !== undefined && (
         <>
+          <rect
+            className="archik-stereotype-outline"
+            x={-3}
+            y={-3}
+            width={node.width + 6}
+            height={node.height + 6}
+            rx={11}
+            ry={11}
+            fill="none"
+            strokeWidth={2}
+            style={{ pointerEvents: "none" }}
+          />
           <clipPath id={`archik-nclip-${node.id}`}>
             <rect width={node.width} height={node.height} rx={8} ry={8} />
           </clipPath>
