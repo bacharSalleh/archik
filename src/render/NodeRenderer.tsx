@@ -156,19 +156,6 @@ export function NodeRenderer({
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
     >
-      {node.stereotype !== undefined && (
-        // Thin ECB accent rect at the top of the node. The colour is
-        // applied by CSS via the parent's data-archik-stereotype attr,
-        // so the same component covers all three stereotypes.
-        <rect
-          className="archik-stereotype-band"
-          x={0}
-          y={0}
-          width={node.width}
-          height={3}
-          rx={1.5}
-        />
-      )}
       {isGlowed && (
         <rect
           x={-4}
@@ -184,6 +171,34 @@ export function NodeRenderer({
         />
       )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
+
+      {/* ECB stereotype band — painted after Shape so it isn't buried under the node fill.
+          Height is 3px normally; CSS bumps it to 14px in robustness mode and reveals the label. */}
+      {node.stereotype !== undefined && (
+        <>
+          <rect
+            className="archik-stereotype-band"
+            x={0}
+            y={0}
+            width={node.width}
+            height={3}
+            rx={1.5}
+            style={{ pointerEvents: "none" }}
+          />
+          <text
+            className="archik-stereotype-label"
+            x={node.width / 2}
+            y={11}
+            textAnchor="middle"
+            fontSize={8}
+            fontWeight={700}
+            letterSpacing="0.08em"
+            style={{ pointerEvents: "none", userSelect: "none" }}
+          >
+            {node.stereotype.toUpperCase()}
+          </text>
+        </>
+      )}
       {viewMode === "detailed" && !isContainer && (() => {
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;

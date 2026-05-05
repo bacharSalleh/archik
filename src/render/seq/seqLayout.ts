@@ -7,7 +7,7 @@ export const PARTICIPANT_PADDING = 40;
 export const MESSAGE_ROW_HEIGHT = 56;
 export const GROUP_HEADER_HEIGHT = 24;
 export const GROUP_PADDING = 12;
-export const NOTE_HEIGHT = 48;
+export const NOTE_HEIGHT = 64;
 export const DIAGRAM_H_PADDING = 32;
 export const DIAGRAM_V_PADDING = 24;
 export const ACTIVATION_W = 8;
@@ -126,10 +126,11 @@ function layoutSteps(
         .sort((a, b) => a - b);
       const leftCx = pCxs[0] ?? leftX;
       const rightCx = pCxs[pCxs.length - 1] ?? rightX;
-      const noteW = Math.max(
-        step.text.length * 7.5 + 24,
-        (rightCx - leftCx) + 16,
-        80,
+      // Cap note width so long text doesn't blow out the diagram.
+      // 400px absolute ceiling; text-based minimum so short notes don't shrink.
+      const noteW = Math.min(
+        Math.max(step.text.length * 7.5 + 24, (rightCx - leftCx) + 16, 80),
+        400,
       );
       let noteX: number;
       if (step.position === "left_of") {
@@ -137,9 +138,10 @@ function layoutSteps(
       } else if (step.position === "right_of") {
         noteX = rightCx + 8;
       } else {
-        // "over": center between the leftmost and rightmost participant
         noteX = (leftCx + rightCx) / 2 - noteW / 2;
       }
+      // Never let a note go off the left edge.
+      noteX = Math.max(0, noteX);
       items.push({
         type: "note",
         id: step.id,
@@ -152,6 +154,7 @@ function layoutSteps(
       });
       y += NOTE_HEIGHT + 8;
     } else if (step.type === "group") {
+      y += 8; // gap before each group frame so sequential groups don't share a border
       const groupX = leftX - GROUP_PADDING;
       const groupWidth = rightX - leftX + GROUP_PADDING * 2;
       const groupStartY = y;

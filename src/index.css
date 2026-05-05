@@ -354,9 +354,17 @@ body,
 [data-archik-robustness-mode="true"] [data-archik-node-id]:not([data-archik-stereotype]) {
   opacity: 0.35;
 }
-[data-archik-robustness-mode="true"] [data-archik-node-id][data-archik-stereotype] {
-  /* Make the stripe a touch taller in robustness mode so the ECB
-     structure reads at a glance even when zoomed out. */
+[data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-band {
+  height: 14px;
+}
+
+/* Stereotype label — hidden normally, revealed in robustness mode inside the taller band. */
+.archik-stereotype-label {
+  display: none;
+  fill: rgba(255, 255, 255, 0.9);
+}
+[data-archik-robustness-mode="true"] [data-archik-stereotype] .archik-stereotype-label {
+  display: block;
 }
 
 /* --- Edges: status stroke is set as an SVG attribute by EdgeRenderer --- */
