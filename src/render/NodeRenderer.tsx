@@ -178,9 +178,12 @@ export function NodeRenderer({
             1. outline ring (3px outside the node) — only visible in robustness mode,
                coloured per stereotype, replaces the previous drop-shadow blur which
                smudged into the header at any meaningful zoom
-            2. top band (4px stripe at y=2 — clears the selection stroke), clipped to
-               the node's rx=8 corners so it follows the curve. Bumped to 8px via CSS
-               in robustness mode so it stays legible alongside the ring
+            2. top band (4px stripe at y=0, flush against the node border so there's
+               no dark-navy gap between border and band). Clipped to the node's rx=8
+               corners so it follows the curve. Bumped to 8px via CSS in robustness
+               mode so it stays legible alongside the ring. Selection stroke's outer
+               half (above y=0) remains visible because nothing in the node overlay
+               can paint above the node's own bounds.
             3. floating badge text (BOUNDARY/CONTROL/ENTITY) above the node,
                hidden until robustness mode is active */}
       {node.stereotype !== undefined && (
@@ -203,7 +206,7 @@ export function NodeRenderer({
           <rect
             className="archik-stereotype-band"
             x={0}
-            y={2}
+            y={0}
             width={node.width}
             height={4}
             clipPath={`url(#archik-nclip-${node.id})`}
