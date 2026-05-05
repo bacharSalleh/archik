@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   ChevronDown,
+  GitBranch,
   Info,
   StickyNote,
 } from "lucide-react";
@@ -136,6 +137,57 @@ export function SubArchIcon({
         <ChevronDown
           size={size - 2}
           color="var(--archik-accent)"
+          strokeWidth={2.2}
+        />
+      </g>
+    </g>
+  );
+}
+
+/**
+ * Clickable badge shown on a node whose `seqFiles` list points at one
+ * or more sequence diagrams. Same visual treatment as SubArchIcon
+ * (filled circle, accent colour) but uses a distinct status colour so
+ * it doesn't read as "drill into a sub-architecture." One icon per
+ * seq file — clicking opens that file's seq page directly. Tooltip
+ * shows the file name.
+ */
+export function SeqIcon({
+  cx,
+  cy,
+  filePath,
+  fileLabel,
+  onClick,
+  size = 14,
+}: {
+  cx: number;
+  cy: number;
+  filePath: string;
+  fileLabel: string;
+  onClick?: (e: React.MouseEvent) => void;
+  size?: number;
+}): React.ReactElement {
+  return (
+    <g
+      transform={`translate(${cx - size / 2}, ${cy - size / 2})`}
+      style={{ cursor: onClick ? "pointer" : "default" }}
+      onClick={onClick}
+    >
+      <title>{`Open sequence diagram → ${fileLabel} (${filePath})`}</title>
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={size / 2 + 0.5}
+        fill="var(--archik-status-proposed)"
+        fillOpacity={0.16}
+        stroke="var(--archik-status-proposed)"
+        strokeOpacity={0.5}
+        strokeWidth={1}
+      />
+      <g transform={`translate(1, 1)`} pointerEvents="none">
+        <GitBranch
+          size={size - 2}
+          color="var(--archik-status-proposed)"
           strokeWidth={2.2}
         />
       </g>

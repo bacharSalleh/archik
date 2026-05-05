@@ -10,6 +10,7 @@ import {
   CrossFileIcon,
   InfoIcon,
   NotesIcon,
+  SeqIcon,
   SubArchIcon,
   iconAnchorsFor,
   trayCenters,
@@ -204,10 +205,19 @@ export function NodeRenderer({
         const crossFileList: string[] = crossFilePaths
           ? Array.from(crossFilePaths).sort()
           : [];
-        type TrayKind = "info" | "notes" | "subarch" | { type: "crossfile"; path: string };
+        const seqList: string[] = node.seqFiles ?? [];
+        type TrayKind =
+          | "info"
+          | "notes"
+          | "subarch"
+          | { type: "crossfile"; path: string }
+          | { type: "seq"; path: string };
         const trayItems: TrayKind[] = [];
-        // Sub-arch first so it's the rightmost — most actionable, easiest to find.
+        // Order: rightmost (most discoverable) → leftmost.
+        // Sub-arch first — drilling in is the heaviest action.
         if (hasArchikFile) trayItems.push("subarch");
+        // Then one seq icon per linked diagram.
+        for (const p of seqList) trayItems.push({ type: "seq", path: p });
         // Then one cross-file icon per unique referenced file.
         for (const p of crossFileList) trayItems.push({ type: "crossfile", path: p });
         if (hasDescription) trayItems.push("info");
@@ -219,6 +229,35 @@ export function NodeRenderer({
           <>
             {trayItems.map((kind, i) => {
               const slot = slots[i]!;
+              if (typeof kind === "object" && kind.type === "seq") {
+                const filePath = kind.path;
+                const fileLabel = filePath
+                  .split("/")
+                  .pop()!
+                  .replace(/\.archik\.seq\.yaml$/, "");
+                // The seq page is a separate route (the SPA router in
+                // main.tsx detects /__archik/seq and renders
+                // SequencePage). Plain <a> so middle-click opens a new
+                // tab and the OS cursor is right. The seq page's back
+                // link defaults to / when no `from` param is set —
+                // good enough; the inspector sidebar's seq link
+                // handles richer back-nav.
+                const href = `/__archik/seq?path=${encodeURIComponent(filePath)}`;
+                return (
+                  <a
+                    key={`seq-${filePath}`}
+                    href={href}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <SeqIcon
+                      cx={slot.x}
+                      cy={slot.y}
+                      filePath={filePath}
+                      fileLabel={fileLabel}
+                    />
+                  </a>
+                );
+              }
               if (typeof kind === "object" && kind.type === "crossfile") {
                 const filePath = kind.path;
                 const fileLabel = filePath
