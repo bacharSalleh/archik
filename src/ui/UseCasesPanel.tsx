@@ -279,7 +279,12 @@ function SliceRow({
               marginLeft: "auto",
             }}
           >
-            {slice.tests?.length ?? 0}t {slice.realization ? "✓ rz" : "— rz"}
+            {(() => {
+              const n = slice.tests?.length ?? 0;
+              const tests = `${n} ${n === 1 ? "test" : "tests"}`;
+              const seq = slice.realization ? "realized" : "no seq";
+              return `${tests} • ${seq}`;
+            })()}
           </span>
         </span>
       </button>
