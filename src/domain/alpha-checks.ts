@@ -228,10 +228,39 @@ function softwareSystemChecks(): Record<
           );
     },
     usable: (ctx) => {
-      // Same on-disk check as demonstrable. Essence's distinction
-      // (the system is fit for daily use) is a softer step we surface
-      // identically — the next step "ready" is where we tighten.
-      return softwareSystemChecks().demonstrable!(ctx);
+      // Every active slice must have ≥ 1 test path that exists on disk.
+      // Distinct from demonstrable (sourcePaths exist) and ready (fully
+      // traced): usable means the delivered behaviour is covered by tests
+      // — the system can be trusted for daily use, not just shown.
+      if (ctx.ucDocs.length === 0) {
+        return fail(
+          "No use cases defined; \"usable\" requires tested behaviour.",
+        );
+      }
+      const missing: string[] = [];
+      for (const { doc, relPath } of ctx.ucDocs) {
+        for (const slice of doc.slices) {
+          const isPlanned =
+            slice.status === "proposed" || slice.status === "deprecated";
+          if (isPlanned) continue;
+          if (slice.tests === undefined || slice.tests.length === 0) {
+            missing.push(`${doc.id}/${slice.id} (${relPath}): no tests`);
+            continue;
+          }
+          for (const t of slice.tests) {
+            if (!ctx.fileExists(t)) {
+              missing.push(
+                `${doc.id}/${slice.id} (${relPath}): test "${t}" missing on disk`,
+              );
+            }
+          }
+        }
+      }
+      return missing.length === 0
+        ? ok()
+        : fail(
+            `Active slices without on-disk tests: ${missing.join("; ")}.`,
+          );
     },
     ready: (ctx) => {
       // Every active slice in the trace matrix is `level: full`.

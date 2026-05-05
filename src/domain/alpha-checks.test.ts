@@ -295,6 +295,40 @@ describe("evaluateAlphaState — softwareSystem", () => {
       })),
     ).toEqual({ ok: true });
   });
+  it("usable: passes when all active slices have on-disk tests", () => {
+    const ucDoc = uc("place-order", [
+      { id: "happy", tests: ["tests/happy.spec.ts"] },
+    ]);
+    expect(
+      evaluateAlphaState("softwareSystem", "usable", ctx({
+        ucDocs: [ucDoc],
+        fileExists: () => true,
+      })),
+    ).toEqual({ ok: true });
+  });
+  it("usable: fails when an active slice has no tests on disk", () => {
+    const ucDoc = uc("place-order", [
+      { id: "happy", tests: ["tests/happy.spec.ts"] },
+    ]);
+    const r = evaluateAlphaState("softwareSystem", "usable", ctx({
+      ucDocs: [ucDoc],
+      fileExists: () => false,
+    }));
+    expect(r).toMatchObject({ ok: false });
+    expect((r as { ok: false; reason: string }).reason).toMatch(/test/i);
+  });
+  it("usable: fails when no use cases are defined", () => {
+    const r = evaluateAlphaState("softwareSystem", "usable", ctx());
+    expect(r).toMatchObject({ ok: false });
+  });
+  it("usable: skips proposed slices (no tests required yet)", () => {
+    const ucDoc = uc("place-order", [
+      { id: "future", status: "proposed" },
+    ]);
+    expect(
+      evaluateAlphaState("softwareSystem", "usable", ctx({ ucDocs: [ucDoc] })),
+    ).toEqual({ ok: true });
+  });
   it("ready: every active slice must be `level: full` in the trace matrix", () => {
     const archDoc = arch([
       { id: "ui", kind: "frontend", name: "UI", description: "x", sourcePath: "src/ui", stereotype: "boundary" },

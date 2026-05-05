@@ -45,6 +45,16 @@ any file under `.archik/`.
    — there's nothing meaningful to evolve. Suggest `/archik:spawn`
    first.
 
+   Also check the Jacobson-chain artifacts so you can surface
+   ECB and coverage smells alongside structural ones:
+   ```
+   npx archik q actors
+   npx archik q usecases
+   npx archik trace --json
+   ```
+   (These are non-fatal if no UC/actor files exist — note that
+   and skip the UC smells below; focus on structural smells only.)
+
 3. **Identify smells and missing structure.** Don't propose change
    for change's sake — every modification should fix one of:
 
@@ -68,6 +78,26 @@ any file under `.archik/`.
    - **Anaemic queues.** Two services connected by `http_call`
      for what's clearly an async fire-and-forget → introduce a
      `queue` or `topic` and rewire to `publishes` / `subscribes`.
+   - **Missing ECB stereotypes.** Only applies when actor/UC files
+     exist (`npx archik q usecases` returns results). Nodes that
+     appear in active UC slices (visible in `archik trace` output),
+     or that have user-facing relationships (`http_call` from a
+     gateway, `writes`/`reads` to a domain DB) but no `stereotype`
+     field → classify each as `boundary`, `control`, or `entity`.
+     This is a prerequisite for ECB validation on seq diagrams.
+     Evolve may **add** a stereotype to nodes spawn left blank, but
+     only when this smell is triggered. Never invent stereotypes on
+     a pure structural diagram with no UC files.
+   - **UC coverage gaps.** Only applies when UC files exist and
+     `archik trace --json` returns rows. Active slices that are
+     `partial` (tests exist but no seq realization) usually signal
+     a missing seq diagram or a missing port/adapter in the
+     structural model. Active slices that are `none` (no tests, no
+     realization) signal untested behaviour — propose a test
+     scaffold or a seq diagram, and flag any architectural gap that
+     makes the slice hard to realize (e.g. missing adapter for an
+     external call). If trace output is empty or all slices are
+     `full`, skip this smell.
 
    Aim for 3–8 changes — enough to be meaningful, few enough that
    the user can reason about each. If you'd need more, propose
@@ -102,8 +132,9 @@ any file under `.archik/`.
    - Preserve every existing node id you keep — only add or remove
      ids, never rename. Renames break diff and require the user to
      manually re-link references in code.
-   - Don't drop `description`, `responsibilities`, `notes`, or
-     `sourcePath` fields the user authored. Carry them over verbatim.
+   - Don't drop `description`, `responsibilities`, `notes`,
+     `sourcePath`, or `stereotype` fields the user authored. Carry
+     them over verbatim.
    - Every new code-bearing node (`service`, `function`, `worker`,
      `module`, `page`, `component`, `store`, `hook`) needs a
      `sourcePath:` that exists on disk — the validator rejects
@@ -117,6 +148,9 @@ any file under `.archik/`.
      until the code lands.
    - Every node MUST have a non-empty `description` explaining
      what it does. Don't introduce a node without one.
+   - When adding a `stereotype` to address the ECB smell, use only
+     `boundary`, `control`, or `entity`. Don't add `stereotype` to
+     purely infra nodes (`database`, `queue`, `external`, `cloud`).
    - Every change should be motivated by step 3, not by aesthetics.
 
    If `suggest set` reports validation errors, re-run with the
