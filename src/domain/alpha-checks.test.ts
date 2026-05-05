@@ -125,6 +125,69 @@ describe("evaluateAlphaState — stakeholders", () => {
 });
 
 describe("evaluateAlphaState — requirements", () => {
+  it("bounded: passes when all primaryActors resolve against actor docs", () => {
+    const ucDoc = uc("place-order", [{ id: "happy", tests: ["t.spec"] }]);
+    const actorDoc = actor([{ id: "actor", kind: "human" }]);
+    expect(
+      evaluateAlphaState("requirements", "bounded", ctx({
+        ucDocs: [ucDoc],
+        actorDocs: [actorDoc],
+      })),
+    ).toEqual({ ok: true });
+  });
+
+  it("bounded: fails when a UC primaryActor is not in any actor file", () => {
+    const ucDoc = uc("place-order", [{ id: "happy", tests: ["t.spec"] }]);
+    // uc() sets primaryActor: "actor" — no actor docs at all
+    const r = evaluateAlphaState("requirements", "bounded", ctx({
+      ucDocs: [ucDoc],
+      actorDocs: [],
+    }));
+    expect(r).toMatchObject({ ok: false });
+    expect((r as { ok: false; reason: string }).reason).toMatch(/primaryActor/);
+  });
+
+  it("bounded: fails when no use cases exist", () => {
+    expect(
+      evaluateAlphaState("requirements", "bounded", ctx()),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("coherent: passes when all UC IDs are unique", () => {
+    expect(
+      evaluateAlphaState("requirements", "coherent", ctx({
+        ucDocs: [
+          uc("place-order", [{ id: "happy", tests: ["t.spec"] }]),
+          uc("cancel-order", [{ id: "happy", tests: ["t.spec"] }]),
+        ],
+      })),
+    ).toEqual({ ok: true });
+  });
+
+  it("coherent: fails when two UC files share the same id", () => {
+    const ucA: LoadedUseCaseDoc = {
+      abs: "/abs/a/place-order.archik.uc.yaml",
+      relPath: "a/place-order.archik.uc.yaml",
+      doc: uc("place-order", [{ id: "happy", tests: ["t.spec"] }]).doc,
+    };
+    const ucB: LoadedUseCaseDoc = {
+      abs: "/abs/b/place-order.archik.uc.yaml",
+      relPath: "b/place-order.archik.uc.yaml",
+      doc: uc("place-order", [{ id: "sad", tests: ["t.spec"] }]).doc,
+    };
+    const r = evaluateAlphaState("requirements", "coherent", ctx({
+      ucDocs: [ucA, ucB],
+    }));
+    expect(r).toMatchObject({ ok: false });
+    expect((r as { ok: false; reason: string }).reason).toMatch(/place-order/);
+  });
+
+  it("coherent: fails when no use cases exist", () => {
+    expect(
+      evaluateAlphaState("requirements", "coherent", ctx()),
+    ).toMatchObject({ ok: false });
+  });
+
   it("conceived: requires ≥ 1 use case", () => {
     expect(
       evaluateAlphaState("requirements", "conceived", ctx({

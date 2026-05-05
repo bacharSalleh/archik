@@ -244,4 +244,77 @@ describe("driftCommand", () => {
       expect(parsed.summary.total).toBe(0);
     });
   });
+
+  it("reports missing slice test paths from UC files", async () => {
+    await mkdir(path.join(cwd, "src", "orders"), { recursive: true });
+    await mkdir(path.join(cwd, ".archik", "usecases"), { recursive: true });
+    await writeFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      validBody("    sourcePath: src/orders/"),
+    );
+    await writeFile(
+      path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+      [
+        'version: "1.0"',
+        "id: place-order",
+        "name: Place Order",
+        "primaryActor: customer",
+        "goal: buy stuff",
+        "flows:",
+        "  basic:",
+        "    steps:",
+        "      - customer submits order",
+        "slices:",
+        "  - id: happy-path",
+        "    description: customer submits valid order",
+        "    flows: [basic]",
+        "    tests:",
+        "      - tests/place-order.spec.ts",
+        "",
+      ].join("\n"),
+    );
+    // tests/place-order.spec.ts does NOT exist on disk
+    const code = await driftCommand({ _: [] });
+    expect(code).toBe(1);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/MISSING TEST/i);
+    expect(out).toMatch(/place-order/);
+    expect(out).toMatch(/happy-path/);
+    expect(out).toMatch(/tests\/place-order\.spec\.ts/);
+  });
+
+  it("does not report proposed slice test paths as missing", async () => {
+    await mkdir(path.join(cwd, "src", "orders"), { recursive: true });
+    await mkdir(path.join(cwd, ".archik", "usecases"), { recursive: true });
+    await writeFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      validBody("    sourcePath: src/orders/"),
+    );
+    await writeFile(
+      path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+      [
+        'version: "1.0"',
+        "id: place-order",
+        "name: Place Order",
+        "primaryActor: customer",
+        "goal: buy stuff",
+        "flows:",
+        "  basic:",
+        "    steps:",
+        "      - customer submits order",
+        "slices:",
+        "  - id: future",
+        "    description: future slice",
+        "    flows: [basic]",
+        "    status: proposed",
+        "    tests:",
+        "      - tests/future.spec.ts",
+        "",
+      ].join("\n"),
+    );
+    const code = await driftCommand({ _: [] });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toMatch(/No drift detected/);
+  });
 });

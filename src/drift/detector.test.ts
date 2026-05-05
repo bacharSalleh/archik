@@ -1,10 +1,12 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectDrift } from "./detector.ts";
+import { detectDrift, detectMissingTestPaths } from "./detector.ts";
 import { parseDriftignore } from "./driftignore.ts";
 import type { Document } from "../domain/types.ts";
+import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
+import type { UseCaseDocument } from "../domain/usecase-schema.ts";
 
 function makeDoc(
   nodes: Partial<{ id: string; kind: string; name: string; sourcePath: string; status: string }>[],
@@ -171,5 +173,92 @@ describe("detectDrift", () => {
     const result = await detectDrift(doc, root, []);
     expect(result.unmapped).toHaveLength(1);
     expect(result.unmapped[0]!.path).toBe("src/legacy/");
+  });
+});
+
+function makeUcDoc(
+  id: string,
+  slices: Array<{
+    id: string;
+    tests?: string[];
+    status?: "active" | "proposed" | "deprecated";
+  }>,
+): LoadedUseCaseDoc {
+  return {
+    abs: `/abs/${id}.archik.uc.yaml`,
+    relPath: `${id}.archik.uc.yaml`,
+    doc: {
+      version: "1.0",
+      id,
+      name: id,
+      primaryActor: "actor",
+      goal: "g",
+      flows: { basic: { steps: ["a"] } },
+      slices: slices.map((s) => ({
+        id: s.id,
+        description: "x",
+        flows: ["basic"],
+        ...(s.tests ? { tests: s.tests } : {}),
+        ...(s.status ? { status: s.status } : {}),
+      })),
+    } as UseCaseDocument,
+  };
+}
+
+describe("detectMissingTestPaths", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "archik-missing-tests-"));
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("returns empty when all test paths exist on disk", async () => {
+    await writeFile(path.join(root, "happy.spec.ts"), "");
+    const ucDoc = makeUcDoc("place-order", [
+      { id: "happy", tests: ["happy.spec.ts"] },
+    ]);
+    const result = detectMissingTestPaths([ucDoc], root);
+    expect(result).toHaveLength(0);
+  });
+
+  it("reports a missing test path", async () => {
+    const ucDoc = makeUcDoc("place-order", [
+      { id: "happy", tests: ["tests/happy.spec.ts"] },
+    ]);
+    const result = detectMissingTestPaths([ucDoc], root);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.ucId).toBe("place-order");
+    expect(result[0]!.sliceId).toBe("happy");
+    expect(result[0]!.testPath).toBe("tests/happy.spec.ts");
+  });
+
+  it("skips proposed and deprecated slices", async () => {
+    const ucDoc = makeUcDoc("place-order", [
+      { id: "future", tests: ["missing.spec.ts"], status: "proposed" },
+      { id: "legacy", tests: ["also-missing.spec.ts"], status: "deprecated" },
+    ]);
+    const result = detectMissingTestPaths([ucDoc], root);
+    expect(result).toHaveLength(0);
+  });
+
+  it("skips slices with no test paths declared", async () => {
+    const ucDoc = makeUcDoc("place-order", [{ id: "happy" }]);
+    const result = detectMissingTestPaths([ucDoc], root);
+    expect(result).toHaveLength(0);
+  });
+
+  it("reports multiple missing paths across multiple UCs", async () => {
+    const ucA = makeUcDoc("place-order", [
+      { id: "happy", tests: ["tests/a.spec.ts", "tests/b.spec.ts"] },
+    ]);
+    const ucB = makeUcDoc("cancel-order", [
+      { id: "happy", tests: ["tests/c.spec.ts"] },
+    ]);
+    const result = detectMissingTestPaths([ucA, ucB], root);
+    expect(result).toHaveLength(3);
   });
 });

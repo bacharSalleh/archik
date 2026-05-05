@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Document } from "../domain/types.ts";
 import type { IgnoreRule } from "./driftignore.ts";
 import { isIgnored } from "./driftignore.ts";
+import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
 
 const SOURCE_ROOTS = ["src", "services", "packages", "apps"];
 
@@ -24,11 +25,26 @@ export interface IgnoredItem {
   pattern: string;
 }
 
+export interface MissingTestDrift {
+  type: "missing-test";
+  ucId: string;
+  sliceId: string;
+  testPath: string;
+  ucFile: string;
+}
+
 export interface DriftResult {
   orphan: OrphanDrift[];
   unmapped: UnmappedDrift[];
+  missingTests: MissingTestDrift[];
   ignored: IgnoredItem[];
-  summary: { orphan: number; unmapped: number; ignored: number; total: number };
+  summary: {
+    orphan: number;
+    unmapped: number;
+    missingTests: number;
+    ignored: number;
+    total: number;
+  };
 }
 
 /**
@@ -50,14 +66,42 @@ export async function detectDrift(
   return {
     orphan,
     unmapped,
+    missingTests: [],
     ignored,
     summary: {
       orphan: orphan.length,
       unmapped: unmapped.length,
+      missingTests: 0,
       ignored: ignored.length,
       total: orphan.length + unmapped.length,
     },
   };
+}
+
+/** Check that every test path declared in active slices exists on disk. */
+export function detectMissingTestPaths(
+  ucDocs: LoadedUseCaseDoc[],
+  root: string,
+): MissingTestDrift[] {
+  const missing: MissingTestDrift[] = [];
+  for (const { doc, relPath } of ucDocs) {
+    for (const slice of doc.slices) {
+      if (slice.status === "proposed" || slice.status === "deprecated") continue;
+      if (!slice.tests || slice.tests.length === 0) continue;
+      for (const t of slice.tests) {
+        if (!existsSync(path.resolve(root, t))) {
+          missing.push({
+            type: "missing-test",
+            ucId: doc.id,
+            sliceId: slice.id,
+            testPath: t,
+            ucFile: relPath,
+          });
+        }
+      }
+    }
+  }
+  return missing;
 }
 
 function detectOrphans(doc: Document, root: string): OrphanDrift[] {

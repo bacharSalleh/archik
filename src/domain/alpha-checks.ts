@@ -83,18 +83,43 @@ function requirementsChecks(): Record<
           )
         : ok(),
     bounded: (ctx) => {
-      // Schema enforces goal + primaryActor on every loaded use case,
-      // so any successfully loaded doc is "bounded". Just need ≥ 1.
-      return ctx.ucDocs.length === 0
-        ? fail("No use cases to bound.")
-        : ok();
+      if (ctx.ucDocs.length === 0) {
+        return fail("No use cases to bound.");
+      }
+      const actorIds = new Set(
+        ctx.actorDocs.flatMap((d) => d.doc.actors.map((a) => a.id)),
+      );
+      const unresolved: string[] = [];
+      for (const { doc, relPath } of ctx.ucDocs) {
+        if (!actorIds.has(doc.primaryActor)) {
+          unresolved.push(
+            `${doc.id} (${relPath}): primaryActor "${doc.primaryActor}" not defined in any *.archik.actors.yaml`,
+          );
+        }
+      }
+      return unresolved.length === 0
+        ? ok()
+        : fail(
+            `Use cases with unresolved primaryActor: ${unresolved.join("; ")}.`,
+          );
     },
     coherent: (ctx) => {
-      // Schema enforces basic flow inclusion per slice, so once docs
-      // load, slices are coherent. Surface a clearer error if no docs.
-      return ctx.ucDocs.length === 0
-        ? fail("No use cases to make coherent.")
-        : ok();
+      if (ctx.ucDocs.length === 0) {
+        return fail("No use cases to make coherent.");
+      }
+      const seen = new Map<string, string>(); // ucId → relPath of first definition
+      const duplicates: string[] = [];
+      for (const { doc, relPath } of ctx.ucDocs) {
+        const first = seen.get(doc.id);
+        if (first !== undefined) {
+          duplicates.push(`"${doc.id}" defined in both ${first} and ${relPath}`);
+        } else {
+          seen.set(doc.id, relPath);
+        }
+      }
+      return duplicates.length === 0
+        ? ok()
+        : fail(`Duplicate use case IDs: ${duplicates.join("; ")}.`);
     },
     acceptable: (ctx) => {
       // Every active slice must have ≥ 1 test path that exists on disk.

@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { detectDrift, type DriftResult } from "../../drift/detector.ts";
+import { detectDrift, detectMissingTestPaths, type DriftResult } from "../../drift/detector.ts";
 import { parseDriftignore } from "../../drift/driftignore.ts";
 import { discoverDocs } from "../../io/discovery.ts";
+import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import type { Document } from "../../domain/types.ts";
 import { getString, type ParsedOptions } from "../options.ts";
@@ -80,7 +81,18 @@ export async function driftCommand(
     ignoreRules = parseDriftignore(ignoreText);
   }
 
-  const result = await detectDrift(mergedDoc, root, ignoreRules);
+  const archResult = await detectDrift(mergedDoc, root, ignoreRules);
+  const ucDiscovery = await discoverUseCaseDocs(root);
+  const missingTests = detectMissingTestPaths(ucDiscovery.docs, root);
+  const result: DriftResult = {
+    ...archResult,
+    missingTests,
+    summary: {
+      ...archResult.summary,
+      missingTests: missingTests.length,
+      total: archResult.summary.total + missingTests.length,
+    },
+  };
 
   if (json) {
     emitJson(toJsonShape(result));
@@ -96,6 +108,12 @@ function toJsonShape(result: DriftResult) {
   return {
     orphan: result.orphan.map((o) => ({ id: o.id, sourcePath: o.sourcePath })),
     unmapped: result.unmapped.map((u) => ({ path: u.path })),
+    missingTests: result.missingTests.map((m) => ({
+      ucId: m.ucId,
+      sliceId: m.sliceId,
+      testPath: m.testPath,
+      ucFile: m.ucFile,
+    })),
     ignored: result.ignored.map((ig) => ({ path: ig.path, pattern: ig.pattern })),
     summary: result.summary,
   };
@@ -110,6 +128,17 @@ function formatHuman(result: DriftResult): void {
     );
     for (const o of orphan) {
       console.log(`  ✗ ${o.id.padEnd(20)} sourcePath ${o.sourcePath} not found`);
+    }
+  }
+
+  if (result.missingTests.length > 0) {
+    console.log(
+      `\n${result.missingTests.length} MISSING TEST${result.missingTests.length !== 1 ? "S" : ""} — slice test paths not found on disk`,
+    );
+    for (const m of result.missingTests) {
+      console.log(
+        `  ✗ ${`${m.ucId}/${m.sliceId}`.padEnd(28)} test "${m.testPath}" not found`,
+      );
     }
   }
 
