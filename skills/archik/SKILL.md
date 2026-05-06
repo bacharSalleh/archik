@@ -17,17 +17,22 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 
 These are the user's entry points. They're triggered by the user typing `/archik:<name>` in chat. When you see one, it's the user's authorisation to run the corresponding workflow now — skip the "want me to update the YAML?" question.
 
-| Slash command           | What the user is asking for                                       |
-| ----------------------- | ----------------------------------------------------------------- |
-| `/archik:spawn`         | Bootstrap a diagram by mirroring the source tree (descriptive)    |
-| `/archik:evolve`        | Propose a cleaner bounded-context refactor (prescriptive)         |
-| `/archik:suggest <…>`   | Apply one feature-sized change from a description (targeted)      |
-| `/archik:describe <id>` | Explain a node and its connections                                |
-| `/archik:dev`           | Open the live canvas                                              |
-| `/archik:accept`        | Apply the pending sidecar suggestion                              |
-| `/archik:reject`        | Discard the pending sidecar suggestion                            |
+| Slash command                     | What the user is asking for                                       |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `/archik:bootstrap`               | **Start here on a new project.** Detect state (fresh / has-code / already-modelled) and route to the right next action — ask for a brief, suggest `/archik:spawn`, or surface trace status. |
+| `/archik:spawn`                   | Mirror the source tree as a first-pass diagram (descriptive)      |
+| `/archik:evolve`                  | Propose a cleaner bounded-context refactor (prescriptive)         |
+| `/archik:suggest <…>`             | Apply one feature-sized change from a description (targeted)      |
+| `/archik:describe <id>`           | Explain a node and its connections                                |
+| `/archik:dev`                     | Open the live canvas                                              |
+| `/archik:accept`                  | Apply the pending sidecar suggestion                              |
+| `/archik:reject`                  | Discard the pending sidecar suggestion                            |
+| `/archik:actor <id>`              | Add or update an actor in the actor index (direct-write)          |
+| `/archik:usecase <name>`          | Author a use case — flows + slices + tests (direct-write)         |
+| `/archik:trace`                   | Coverage matrix + concrete next action                            |
+| `/archik:alpha [show \| promote]` | Read or move project alphas with a machine-checked criteria       |
 
-The full protocol for each lives at `.claude/commands/archik/<name>.md`. Follow it when invoked.
+The full protocol for each lives at `commands/<name>.md` in the repo (or `.claude/commands/archik/<name>.md` once installed in a project). Follow it when invoked.
 
 ### You run these (`npx archik` CLI)
 

@@ -52,10 +52,18 @@ npx archik@latest init       # scaffolds .archik/main.archik.yaml +
 npx archik@latest start      # opens the live canvas at http://localhost:5173
 ```
 
-Then in Claude Code:
+Then in Claude Code, type:
 
 ```
-/archik:spawn                   # mirror your real source tree as the first diagram
+/archik:bootstrap               # always your first message — detects project state
+                                # and routes to the right next step (asks for a brief
+                                # on fresh projects, suggests /archik:spawn on existing
+                                # codebases, surfaces trace status if already modelled)
+```
+
+Day-to-day after that:
+
+```
 /archik:suggest <feature>       # propose changes for a specific feature
 /archik:usecase <name>          # author a use case with slices + tests
 /archik:trace                   # "am I done?" — the coverage matrix
@@ -181,11 +189,17 @@ If all you need is a one-off rendered diagram, Mermaid is faster. If you need th
 
 ## All slash commands
 
+**Start here** (always your first message on a new project):
+
+| Command               | What it does                                                                |
+| --------------------- | --------------------------------------------------------------------------- |
+| `/archik:bootstrap`   | Detects project state (fresh / has-code / already-modelled) and routes to the right next action — asks for a brief if you're starting from scratch, suggests `/archik:spawn` if there's existing code, surfaces the trace status if you're already running the loop. |
+
 **Structural diagram** (the original surface):
 
 | Command                     | What it does                                           |
 | --------------------------- | ------------------------------------------------------ |
-| `/archik:spawn`             | Bootstrap a diagram by mirroring your real source tree |
+| `/archik:spawn`             | Mirror your real source tree as the first diagram      |
 | `/archik:evolve`            | Propose a cleaner bounded-context refactor             |
 | `/archik:suggest <feature>` | Propose changes for a specific feature                 |
 | `/archik:describe <id>`     | Explain a node and its connections                     |
