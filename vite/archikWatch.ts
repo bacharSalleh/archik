@@ -110,6 +110,12 @@ export function archikWatch(): Plugin {
 
       server.middlewares.use(USECASES_URL, (req, res, next) => {
         if (req.method === undefined) return next();
+        // Dual-purpose URL — same content negotiation as devServer.ts.
+        // Browser navigation (Accept: text/html) falls through so Vite
+        // serves the SPA, which routes to UseCasesPage. Other consumers
+        // (fetch from JS, curl, CLI) get the JSON payload as before.
+        const acceptsHtml = (req.headers.accept ?? "").includes("text/html");
+        if (acceptsHtml) return next();
         void handleUseCases(root, req, res);
       });
 

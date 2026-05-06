@@ -669,7 +669,12 @@ function SliceCard({
         <div>
           {slice.realization ? (
             <a
-              href={`/__archik/seq?path=${encodeURIComponent(slice.realization.seqFile)}&from=${encodeURIComponent(`/__archik/usecases?uc=${slice.id.split("/")[0] ?? ""}`)}`}
+              // No `from` query param — SequencePage's back link
+              // expects a file path (interpreted as `?file=<path>`),
+              // not a full URL. Browser back covers the round-trip
+              // from the use cases page; the inspector sidebar's seq
+              // link handles the architecture-canvas case.
+              href={`/__archik/seq?path=${encodeURIComponent(slice.realization.seqFile)}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
