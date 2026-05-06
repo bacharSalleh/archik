@@ -196,7 +196,12 @@ export function NodeRenderer({
           />
         </>
       )}
-      {viewMode === "detailed" && !isContainer && (() => {
+      {viewMode === "detailed" && (() => {
+        // Containers (module / custom with children) used to be skipped
+        // entirely, but they CAN carry seqFiles and a sub-arch link —
+        // hiding the affordance on them was a discoverability gap.
+        // The container anchor in iconAnchorsFor places the tray below
+        // the KIND tag area so it doesn't overlap header content.
         const hasNotes =
           node.notes !== undefined && node.notes.length > 0;
         const hasArchikFile =

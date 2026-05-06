@@ -216,6 +216,13 @@ export function iconAnchorsFor(
       // bottom; the top ellipse stays clean. Anchor the badges in
       // that footer strip, mirroring the ServiceNode header tray.
       return { right: { x: width - 14, y: height - 11 } };
+    case "module":
+    case "custom":
+      // Containers run a CustomNode header bar with a KIND tag on the
+      // right. Anchor tray icons just BELOW the header (y=24 — header
+      // is 32px tall) so they don't overlap the KIND tag, and stay
+      // above any child node area thanks to ELK's container padding.
+      return { right: { x: width - 14, y: 26 } };
     default:
       return { right: { x: width - 14, y: HEADER_MID } };
   }

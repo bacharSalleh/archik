@@ -27,13 +27,13 @@ describe("SequencePage", () => {
 
   it("shows loading state initially", () => {
     vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
-    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" fromViewKey={null} />);
+    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" back={null} />);
     expect(screen.getByText(/loading/i)).not.toBeNull();
   });
 
   it("shows error when fetch fails", async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" } as Response);
-    render(<SequencePage path=".archik/flows/missing.archik.seq.yaml" fromViewKey={null} />);
+    render(<SequencePage path=".archik/flows/missing.archik.seq.yaml" back={null} />);
     await screen.findByText(/not found/i);
   });
 
@@ -42,7 +42,7 @@ describe("SequencePage", () => {
       ok: true,
       text: async () => validSeqYaml,
     } as Response);
-    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" fromViewKey={null} />);
+    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" back={null} />);
     await screen.findByText("Login Flow");
   });
 
@@ -51,7 +51,7 @@ describe("SequencePage", () => {
       ok: true,
       text: async () => validSeqYaml,
     } as Response);
-    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" fromViewKey={null} />);
+    render(<SequencePage path=".archik/flows/login.archik.seq.yaml" back={null} />);
     await screen.findByText(/architecture/i);
   });
 });

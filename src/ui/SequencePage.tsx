@@ -12,12 +12,20 @@ type State =
   | { status: "error"; message: string }
   | { status: "ready"; doc: SeqDocument };
 
+/** Typed back-target. Different parents need different back semantics:
+ *  - file → architecture canvas with a specific file selected
+ *  - usecase → use cases page with a specific uc selected
+ *  Absent → fall back to "/". */
+export type SeqBackTarget =
+  | { type: "file"; value: string }
+  | { type: "usecase"; value: string };
+
 type Props = {
   path: string;
-  fromViewKey: string | null;
+  back: SeqBackTarget | null;
 };
 
-export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
+export function SequencePage({ path, back }: Props): React.ReactElement {
   const [state, setState] = useState<State>({ status: "loading" });
   const [kinds, setKinds] = useState<Map<string, NodeKind> | undefined>(undefined);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -52,9 +60,12 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
       });
   }, [path]);
 
-  const backHref = fromViewKey
-    ? `/?file=${encodeURIComponent(fromViewKey)}`
+  const backHref = back
+    ? back.type === "usecase"
+      ? `/__archik/usecases?uc=${encodeURIComponent(back.value)}`
+      : `/?file=${encodeURIComponent(back.value)}`
     : "/";
+  const backLabel = back?.type === "usecase" ? "Use cases" : "Architecture";
 
   if (state.status === "loading") {
     return (
@@ -69,7 +80,7 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <div style={{ color: "var(--archik-fg-error, #ef4444)" }}>{state.message}</div>
         <a href={backHref} style={{ color: "var(--archik-fg-muted)", fontSize: 13 }}>
-          ← Architecture
+          ← {backLabel}
         </a>
       </div>
     );
@@ -97,7 +108,7 @@ export function SequencePage({ path, fromViewKey }: Props): React.ReactElement {
           href={backHref}
           style={{ color: "var(--archik-fg-muted)", fontSize: 13, textDecoration: "none" }}
         >
-          ← Architecture
+          ← {backLabel}
         </a>
         <span style={{ color: "var(--archik-node-stroke)" }}>|</span>
         <span style={{ fontWeight: 500, fontSize: 14, color: "var(--archik-fg)" }}>

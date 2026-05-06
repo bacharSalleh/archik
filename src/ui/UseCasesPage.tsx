@@ -501,6 +501,7 @@ function Detail({
               <SliceCard
                 key={slice.id}
                 slice={slice}
+                useCaseId={useCase.id}
                 trace={traceByKey.get(`${useCase.id}/${slice.id}`)}
               />
             ))}
@@ -566,9 +567,11 @@ function Meta({ useCase }: { useCase: UseCase }): React.ReactElement {
 
 function SliceCard({
   slice,
+  useCaseId,
   trace,
 }: {
   slice: Slice;
+  useCaseId: string;
   trace: TraceRow | undefined;
 }): React.ReactElement {
   const level = trace?.level ?? "none";
@@ -669,12 +672,7 @@ function SliceCard({
         <div>
           {slice.realization ? (
             <a
-              // No `from` query param — SequencePage's back link
-              // expects a file path (interpreted as `?file=<path>`),
-              // not a full URL. Browser back covers the round-trip
-              // from the use cases page; the inspector sidebar's seq
-              // link handles the architecture-canvas case.
-              href={`/__archik/seq?path=${encodeURIComponent(slice.realization.seqFile)}`}
+              href={`/__archik/seq?path=${encodeURIComponent(slice.realization.seqFile)}&from-uc=${encodeURIComponent(useCaseId)}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

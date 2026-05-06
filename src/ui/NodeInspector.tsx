@@ -192,7 +192,7 @@ export function NodeInspector({
           <div className="flex flex-col gap-1 mt-1">
             {node.seqFiles.map((seqFile) => {
               const label = seqFile.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
-              const href = `/__archik/seq?path=${encodeURIComponent(seqFile)}${viewKey ? `&from=${encodeURIComponent(viewKey)}` : ""}`;
+              const href = `/__archik/seq?path=${encodeURIComponent(seqFile)}${viewKey ? `&from-file=${encodeURIComponent(viewKey)}` : ""}`;
               return (
                 <a
                   key={seqFile}
