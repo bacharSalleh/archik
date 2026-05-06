@@ -254,3 +254,65 @@ describe("layoutSeqDocument", () => {
     expect(laid.steps[0]!.type).toBe("group");
   });
 });
+
+describe("layoutSeqDocument — note overflow", () => {
+  it("grows totalWidth when a right_of note extends past the rightmost lifeline", () => {
+    const doc: SeqDocument = {
+      version: "1.0",
+      name: "Right overflow",
+      participants: [
+        { id: "a", nodeId: "svc-a" },
+        { id: "b", nodeId: "svc-b" },
+      ],
+      steps: [
+        {
+          type: "note",
+          id: "n1",
+          position: "right_of",
+          participants: ["b"],
+          text:
+            "this is a deliberately long note that will easily extend past the rightmost lifeline edge",
+        },
+      ],
+    };
+    const laid = layoutSeqDocument(doc);
+    const note = laid.steps.find((s) => s.type === "note") as
+      | { x: number; width: number }
+      | undefined;
+    expect(note).toBeDefined();
+    // Note must fit entirely inside the SVG viewBox (totalWidth).
+    expect(note!.x + note!.width).toBeLessThanOrEqual(laid.totalWidth);
+  });
+
+  it("shifts everything right when a left_of note would land at negative x", () => {
+    const doc: SeqDocument = {
+      version: "1.0",
+      name: "Left overflow",
+      participants: [
+        { id: "a", nodeId: "svc-a" }, // leftmost — left_of note hangs off the left
+      ],
+      steps: [
+        {
+          type: "note",
+          id: "n1",
+          position: "left_of",
+          participants: ["a"],
+          text:
+            "very long note positioned to the left of the leftmost participant which forces a shift",
+        },
+      ],
+    };
+    const laid = layoutSeqDocument(doc);
+    const note = laid.steps.find((s) => s.type === "note") as
+      | { x: number; width: number }
+      | undefined;
+    expect(note).toBeDefined();
+    // Both the note and the participant lifeline must sit inside the
+    // canvas — the layout should have shifted everything right.
+    expect(note!.x).toBeGreaterThanOrEqual(0);
+    expect(note!.x + note!.width).toBeLessThanOrEqual(laid.totalWidth);
+    const participantCx = laid.participants[0]!.cx;
+    // Participant should have been shifted to make room for the note.
+    expect(participantCx).toBeGreaterThan(note!.x + note!.width - 10);
+  });
+});

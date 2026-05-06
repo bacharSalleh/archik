@@ -96,9 +96,21 @@ function layoutSteps(
   startY: number,
   leftX: number,
   rightX: number,
-): { items: LayoutedStep[]; endY: number } {
+): {
+  items: LayoutedStep[];
+  endY: number;
+  // Horizontal extents of every laid-out item (notes, group frames).
+  // Returned so layoutSeqDocument can grow totalWidth to fit content
+  // that extends past the participant range — without this, long
+  // `right_of` notes (or wide `over` notes spanning the rightmost
+  // lifeline) get clipped by the SVG viewBox.
+  contentMinX: number;
+  contentMaxX: number;
+} {
   let y = startY;
   const items: LayoutedStep[] = [];
+  let contentMinX = Number.POSITIVE_INFINITY;
+  let contentMaxX = Number.NEGATIVE_INFINITY;
 
   for (const step of steps) {
     if (step.type === "message") {
@@ -140,8 +152,14 @@ function layoutSteps(
       } else {
         noteX = (leftCx + rightCx) / 2 - noteW / 2;
       }
-      // Never let a note go off the left edge.
-      noteX = Math.max(0, noteX);
+      // Track extents — they may be negative for `left_of` notes near
+      // the leftmost lifeline. Don't clamp here: the outer pass in
+      // `layoutSeqDocument` shifts every laid-out item by `leftShift`
+      // so all final coords land back in the positive viewBox range.
+      // Clamping here would lose the negative magnitude and cause the
+      // shift to under-translate.
+      contentMinX = Math.min(contentMinX, noteX);
+      contentMaxX = Math.max(contentMaxX, noteX + noteW);
       items.push({
         type: "note",
         id: step.id,
@@ -165,14 +183,15 @@ function layoutSteps(
         for (let i = 0; i < step.branches.length; i++) {
           const branch = step.branches[i]!;
           const branchStartY = y;
-          const { items: branchItems, endY } = layoutSteps(
-            branch.steps,
-            participantMap,
-            y,
-            leftX,
-            rightX,
-          );
+          const {
+            items: branchItems,
+            endY,
+            contentMinX: branchMinX,
+            contentMaxX: branchMaxX,
+          } = layoutSteps(branch.steps, participantMap, y, leftX, rightX);
           y = endY;
+          contentMinX = Math.min(contentMinX, branchMinX);
+          contentMaxX = Math.max(contentMaxX, branchMaxX);
           layoutedBranches.push({
             ...(branch.label !== undefined ? { label: branch.label } : {}),
             startY: branchStartY,
@@ -198,10 +217,12 @@ function layoutSteps(
         branches: layoutedBranches,
         ...(step.status !== undefined ? { status: step.status } : {}),
       });
+      contentMinX = Math.min(contentMinX, groupX);
+      contentMaxX = Math.max(contentMaxX, groupX + groupWidth);
     }
   }
 
-  return { items, endY: y };
+  return { items, endY: y, contentMinX, contentMaxX };
 }
 
 function collectDestroyY(steps: LayoutedStep[]): Map<number, number> {
@@ -286,27 +307,70 @@ export function layoutSeqDocument(
       lifelineEndY: 0,
     };
   });
-  const totalWidth = x + DIAGRAM_H_PADDING;
+  const baseTotalWidth = x + DIAGRAM_H_PADDING;
 
   const participantMap = new Map(participants.map((p) => [p.id, p]));
   const leftX = participants[0]?.cx ?? DIAGRAM_H_PADDING;
-  const rightX = participants[participants.length - 1]?.cx ?? totalWidth - DIAGRAM_H_PADDING;
+  const rightX = participants[participants.length - 1]?.cx ?? baseTotalWidth - DIAGRAM_H_PADDING;
 
   // startY is in layout coords: steps are rendered inside translate(0, PARTICIPANT_HEADER_HEIGHT)
   // in SeqDiagramSvg, so layout coords only need to account for the vertical padding.
   const startY = DIAGRAM_V_PADDING;
-  const { items: steps, endY } = layoutSteps(doc.steps, participantMap, startY, leftX, rightX);
-  // totalHeight must include PARTICIPANT_HEADER_HEIGHT because the SVG element encompasses
-  // both the header row and the message area.
-  const totalHeight = PARTICIPANT_HEADER_HEIGHT + endY + DIAGRAM_V_PADDING;
+  const {
+    items: rawSteps,
+    endY,
+    contentMinX,
+    contentMaxX,
+  } = layoutSteps(doc.steps, participantMap, startY, leftX, rightX);
 
+  // Shift everything right when content (notes / groups) extends past
+  // the left edge, and grow the canvas right when it extends past the
+  // right edge. Without this, long `right_of` notes are clipped by the
+  // SVG viewBox and `left_of` notes near the leftmost lifeline overlap
+  // it. We do a single offset pass on the laid-out items rather than
+  // re-running the layout — the geometry only needs translation in x.
+  const leftShift =
+    contentMinX < DIAGRAM_H_PADDING && Number.isFinite(contentMinX)
+      ? DIAGRAM_H_PADDING - contentMinX
+      : 0;
+  const shiftedRightExtent = Number.isFinite(contentMaxX)
+    ? contentMaxX + leftShift + DIAGRAM_H_PADDING
+    : 0;
+  const totalWidth = Math.max(baseTotalWidth + leftShift, shiftedRightExtent);
+  const steps = leftShift > 0 ? rawSteps.map((s) => shiftStepX(s, leftShift)) : rawSteps;
+  const shiftedParticipants =
+    leftShift > 0
+      ? participants.map((p) => ({ ...p, cx: p.cx + leftShift }))
+      : participants;
+  // Rebuild the destroy map against the shifted participants so the
+  // lifelineEndY lookup keys still match the new cx values.
   const destroyY = collectDestroyY(steps);
-  const participantsWithEnd = participants.map((p) => ({
+  const participantsWithEnd = shiftedParticipants.map((p) => ({
     ...p,
-    lifelineEndY: destroyY.get(p.cx) ?? totalHeight,
+    lifelineEndY: destroyY.get(p.cx) ?? PARTICIPANT_HEADER_HEIGHT + endY + DIAGRAM_V_PADDING,
   }));
-
+  const totalHeight = PARTICIPANT_HEADER_HEIGHT + endY + DIAGRAM_V_PADDING;
   const activations = collectActivations(steps);
 
   return { participants: participantsWithEnd, steps, activations, totalWidth, totalHeight };
+}
+
+/** Shift every x coord on a laid-out step by `dx`. Used to slide all
+ *  content right when notes or groups would otherwise extend past the
+ *  left edge of the SVG viewBox. */
+function shiftStepX(step: LayoutedStep, dx: number): LayoutedStep {
+  if (step.type === "message") {
+    return { ...step, fromCx: step.fromCx + dx, toCx: step.toCx + dx };
+  }
+  if (step.type === "note") {
+    return { ...step, x: step.x + dx };
+  }
+  return {
+    ...step,
+    x: step.x + dx,
+    branches: step.branches.map((b) => ({
+      ...b,
+      steps: b.steps.map((s) => shiftStepX(s, dx)),
+    })),
+  };
 }

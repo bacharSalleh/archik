@@ -197,17 +197,35 @@ export function SeqIcon({
         />
       </g>
       {count !== undefined && count > 1 && (
-        <text
-          x={size + 1}
-          y={-1}
-          fontSize={8}
-          fontWeight={700}
-          fill="var(--archik-status-proposed)"
-          textAnchor="middle"
-          pointerEvents="none"
-        >
-          {count}
-        </text>
+        <g pointerEvents="none">
+          {/* Notification-style pill: a small filled circle with a
+              canvas-coloured outer ring so it reads cleanly against
+              both the icon body (same indigo) and the canvas
+              background. White glyph on a solid indigo fill gives
+              the count high contrast at typical zoom. */}
+          <circle
+            cx={size + 1}
+            cy={1}
+            r={6}
+            fill="var(--archik-canvas)"
+          />
+          <circle
+            cx={size + 1}
+            cy={1}
+            r={5}
+            fill="var(--archik-status-proposed)"
+          />
+          <text
+            x={size + 1}
+            y={3.5}
+            fontSize={8}
+            fontWeight={700}
+            fill="#ffffff"
+            textAnchor="middle"
+          >
+            {count}
+          </text>
+        </g>
       )}
     </g>
   );
