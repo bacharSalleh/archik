@@ -760,21 +760,14 @@ export async function handleUseCases(
   jsonResponse(res, 200, {
     ok: true,
     count: filtered.length,
+    // Full doc projected as `{ relPath, ...doc }` — UseCasesPage needs
+    // flows / goal / pre+postconditions to render the detail pane and
+    // the (lightweight) panel dropdown only reads what it needs. The
+    // payload size delta vs the old summary-only shape is small for
+    // typical projects (tens of use cases) and avoids a second fetch.
     useCases: filtered.map((d) => ({
       relPath: d.relPath,
-      id: d.doc.id,
-      name: d.doc.name,
-      status: d.doc.status,
-      primaryActor: d.doc.primaryActor,
-      secondaryActors: d.doc.secondaryActors,
-      slices: d.doc.slices.map((s) => ({
-        id: s.id,
-        description: s.description,
-        status: s.status,
-        flows: s.flows,
-        tests: s.tests,
-        realization: s.realization,
-      })),
+      ...d.doc,
     })),
   });
 }

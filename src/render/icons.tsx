@@ -148,32 +148,37 @@ export function SubArchIcon({
  * Clickable badge shown on a node whose `seqFiles` list points at one
  * or more sequence diagrams. Same visual treatment as SubArchIcon
  * (filled circle, accent colour) but uses a distinct status colour so
- * it doesn't read as "drill into a sub-architecture." One icon per
- * seq file — clicking opens that file's seq page directly. Tooltip
- * shows the file name.
+ * it doesn't read as "drill into a sub-architecture." A single icon
+ * stands in for ALL linked seq files; the optional `count` overlays a
+ * small badge on the top-right when there are multiple. Click opens
+ * the first seq file (the rest are reachable via NodeInspector). The
+ * tooltip lists every file name so hover-discovery still works.
  */
 export function SeqIcon({
   cx,
   cy,
-  filePath,
-  fileLabel,
-  onClick,
+  files,
+  count,
   size = 14,
 }: {
   cx: number;
   cy: number;
-  filePath: string;
-  fileLabel: string;
-  onClick?: (e: React.MouseEvent) => void;
+  files: ReadonlyArray<{ path: string; label: string }>;
+  count?: number;
   size?: number;
 }): React.ReactElement {
+  const tooltip =
+    files.length === 1
+      ? `Open sequence diagram → ${files[0]!.label} (${files[0]!.path})`
+      : `${files.length} sequence diagrams on this node:\n` +
+        files.map((f) => `  • ${f.label}`).join("\n") +
+        `\nClick to open the first; the rest live in the inspector.`;
   return (
     <g
       transform={`translate(${cx - size / 2}, ${cy - size / 2})`}
-      style={{ cursor: onClick ? "pointer" : "default" }}
-      onClick={onClick}
+      style={{ cursor: "pointer" }}
     >
-      <title>{`Open sequence diagram → ${fileLabel} (${filePath})`}</title>
+      <title>{tooltip}</title>
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -191,6 +196,19 @@ export function SeqIcon({
           strokeWidth={2.2}
         />
       </g>
+      {count !== undefined && count > 1 && (
+        <text
+          x={size + 1}
+          y={-1}
+          fontSize={8}
+          fontWeight={700}
+          fill="var(--archik-status-proposed)"
+          textAnchor="middle"
+          pointerEvents="none"
+        >
+          {count}
+        </text>
+      )}
     </g>
   );
 }

@@ -216,13 +216,15 @@ export function NodeRenderer({
           | "notes"
           | "subarch"
           | { type: "crossfile"; path: string }
-          | { type: "seq"; path: string };
+          | { type: "seq"; paths: string[] };
         const trayItems: TrayKind[] = [];
         // Order: rightmost (most discoverable) → leftmost.
         // Sub-arch first — drilling in is the heaviest action.
         if (hasArchikFile) trayItems.push("subarch");
-        // Then one seq icon per linked diagram.
-        for (const p of seqList) trayItems.push({ type: "seq", path: p });
+        // ONE seq icon stands in for all linked diagrams; a count
+        // badge on top-right indicates multi when length > 1. Avoids
+        // the icon-pile problem when a node has 3+ seq files.
+        if (seqList.length > 0) trayItems.push({ type: "seq", paths: seqList });
         // Then one cross-file icon per unique referenced file.
         for (const p of crossFileList) trayItems.push({ type: "crossfile", path: p });
         if (hasDescription) trayItems.push("info");
@@ -235,30 +237,25 @@ export function NodeRenderer({
             {trayItems.map((kind, i) => {
               const slot = slots[i]!;
               if (typeof kind === "object" && kind.type === "seq") {
-                const filePath = kind.path;
-                const fileLabel = filePath
-                  .split("/")
-                  .pop()!
-                  .replace(/\.archik\.seq\.yaml$/, "");
-                // The seq page is a separate route (the SPA router in
-                // main.tsx detects /__archik/seq and renders
-                // SequencePage). Plain <a> so middle-click opens a new
-                // tab and the OS cursor is right. The seq page's back
-                // link defaults to / when no `from` param is set —
-                // good enough; the inspector sidebar's seq link
-                // handles richer back-nav.
-                const href = `/__archik/seq?path=${encodeURIComponent(filePath)}`;
+                const files = kind.paths.map((p) => ({
+                  path: p,
+                  label: p.split("/").pop()!.replace(/\.archik\.seq\.yaml$/, ""),
+                }));
+                // Click navigates to the FIRST file. Tooltip lists the
+                // rest; full discovery via NodeInspector. Plain <a> so
+                // middle-click opens a new tab.
+                const firstHref = `/__archik/seq?path=${encodeURIComponent(files[0]!.path)}`;
                 return (
                   <a
-                    key={`seq-${filePath}`}
-                    href={href}
+                    key="seq"
+                    href={firstHref}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <SeqIcon
                       cx={slot.x}
                       cy={slot.y}
-                      filePath={filePath}
-                      fileLabel={fileLabel}
+                      files={files}
+                      count={files.length}
                     />
                   </a>
                 );

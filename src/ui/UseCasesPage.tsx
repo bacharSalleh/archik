@@ -33,7 +33,10 @@ type UseCase = {
   goal?: string;
   preconditions?: string[];
   postconditions?: string[];
-  flows: {
+  /** Optional in the type so the renderer can degrade gracefully if
+   *  the listing endpoint is ever trimmed again or the file is
+   *  mid-author. The schema still requires it for valid documents. */
+  flows?: {
     basic: { steps: string[] };
     alternates?: Array<{ id: string; branchFrom?: string; steps: string[] }>;
   };
@@ -437,19 +440,25 @@ function Detail({
           </Section>
         )}
 
-        <Section title="Basic flow">
-          <ol style={{ ...listStyle, paddingLeft: 22 }}>
-            {useCase.flows.basic.steps.map((s, i) => (
-              <li key={i} style={{ marginBottom: 4 }}>
-                {s}
-              </li>
-            ))}
-          </ol>
-        </Section>
+        {/* Defensive: a use case loaded from an older payload shape
+            (or hand-edited mid-author) may be missing `flows` entirely.
+            The schema requires it, but the UI shouldn't crash on
+            partial data — show a placeholder and move on. */}
+        {useCase.flows?.basic?.steps && (
+          <Section title="Basic flow">
+            <ol style={{ ...listStyle, paddingLeft: 22 }}>
+              {useCase.flows.basic.steps.map((s, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          </Section>
+        )}
 
-        {(useCase.flows.alternates?.length ?? 0) > 0 && (
+        {(useCase.flows?.alternates?.length ?? 0) > 0 && (
           <Section title="Alternate flows">
-            {useCase.flows.alternates!.map((alt) => (
+            {useCase.flows!.alternates!.map((alt) => (
               <div
                 key={alt.id}
                 style={{
