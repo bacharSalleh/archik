@@ -90,8 +90,20 @@ export function SequencePage({ path, back }: Props): React.ReactElement {
   const filename = path.replace(/^.*\//, "").replace(/\.archik\.seq\.yaml$/, "");
 
   const handleRefClick = (seqFile: string): void => {
-    const q = `?path=${encodeURIComponent(seqFile)}&from=${encodeURIComponent(path)}`;
-    window.location.href = `/seq${q}`;
+    // Two fixes vs the original:
+    //   1. URL prefix was `/seq` but the SPA route is `/__archik/seq`
+    //      — the old form 404'd against any real route.
+    //   2. The back-target was being set to the CURRENT seq file path
+    //      under the legacy `from=` param, which SequencePage's parser
+    //      interprets as an *architecture file* path. Clicking back
+    //      tried to open a `.archik.seq.yaml` as if it were `main.archik.yaml`
+    //      and failed silently. Propagate THIS page's back target
+    //      instead so the back-button stays sticky across ref hops.
+    const params = new URLSearchParams();
+    params.set("path", seqFile);
+    if (back?.type === "usecase") params.set("from-uc", back.value);
+    else if (back?.type === "file") params.set("from-file", back.value);
+    window.location.href = `/__archik/seq?${params.toString()}`;
   };
 
   return (
