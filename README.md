@@ -218,8 +218,9 @@ archik drift [path]      Surface gaps where a node's sourcePath or a slice's
 
 archik alpha [sub]       Project-wide alpha state (Essence / SEMAT)
                          show              snapshot with ✓ / ? / ✗ verification
-                         promote <a> <s>   advance an alpha — runs criteria first
-                         demote <a> <s>    walk back; --note '<reason>' required
+                         promote <a> <s>   advance an alpha — runs criteria first;
+                                           --note '<text>' captures the rationale
+                         demote <a> <s>    walk back to an earlier state on the ladder
 
 archik upgrade           Pull the latest archik via the project's package manager
                          (auto-detects npm / pnpm / yarn / bun from the lockfile)

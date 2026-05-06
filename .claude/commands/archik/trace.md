@@ -17,11 +17,13 @@ realising it, are participants ECB-tagged. Optional filter args:
    ```
    npx archik trace
    ```
-   If the user passed a filter (`use-case=<id>`, `actor=<id>`,
-   `status=active|proposed|deprecated`, `coverage=full|partial|none`),
-   pass it through as a query flag:
+   If the user passed a filter, pass it as a CLI flag — the flag form
+   uses a SPACE, not `=`:
    ```
-   npx archik trace --<filter>=<value>
+   npx archik trace --use-case <id>
+   npx archik trace --actor <id>
+   npx archik trace --status active|proposed|deprecated
+   npx archik trace --coverage full|partial|none
    ```
 
 2. **Read the totals row** at the bottom (`X full, Y partial, Z untraced`)

@@ -50,12 +50,14 @@ X currently has none. Author `.archik/X.archik.seq.yaml` with
 ### `demote <alpha> <state>`
 
 ```
-npx archik alpha demote <alpha> <state> --note "<reason>"
+npx archik alpha demote <alpha> <state>
 ```
 
 Demotion is a deliberate admission that the project no longer meets
-a previously-claimed state. Always prompt for the `--note` reason if
-the user didn't supply one — the audit trail matters.
+a previously-claimed state. Before running it, prompt the user for
+the reason and surface it in your reply (and, if appropriate, in a
+follow-up commit message) — the CLI doesn't persist a note for
+demotions, so the audit trail has to live in chat / git history.
 
 ## Notes
 
