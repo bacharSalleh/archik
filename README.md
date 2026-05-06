@@ -65,6 +65,17 @@ Done with the canvas? `npx archik stop`.
   </video>
 </p>
 
+### Install as a Claude Code plugin
+
+If you're on Claude Code and prefer the plugin marketplace flow, archik also ships as a plugin (skill + 11 slash commands bundled together):
+
+```
+/plugin marketplace add bacharSalleh/archik
+/plugin install archik@archik
+```
+
+The plugin still shells out to the `archik` CLI for the actual diagram work, so you also need the npm binary on your PATH (`npm i -g archik` or keep using `npx archik`). The skill enforces CLI-only access either way — same contract as the npm install.
+
 ## What you write
 
 ```yaml
@@ -177,7 +188,9 @@ Each command stages a sidecar via `npx archik suggest set`. The canvas shows a g
 
 ### Manual install (existing projects without `archik init`)
 
-If you already have an archik file and just want to add the Claude integration:
+If you already have an archik file and just want to add the Claude integration, pick the path that suits you:
+
+**Via the npm CLI:**
 
 ```bash
 npx archik@latest skill --user        # install skill into ~/.claude/skills (all projects)
@@ -185,6 +198,15 @@ npx archik@latest commands --user     # install /archik:* into ~/.claude/command
 ```
 
 Drop the `--user` flag to scope to the current project only.
+
+**Via Claude Code's plugin marketplace:**
+
+```
+/plugin marketplace add bacharSalleh/archik
+/plugin install archik@archik
+```
+
+Either path leaves the same skill + the same 11 slash commands in the same target directories.
 
 ## Commands
 

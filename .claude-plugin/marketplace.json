@@ -1,0 +1,17 @@
+{
+  "name": "archik",
+  "owner": {
+    "name": "Bashar",
+    "email": "welcomebachar@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "archik",
+      "source": ".",
+      "description": "Plain-YAML architecture diagrams + Jacobson use cases / actors / sequence diagrams / alphas, all CLI-mediated and validated. The skill enforces CLI-only access; the slash commands wrap the loop.",
+      "homepage": "https://github.com/bacharSalleh/archik#readme",
+      "license": "MIT",
+      "keywords": ["architecture", "diagram", "yaml", "jacobson", "ecb"]
+    }
+  ]
+}

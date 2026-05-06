@@ -31,12 +31,14 @@ describe("installCommands", () => {
     // Stand up a fake source tree so the installer copies from a
     // tempdir we control rather than the real package root. This
     // also lets us test the "missing source" branch without
-    // wrecking the real `.claude/commands/archik/` directory.
-    const srcCmd = path.join(pkgRoot, ".claude/commands/archik");
+    // wrecking the real `commands/` and `skills/archik/` source
+    // directories. Layout matches the Claude Code plugin convention
+    // (`commands/*.md`, `skills/<name>/SKILL.md`).
+    const srcCmd = path.join(pkgRoot, "commands");
     await mkdir(srcCmd, { recursive: true });
     await writeFile(path.join(srcCmd, "suggest.md"), "# suggest stub\n");
     await writeFile(path.join(srcCmd, "accept.md"), "# accept stub\n");
-    const srcSkill = path.join(pkgRoot, ".claude/skills/archik");
+    const srcSkill = path.join(pkgRoot, "skills/archik");
     await mkdir(srcSkill, { recursive: true });
     await writeFile(path.join(srcSkill, "SKILL.md"), "# skill stub\n");
 
@@ -95,7 +97,7 @@ describe("installCommands", () => {
   });
 
   it("returns missing-source when there are no command files to install", async () => {
-    await rm(path.join(pkgRoot, ".claude/commands/archik"), {
+    await rm(path.join(pkgRoot, "commands"), {
       recursive: true,
       force: true,
     });

@@ -33,8 +33,9 @@
     "docs/hero.svg",
     "docs/logo.svg",
     "docs/wordmark.svg",
-    ".claude/skills/archik",
-    ".claude/commands/archik",
+    "skills",
+    "commands",
+    ".claude-plugin",
     "README.md",
     "LICENSE"
   ],

@@ -1,0 +1,21 @@
+{
+  "name": "archik",
+  "description": "The shared vocabulary between you and Claude Code, at the engineering level. Plain-YAML architecture diagrams + Jacobson use cases / actors / sequence diagrams / alphas, all CLI-mediated and validated.",
+  "author": {
+    "name": "Bashar",
+    "email": "welcomebachar@gmail.com"
+  },
+  "homepage": "https://github.com/bacharSalleh/archik#readme",
+  "repository": "https://github.com/bacharSalleh/archik",
+  "license": "MIT",
+  "keywords": [
+    "architecture",
+    "diagram",
+    "yaml",
+    "jacobson",
+    "use-case",
+    "ecb",
+    "essence",
+    "documentation"
+  ]
+}

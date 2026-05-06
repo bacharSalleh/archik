@@ -28,9 +28,11 @@ export async function installSkill(args: {
   //   .claude/skills/<skill-name>/SKILL.md
   // so future skills (e.g. archik-validate) can sit alongside as
   // siblings without colliding.
+  // Source layout follows the Claude Code plugin convention so the
+  // same files ship as both the npm install (via this installer) and
+  // the Claude Code plugin (via plugin.json). See `.claude-plugin/`.
   const source = path.join(
     pkgRoot(),
-    ".claude",
     "skills",
     "archik",
     "SKILL.md",
@@ -70,19 +72,20 @@ export async function installSkill(args: {
  * one-keystroke way to trigger the CLI-mediated workflow Claude
  * follows under the skill.
  *
- * Source layout (in this package): `.claude/commands/archik/*.md`
+ * Source layout (in this package): `commands/*.md` — flat, the
+ * Claude Code plugin convention. The plugin name (`archik`, declared
+ * in `.claude-plugin/plugin.json`) handles the `/archik:*` namespace
+ * for plugin installs; this installer prefixes the same files into a
+ * `commands/archik/` subdirectory for the npm-init code path so the
+ * effective slash command names match either way.
+ *
  * Target layout (project): `<scope>/.claude/commands/archik/*.md`
  */
 export async function installCommands(args: {
   scope: SkillScope;
   force: boolean;
 }): Promise<InstallCommandsResult> {
-  const sourceDir = path.join(
-    pkgRoot(),
-    ".claude",
-    "commands",
-    "archik",
-  );
+  const sourceDir = path.join(pkgRoot(), "commands");
   let entries: string[];
   try {
     entries = (await readdir(sourceDir)).filter((f) => f.endsWith(".md"));
