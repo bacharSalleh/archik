@@ -18,7 +18,9 @@ type Slice = {
   id: string;
   description: string;
   status?: "active" | "proposed" | "deprecated";
-  flows: string[];
+  // Optional at the type level — schema requires it but the renderer
+  // shouldn't crash on partial / mid-author data.
+  flows?: string[];
   tests?: string[];
   realization?: { seqFile: string };
 };
@@ -35,20 +37,29 @@ type UseCase = {
   postconditions?: string[];
   /** Optional in the type so the renderer can degrade gracefully if
    *  the listing endpoint is ever trimmed again or the file is
-   *  mid-author. The schema still requires it for valid documents. */
+   *  mid-author. The schema still requires both for valid documents. */
   flows?: {
     basic: { steps: string[] };
     alternates?: Array<{ id: string; branchFrom?: string; steps: string[] }>;
   };
-  slices: Slice[];
+  slices?: Slice[];
 };
 
 type TraceRow = {
   useCase: string;
   slice: string;
   level: "full" | "partial" | "none";
-  ecbTagged?: number;
-  ecbTotal?: number;
+  // Mirrors the trace endpoint shape — `realization` is null when the
+  // slice has no seq file. Participants carry an optional stereotype
+  // we use to derive the ECB tagging ratio shown in slice cards.
+  realization: {
+    seqFile: string;
+    participants: Array<{
+      participantId: string;
+      nodeId: string;
+      stereotype?: "boundary" | "control" | "entity";
+    }>;
+  } | null;
 };
 
 type LoadState =
@@ -504,18 +515,29 @@ function Detail({
           </Section>
         )}
 
-        <Section title={`Slices (${useCase.slices.length})`}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {useCase.slices.map((slice) => (
-              <SliceCard
-                key={slice.id}
-                slice={slice}
-                useCaseId={useCase.id}
-                trace={traceByKey.get(`${useCase.id}/${slice.id}`)}
-              />
-            ))}
-          </div>
-        </Section>
+        {(() => {
+          const slices = useCase.slices ?? [];
+          return (
+            <Section title={`Slices (${slices.length})`}>
+              {slices.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--archik-fg-muted)" }}>
+                  — no slices declared
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {slices.map((slice) => (
+                    <SliceCard
+                      key={slice.id}
+                      slice={slice}
+                      useCaseId={useCase.id}
+                      trace={traceByKey.get(`${useCase.id}/${slice.id}`)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
+          );
+        })()}
 
         <div
           style={{
@@ -623,9 +645,15 @@ function SliceCard({
             color: "var(--archik-fg-muted)",
           }}
         >
-          {trace?.ecbTotal !== undefined && trace.ecbTotal > 0 && (
+          {trace?.realization && trace.realization.participants.length > 0 && (
             <>
-              ECB {trace.ecbTagged ?? 0}/{trace.ecbTotal}
+              ECB{" "}
+              {
+                trace.realization.participants.filter(
+                  (p) => p.stereotype !== undefined,
+                ).length
+              }
+              /{trace.realization.participants.length}
             </>
           )}
         </span>
@@ -705,7 +733,7 @@ function SliceCard({
 
         <div style={miniLabelStyle}>Flows</div>
         <div style={{ fontSize: 11, color: "var(--archik-fg-dim)" }}>
-          {slice.flows.join(", ")}
+          {(slice.flows ?? []).join(", ") || "—"}
         </div>
       </div>
     </div>

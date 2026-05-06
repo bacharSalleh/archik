@@ -99,9 +99,24 @@ const SAMPLE_USECASES = {
 const SAMPLE_TRACE = {
   ok: true,
   rows: [
-    { useCase: "place-order", slice: "happy", level: "full", ecbTagged: 3, ecbTotal: 4 },
-    { useCase: "place-order", slice: "declined", level: "partial" },
-    { useCase: "refund", slice: "happy", level: "none" },
+    {
+      useCase: "place-order",
+      slice: "happy",
+      level: "full",
+      // Realistic shape — ECB ratio is derived in the UI from
+      // realization.participants[].stereotype.
+      realization: {
+        seqFile: ".archik/place-order-happy.archik.seq.yaml",
+        participants: [
+          { participantId: "ui", nodeId: "ui", stereotype: "boundary" },
+          { participantId: "svc", nodeId: "svc", stereotype: "control" },
+          { participantId: "db", nodeId: "db", stereotype: "entity" },
+          { participantId: "log", nodeId: "log" }, // untagged
+        ],
+      },
+    },
+    { useCase: "place-order", slice: "declined", level: "partial", realization: null },
+    { useCase: "refund", slice: "happy", level: "none", realization: null },
   ],
 };
 
@@ -179,6 +194,21 @@ describe("UseCasesPage", () => {
     );
     expect(seqLink).toBeDefined();
     expect(seqLink!.getAttribute("href")).toContain("from-uc=place-order");
+  });
+
+  it("derives the ECB ratio from realization.participants on each slice", async () => {
+    mockEndpoints({
+      "/__archik/usecases": { body: SAMPLE_USECASES },
+      "/__archik/trace": { body: SAMPLE_TRACE },
+    });
+    render(<UseCasesPage selectedId="place-order" />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("tests/place-order.happy.spec.ts"),
+      ).toBeInTheDocument(),
+    );
+    // happy slice has 3 of 4 participants stereotyped → "ECB 3/4".
+    expect(screen.getByText(/ECB 3\/4/)).toBeInTheDocument();
   });
 
   it("aggregates trace totals in the header", async () => {
