@@ -10,6 +10,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 - **The YAML is the source of truth.** `.archik/main.archik.yaml` (and any `*.archik.yaml` sub-files) describe the system the user is building. The browser canvas is just a stateless projection of that file.
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
+- **Actors first, one use case to ship.** When a user hands you a brief on a fresh project, the right opening move is *model the actors, then propose the first use case to ship* — never "let me sketch your whole system." Actors-first because you can't validate a use case without knowing who initiates it. Pick exactly one because forcing priorities into the open before any code lands is the entire point of the loop. "To ship" because that use case becomes `status: active` with real test paths — the project's commitments turn mechanical from the very first turn.
 
 ## Command surfaces
 

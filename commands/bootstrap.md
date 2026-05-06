@@ -47,7 +47,10 @@ brief and start the DESIGN loop.
 3. If `$ARGUMENTS` already contains a brief, treat it as the brief
    and skip step 4. Otherwise:
 4. **Ask for the brief**, in this exact shape (so the user knows
-   what fields you actually need):
+   what fields you actually need). The closing line is the load-
+   bearing one — it commits the conversation to actors-first +
+   pick-exactly-one + ship-it-with-tests, which is the framing
+   that makes the rest of the loop work:
    > "Send me a project brief in this shape (skip any line that
    > doesn't apply):
    >
@@ -57,8 +60,11 @@ brief and start the DESIGN loop.
    > **Constraints:** budget, deadline, team size, hard-no's.
    > **Out of scope:** things you explicitly DON'T want.
    >
-   > After you reply, I'll model actors first, then propose the
-   > first use case to ship."
+   > **Then end with:** *'Start by modelling the actors and the
+   > first use case I should ship.'* — that single line is what
+   > forces priorities into the open before any code lands and
+   > makes the use case `status: active` with real test paths from
+   > message one."
 5. When the brief lands, run the standard DESIGN loop:
    `/archik:actor` (if needed) → `/archik:usecase` → `/archik:suggest`
    (structural sidecar) → behavioural seq files. Stop at each
