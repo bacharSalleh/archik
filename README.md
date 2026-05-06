@@ -71,7 +71,7 @@ Day-to-day after that:
 
 `/archik:suggest` and `/archik:usecase` stage reviewable artifacts — diff overlay on the canvas, accept or reject. **Claude never edits YAML by hand**; the skill enforces CLI-only access.
 
-> **The framing that makes the rest of the loop work:** when Claude asks for your brief, end it with *"start by modelling the actors and the first use case I should ship."* Three things hide in that one sentence: actors-first (you can't validate a use case without knowing who initiates it), pick exactly one (forces priorities into the open before any code lands), and "to ship" (the use case gets `status: active` with real test paths — the system's commitments become mechanical from message one).
+> **The framing that makes the rest of the loop work:** when Claude asks for your brief, end it with *"start by modelling the actors and the first use case I should ship."* Three things hide in that one sentence: actors-first (you can't validate a use case without knowing who initiates it), pick exactly one (forces priorities into the open before any code lands), and "to ship" (the use case names its test paths from message one — slices start `status: proposed` and flip to `active` mechanically once those tests land in BUILD; the commitment is in the YAML, not the chat log).
 
 <p align="center">
   <video src="https://github.com/bacharSalleh/archik/raw/main/docs/record.mp4" poster="https://cdn.jsdelivr.net/gh/bacharSalleh/archik@main/docs/archik.gif" width="780" controls muted autoplay loop playsinline>

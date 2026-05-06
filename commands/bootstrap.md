@@ -62,9 +62,12 @@ brief and start the DESIGN loop.
    >
    > **Then end with:** *'Start by modelling the actors and the
    > first use case I should ship.'* — that single line is what
-   > forces priorities into the open before any code lands and
-   > makes the use case `status: active` with real test paths from
-   > message one."
+   > forces priorities into the open before any code lands. The
+   > use case names its test paths from message one; slices start
+   > `status: proposed` (because the tests don't exist on disk
+   > yet) and flip to `status: active` automatically when the
+   > tests land in BUILD. The commitment lives in the YAML, not
+   > in the chat log."
 5. When the brief lands, run the standard DESIGN loop:
    `/archik:actor` (if needed) → `/archik:usecase` → `/archik:suggest`
    (structural sidecar) → behavioural seq files. Stop at each
