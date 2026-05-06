@@ -254,11 +254,15 @@ export function iconAnchorsFor(
       return { right: { x: width - 14, y: height - 11 } };
     case "module":
     case "custom":
-      // Containers run a CustomNode header bar with a KIND tag on the
-      // right. Anchor tray icons just BELOW the header (y=24 — header
-      // is 32px tall) so they don't overlap the KIND tag, and stay
-      // above any child node area thanks to ELK's container padding.
-      return { right: { x: width - 14, y: 26 } };
+      // Containers run a CustomNode header bar (32px) with a KIND tag
+      // on the right and a divider line at y=32. Anchoring tray icons
+      // INSIDE the header area collides with the KIND tag and / or
+      // overlaps the divider (looks chopped — see issue with the (i)
+      // icon sitting on the line). Park them in the empty strip
+      // between the divider (y=32) and ELK's first child (y=48 due to
+      // CONTAINER_PADDING.top in elkAdapter). y=42 centers them in
+      // that 16px gap with a touch more space below.
+      return { right: { x: width - 14, y: 42 } };
     default:
       return { right: { x: width - 14, y: HEADER_MID } };
   }
