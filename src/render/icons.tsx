@@ -198,27 +198,30 @@ export function SeqIcon({
       </g>
       {count !== undefined && count > 1 && (
         <g pointerEvents="none">
-          {/* Notification-style pill: a small filled circle with a
-              canvas-coloured outer ring so it reads cleanly against
-              both the icon body (same indigo) and the canvas
-              background. White glyph on a solid indigo fill gives
-              the count high contrast at typical zoom. */}
+          {/* Notification-style pill positioned ABOVE the icon (top-
+              centre) so it doesn't stretch horizontally into the
+              neighbouring tray slot — the previous top-right placement
+              extended 7px past the icon edge while tray slots are only
+              18px apart, causing a 3px overlap with whatever icon sat
+              to the right (e.g. sub-arch). Vertically the badge sits
+              just above the icon body; for the rare case where the
+              tray is at the very top of a node, SVG won't clip it. */}
           <circle
-            cx={size + 1}
-            cy={1}
-            r={6}
+            cx={size / 2}
+            cy={-3}
+            r={5.5}
             fill="var(--archik-canvas)"
           />
           <circle
-            cx={size + 1}
-            cy={1}
-            r={5}
+            cx={size / 2}
+            cy={-3}
+            r={4.5}
             fill="var(--archik-status-proposed)"
           />
           <text
-            x={size + 1}
-            y={3.5}
-            fontSize={8}
+            x={size / 2}
+            y={-0.5}
+            fontSize={7.5}
             fontWeight={700}
             fill="#ffffff"
             textAnchor="middle"
