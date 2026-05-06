@@ -1,0 +1,48 @@
+version: "1.0"
+id: render
+name: Render the architecture (or a seq diagram) to SVG
+description: |
+  The developer (or CI) runs `npx archik render --out <path>` to
+  generate a static SVG of the architecture diagram - or
+  `--seq <file>` to render a sequence diagram. Used to commit a
+  rendered SVG into `docs/` so the diagram shows up in GitHub previews
+  / Slack unfurls without requiring viewers to run the dev canvas.
+status: active
+primaryActor: developer
+secondaryActors:
+  - claude
+goal: A static SVG of the structural architecture or a named sequence diagram is written to a file path the developer specifies, ready to commit to the repo.
+preconditions:
+  - Either a main archik file or a `*.archik.seq.yaml` exists.
+postconditions:
+  - The output SVG file exists at the requested path.
+  - Re-running with the same diagram shape produces a byte-identical output (deterministic).
+flows:
+  basic:
+    steps:
+      - Developer runs `npx archik render --out docs/architecture.svg`.
+      - Render loads the main archik file and validates it.
+      - The same ELK layout used by the canvas runs in headless mode (jsdom + elkjs).
+      - The same React renderer used by the canvas walks the laid-out tree and produces an SVG string.
+      - The command writes the SVG to the requested path and prints `✓ wrote <path> (<width>x<height>)`.
+  alternates:
+    - id: seq
+      branchFrom: basic.1
+      steps:
+        - Developer adds `--seq <path/to/seq.yaml>` to the command.
+        - Render loads the seq file instead and runs the seq layout.
+        - The seq SVG is written to the output path.
+slices:
+  - id: arch-svg
+    description: The structural architecture is rendered to SVG and written to the output path.
+    flows:
+      - basic
+    tests:
+      - src/cli/commands/render.test.ts
+  - id: seq-svg
+    description: A named sequence diagram is rendered to SVG via `--seq`.
+    flows:
+      - basic
+      - seq
+    tests:
+      - src/cli/commands/render.test.ts

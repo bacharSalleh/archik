@@ -1,0 +1,63 @@
+version: "1.0"
+id: drift
+name: Detect drift between the diagram and the source tree
+description: |
+  The developer (or CI) runs `npx archik drift` to surface gaps where
+  the structural diagram disagrees with what's on disk - nodes whose
+  `sourcePath` no longer points at a real file, source directories
+  that aren't represented in any node, slice test paths that have
+  been deleted. Drift is the canary that catches "the code moved but
+  the diagram didn't" before the diagram becomes documentation
+  theatre.
+status: active
+primaryActor: developer
+secondaryActors:
+  - claude
+goal: Every node's `sourcePath` and every active slice's `tests` array is verified to exist on disk; missing sources are reported with a fix hint.
+preconditions:
+  - At least one node in `main.archik.yaml` declares a `sourcePath`.
+postconditions:
+  - On clean disk, the command exits 0.
+  - On drift, the command exits 1 with the list of missing paths and which node / slice each belongs to.
+flows:
+  basic:
+    steps:
+      - Developer runs `npx archik drift`.
+      - Drift detector walks every code-bearing node (`service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`) and checks `sourcePath` against the file system.
+      - It also walks every active use case slice's `tests` array.
+      - It checks `.archikignore` patterns to skip vendored or generated paths the project deliberately doesn't model.
+      - The command prints `✓ <count> nodes / <count> tests on disk` and exits 0.
+  alternates:
+    - id: missing-source
+      branchFrom: basic.2
+      steps:
+        - At least one node's `sourcePath` no longer resolves on disk.
+        - "Drift prints `✗ <node-id>: <sourcePath> not found` for each missing node."
+        - Command exits 1 - developer either restores the file or stages a sidecar to remove / move the node.
+    - id: missing-test
+      branchFrom: basic.3
+      steps:
+        - At least one active slice's `tests` path no longer resolves.
+        - "Drift prints `✗ <usecase>/<slice>: <test-path> not found`."
+        - "Command exits 1 - developer either restores the test or marks the slice `status: proposed`."
+slices:
+  - id: clean
+    description: Every sourcePath and slice test resolves on disk; command exits 0.
+    flows:
+      - basic
+    tests:
+      - src/cli/commands/drift.test.ts
+  - id: missing-source
+    description: A node's sourcePath is gone; drift exits 1 with the node id named.
+    flows:
+      - basic
+      - missing-source
+    tests:
+      - src/cli/commands/drift.test.ts
+  - id: missing-test
+    description: An active slice's test file is gone; drift exits 1 with the slice id named.
+    flows:
+      - basic
+      - missing-test
+    tests:
+      - src/cli/commands/drift.test.ts

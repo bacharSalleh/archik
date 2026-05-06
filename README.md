@@ -102,8 +102,36 @@ No `x` / `y` / `width` — layout is computed by [ELK](https://eclipse.dev/elk/)
 - **27 node kinds** across compute, data, messaging, networking, hexagonal, AI/ML, identity, observability, cloud, UI, and external.
 - **12 relationships** with distinct visual styling — `http_call`, `invokes`, `reads`, `writes`, `publishes`, `subscribes`, `streams_to`, `routes_to`, `implements`, `depends_on`, `has_a`, `uses`.
 - **Drag-to-connect, multi-select, undo/redo, compact view, themed (dark / light), notes per node, color overrides on edges.**
-- **CI-ready CLI** — `validate`, `render` (headless SVG), `watch`, `check` (drift between YAML and source dirs).
-- **AI skill + slash commands** — `archik init` installs both automatically. Seven `/archik:*` commands (`spawn`, `evolve`, `suggest`, `describe`, `dev`, `accept`, `reject`) drive the diagram entirely through the CLI, so Claude never edits YAML by hand.
+- **CI-ready CLI** — `validate`, `render` (headless SVG), `watch`, `drift` (source-tree gaps), `trace` (coverage matrix with `--fail-on partial|none`).
+- **AI skill + slash commands** — `archik init` installs both automatically. Eleven `/archik:*` commands cover the structural surface (`spawn`, `evolve`, `suggest`, `describe`, `dev`, `accept`, `reject`) plus the requirements layer (`actor`, `usecase`, `trace`, `alpha`).
+
+## Beyond the diagram — use cases, traceability, alphas
+
+The structural diagram is the start. Above it sits a thin requirements
+layer that closes the Jacobson chain — *who acts → what they want →
+how the system behaves at runtime → which structural nodes participate
+→ which tests prove it*. Every link is a YAML cross-reference and the
+validator rejects breaks at every step.
+
+| Artifact                       | File                                | What it captures                                              |
+| ------------------------------ | ----------------------------------- | ------------------------------------------------------------- |
+| **Actors**                     | `*.archik.actors.yaml`              | Who initiates use cases — humans, external systems, schedulers |
+| **Use cases + slices**         | `.archik/usecases/*.archik.uc.yaml` | What each actor wants, with slim slices that name test paths   |
+| **Sequence diagrams**          | `*.archik.seq.yaml`                 | How a slice plays out at runtime (ECB-checked when bound to a slice via `realizes`) |
+| **Alphas (Essence / SEMAT)**   | `*.archik.alphas.yaml`              | Project-wide progress dials with mechanically-verified states  |
+
+`npx archik trace` prints the coverage matrix (use case × slice × test
+× seq × ECB) so "are we done?" stops being an opinion. The dev canvas
+surfaces the same information visually: the **Use cases** toolbar
+button shows live trace status (`✓ all traced` / `◐ N to finish` /
+`○ N untraced`), and `/__archik/usecases` is a dedicated page with
+master/detail rail, slice cards with clickable test paths, and direct
+links to each realising sequence diagram.
+
+The `validate` command enforces the integrity triangle: if a slice
+points at a seq file, the seq must point back; if a seq diagram
+realises a slice, every participant node must list that seq in its
+`seqFiles` array. Orphans get caught at lint time, not in code review.
 
 ## For Claude Code & other LLMs
 
@@ -111,7 +139,9 @@ The whole reason archik uses YAML instead of a binary format: **the file is the 
 
 The skill enforces a hard rule: **Claude talks to archik only through the `npx archik` CLI** — never `Read`, `Write`, or `Edit` on a YAML directly. Queries go through `npx archik q`, suggestions through `npx archik suggest set`, lifecycle through `npx archik suggest accept | reject`. You own the file; the CLI is the contract.
 
-### The seven slash commands
+### The slash commands
+
+**Structural diagram (the original surface):**
 
 | Command                     | What it does                                                |
 | --------------------------- | ----------------------------------------------------------- |
@@ -122,6 +152,15 @@ The skill enforces a hard rule: **Claude talks to archik only through the `npx a
 | `/archik:dev`               | Open the live canvas                                        |
 | `/archik:accept`            | Apply the pending suggestion                                |
 | `/archik:reject`            | Discard the pending suggestion                              |
+
+**Requirements + traceability (the Jacobson layer — see below):**
+
+| Command                              | What it does                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| `/archik:actor <id>`                 | Add or update an actor in the actor index                                   |
+| `/archik:usecase <name>`             | Author a use case (actors + flows + slices + tests)                         |
+| `/archik:trace`                      | Show the use case × slice × test × seq × ECB coverage matrix                |
+| `/archik:alpha [show \| promote …]`  | Read the project's alpha state, or promote one with a criteria check        |
 
 A typical first-day flow:
 
@@ -169,6 +208,24 @@ archik render [path]     Render to a self-contained SVG file
                          --out <file>     output path (default: diagram.svg)
                          --theme <name>   "dark" (default) or "light"
 archik watch [path]      Re-render to SVG on every file change (Ctrl+C to stop)
+
+archik trace [path]      Use case × slice × test × seq × ECB coverage matrix
+                         --json              structured rows + summary
+                         --fail-on <level>   exit 1 on partial | none (CI gate)
+                         --use-case <id>     filter to one use case
+archik drift [path]      Surface gaps where a node's sourcePath or a slice's
+                         tests path no longer resolves on disk
+
+archik alpha [sub]       Project-wide alpha state (Essence / SEMAT)
+                         show              snapshot with ✓ / ? / ✗ verification
+                         promote <a> <s>   advance an alpha — runs criteria first
+                         demote <a> <s>    walk back; --note '<reason>' required
+
+archik upgrade           Pull the latest archik via the project's package manager
+                         (auto-detects npm / pnpm / yarn / bun from the lockfile)
+                         then refreshes SKILL.md + slash commands from the new binary
+                         --skip-install    just refresh artifacts; don't reinstall
+                         --user            install to ~/.claude (global skill)
 
 archik suggest [sub]     Manage Claude's pending architecture suggestion
                          show             summarise the pending sidecar (default; --json supported)

@@ -1,0 +1,57 @@
+version: "1.0"
+id: validate
+name: Validate the project's archik artifacts
+description: |
+  The developer (or CI) runs `npx archik validate` to check that every
+  archik file in the project is structurally sound, every cross-file
+  reference resolves, and the Jacobson integrity triangle holds:
+  use case ↔ seq ↔ node. The command exits non-zero on any error,
+  producing actionable messages so the offending field is fixable
+  without spelunking.
+status: active
+primaryActor: developer
+secondaryActors:
+  - claude
+goal: Every archik file in the project is verified against its schema and the cross-file integrity rules; any break is reported with a precise path and a fix hint.
+preconditions:
+  - At least one `*.archik.yaml` exists in the project (the main file).
+postconditions:
+  - On success, the command exits 0 and the developer can ship.
+  - On failure, the command exits 1 with a list of `{ path, message }` errors that name the field, the offending value, and the fix.
+flows:
+  basic:
+    steps:
+      - Developer runs `npx archik validate`.
+      - The validator loads every `*.archik.yaml`, `*.archik.uc.yaml`, `*.archik.actors.yaml`, `*.archik.seq.yaml` discovered under the project root.
+      - Schema validation runs on each file via the matching Zod schema.
+      - Cross-file checks run - actor refs resolve, slice tests exist on disk, slice realisations point at real seq files, seq realises blocks bidirectionally agree with their slices, and every seq participant's node lists the seq in its `seqFiles` array.
+      - ECB transition rules fire on any seq diagram with a `realizes` block.
+      - The command prints `✓ <count> nodes, <count> edges, <count> use cases, <count> actors` and exits 0.
+  alternates:
+    - id: schema-error
+      branchFrom: basic.3
+      steps:
+        - Schema validation fails for at least one file.
+        - The validator prints the file path, the field path, the offending value, and the schema constraint that was violated.
+        - The command exits 1 without running the cross-file checks.
+    - id: integrity-error
+      branchFrom: basic.4
+      steps:
+        - One of the cross-file checks fails (e.g. a seq's participant node doesn't list the seq in `seqFiles`).
+        - The validator prints the offending file plus a one-line fix hint that names the missing artifact.
+        - The command exits 1 - the developer fixes the artifacts and re-runs.
+slices:
+  - id: clean
+    description: Every file passes both schema and cross-file checks; command exits 0.
+    flows:
+      - basic
+    tests:
+      - src/cli/commands/validate.test.ts
+  - id: integrity-error
+    description: A cross-file integrity rule fails (e.g. missing seqFiles backref); validator exits 1 with an actionable message.
+    flows:
+      - basic
+      - integrity-error
+    tests:
+      - src/cli/commands/validate.test.ts
+      - src/domain/seq-validate.test.ts
