@@ -25,8 +25,10 @@ import { FileSwitcher, type FileEntry } from "./FileSwitcher.tsx";
 import {
   densityToLayoutOptions,
   loadDensity,
+  loadShowStereotypeBands,
   loadViewMode,
   saveDensity,
+  saveShowStereotypeBands,
   saveViewMode,
 } from "./LayoutControls.tsx";
 import type { ViewMode } from "../layout/types.ts";
@@ -197,6 +199,13 @@ export function App(): React.ReactElement {
   const setViewMode = (v: ViewMode): void => {
     setViewModeState(v);
     saveViewMode(v);
+  };
+  const [showStereotypeBands, setShowStereotypeBandsState] = useState<boolean>(
+    () => loadShowStereotypeBands(),
+  );
+  const setShowStereotypeBands = (v: boolean): void => {
+    setShowStereotypeBandsState(v);
+    saveShowStereotypeBands(v);
   };
   const layoutOptions = useMemo(
     () => ({ ...densityToLayoutOptions(density), viewMode }),
@@ -951,6 +960,8 @@ export function App(): React.ReactElement {
         onDensityChange={setDensity}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        showStereotypeBands={showStereotypeBands}
+        onToggleStereotypeBands={() => setShowStereotypeBands(!showStereotypeBands)}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
         onUndo={undo}
@@ -1105,6 +1116,7 @@ export function App(): React.ReactElement {
               className="flex-1 archik-grid"
               layoutOptions={layoutOptions}
               viewMode={viewMode}
+              showStereotypeBands={showStereotypeBands}
               selectedNodeIds={selectedNodeIds}
               selectedEdgeIds={selectedEdgeIds}
               onSelectNode={handleSelectNode}

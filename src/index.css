@@ -59,12 +59,12 @@
   /* ECB stereotype palette — Jacobson robustness analysis.
      Three distinct hues kept clearly separable from the lifecycle
      palette above so a "proposed boundary" still reads correctly:
-       boundary = teal (data flowing in/out at the edge)
-       control  = orange (orchestration, the verb in the middle)
-       entity   = violet (long-lived state, the noun) */
-  --archik-stereotype-boundary: #0d9488;
-  --archik-stereotype-control:  #c2410c;
-  --archik-stereotype-entity:   #7c3aed;
+       boundary = sky    (cool — data flowing in/out at the edge)
+       control  = amber  (warm — orchestration, the verb in the middle)
+       entity   = green  (earth — long-lived state, the noun) */
+  --archik-stereotype-boundary: #0369a1;
+  --archik-stereotype-control:  #b45309;
+  --archik-stereotype-entity:   #15803d;
 
   color-scheme: light;
 }
@@ -117,9 +117,9 @@
   --archik-status-deprecated: #fbbf24;
 
   /* ECB stereotype palette — brighter variants for dark canvas. */
-  --archik-stereotype-boundary: #2dd4bf;
-  --archik-stereotype-control:  #fb923c;
-  --archik-stereotype-entity:   #a78bfa;
+  --archik-stereotype-boundary: #38bdf8;
+  --archik-stereotype-control:  #f59e0b;
+  --archik-stereotype-entity:   #22c55e;
 
   color-scheme: dark;
 }

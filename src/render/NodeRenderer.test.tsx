@@ -222,5 +222,57 @@ describe("NodeRenderer", () => {
       expect(wrap?.hasAttribute("data-archik-stereotype")).toBe(false);
       expect(wrap?.querySelector(".archik-stereotype-band")).toBeNull();
     });
+
+    it("hides the band when showStereotypeBands is false but keeps the data attribute", () => {
+      const { container } = render(
+        <svg>
+          <NodeRenderer
+            node={make({ id: "n", stereotype: "boundary" })}
+            showStereotypeBands={false}
+          />
+        </svg>,
+      );
+      const wrap = container.querySelector("[data-archik-node-id='n']");
+      // The data attribute remains so other tooling (the inspector,
+      // CSS rules, exported SVGs that get re-styled) keeps working
+      // — only the visible band is gated.
+      expect(wrap?.getAttribute("data-archik-stereotype")).toBe("boundary");
+      expect(wrap?.querySelector(".archik-stereotype-band")).toBeNull();
+    });
+
+    it("clips the band to the cylinder path for database nodes so it sits on the lid", () => {
+      const { container } = render(
+        <svg>
+          <NodeRenderer
+            node={make({
+              id: "db",
+              kind: "database",
+              stereotype: "entity",
+              width: 180,
+              height: 100,
+            })}
+          />
+        </svg>,
+      );
+      const clip = container.querySelector("clipPath#archik-nclip-db");
+      // The DB clip uses a path tracing the cylinder shape; other
+      // kinds use a rounded rect. This guards the visual fix that
+      // stops the band from overflowing past the curved top ellipse.
+      expect(clip?.querySelector("path")).not.toBeNull();
+      expect(clip?.querySelector("rect")).toBeNull();
+    });
+
+    it("clips the band to a rounded rect for non-database kinds", () => {
+      const { container } = render(
+        <svg>
+          <NodeRenderer
+            node={make({ id: "svc", kind: "service", stereotype: "control" })}
+          />
+        </svg>,
+      );
+      const clip = container.querySelector("clipPath#archik-nclip-svc");
+      expect(clip?.querySelector("rect")).not.toBeNull();
+      expect(clip?.querySelector("path")).toBeNull();
+    });
   });
 });

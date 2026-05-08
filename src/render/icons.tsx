@@ -243,8 +243,19 @@ export function iconAnchorsFor(
   kind: NodeKind,
   width: number,
   height: number,
+  isContainer: boolean = false,
 ): IconAnchors {
   const HEADER_MID = 14;
+  // Any kind, when rendered as a CustomNode container, draws its KIND
+  // tag in the top-right of a 32px header bar (see CustomNode.tsx).
+  // The leaf header tray anchor (y=14, x=width-14) collides with that
+  // tag — visible as the (i) badge sitting on top of "PAGE" / "MODULE"
+  // / etc. Park tray icons in the empty strip between the divider
+  // (y=32) and ELK's first child (y=48 due to CONTAINER_PADDING.top in
+  // elkAdapter). y=42 centers them in that 16px gap.
+  if (isContainer) {
+    return { right: { x: width - 14, y: 42 } };
+  }
   switch (kind) {
     case "queue": {
       const r = Math.min(height / 2, 28);
@@ -257,14 +268,11 @@ export function iconAnchorsFor(
       return { right: { x: width - 14, y: height - 11 } };
     case "module":
     case "custom":
-      // Containers run a CustomNode header bar (32px) with a KIND tag
-      // on the right and a divider line at y=32. Anchoring tray icons
-      // INSIDE the header area collides with the KIND tag and / or
-      // overlaps the divider (looks chopped — see issue with the (i)
-      // icon sitting on the line). Park them in the empty strip
-      // between the divider (y=32) and ELK's first child (y=48 due to
-      // CONTAINER_PADDING.top in elkAdapter). y=42 centers them in
-      // that 16px gap with a touch more space below.
+      // Empty module/custom placeholders fall through here (no
+      // children → not flagged as container). They render as a
+      // tinted card with no header tag, so the standard header-mid
+      // anchor is fine. The container-with-children case is handled
+      // above by the isContainer branch.
       return { right: { x: width - 14, y: 42 } };
     default:
       return { right: { x: width - 14, y: HEADER_MID } };

@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   clampDensity,
   loadDensity,
+  loadShowStereotypeBands,
   loadViewMode,
   saveDensity,
+  saveShowStereotypeBands,
   saveViewMode,
 } from "./LayoutControls.tsx";
 
@@ -76,5 +78,29 @@ describe("loadDensity / saveDensity", () => {
   it("returns default for a non-numeric stored value", () => {
     localStorage.setItem("archik-density", "not-a-number");
     expect(loadDensity()).toBe(1);
+  });
+});
+
+describe("loadShowStereotypeBands / saveShowStereotypeBands", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("returns false (default) when nothing is stored", () => {
+    expect(loadShowStereotypeBands()).toBe(false);
+  });
+
+  it("returns true after saveShowStereotypeBands(true)", () => {
+    saveShowStereotypeBands(true);
+    expect(loadShowStereotypeBands()).toBe(true);
+  });
+
+  it("returns false after saveShowStereotypeBands(false)", () => {
+    saveShowStereotypeBands(false);
+    expect(loadShowStereotypeBands()).toBe(false);
+  });
+
+  it("returns the default for any unrecognised stored value", () => {
+    localStorage.setItem("archik-show-stereotype-bands", "yes");
+    expect(loadShowStereotypeBands()).toBe(false);
   });
 });

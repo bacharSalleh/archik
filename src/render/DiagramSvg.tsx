@@ -101,6 +101,9 @@ type Props = {
   onCrossFileNavigate?: (archikFile: string, label: string) => void;
   /** When set, layer per-status diff frames + edge tints over the diagram. */
   diffStatuses?: StatusMap;
+  /** Toggle the ECB stereotype band overlay. Defaults to true to
+   *  preserve existing behavior for embedders that don't pass it. */
+  showStereotypeBands?: boolean;
 };
 
 type InnerProps = {
@@ -117,6 +120,7 @@ type InnerProps = {
     | undefined;
   onOpenSubFile?: (archikFile: string, label: string) => void;
   onCrossFileNavigate?: (archikFile: string, label: string) => void;
+  showStereotypeBands?: boolean;
 };
 
 /**
@@ -134,6 +138,7 @@ export function DiagramInner({
   onSelectEdge,
   onOpenSubFile,
   onCrossFileNavigate,
+  showStereotypeBands = true,
 }: InnerProps): React.ReactElement {
   // For each local node id, the *unique* set of cross-file paths
   // referenced by edges touching it. Built once here so we don't
@@ -175,6 +180,7 @@ export function DiagramInner({
             key={node.id}
             node={node}
             viewMode={viewMode}
+            showStereotypeBands={showStereotypeBands}
             crossFileByNode={crossFileByNode}
             {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
             {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
@@ -230,6 +236,7 @@ export function DiagramSvg({
   onOpenSubFile,
   onCrossFileNavigate,
   diffStatuses,
+  showStereotypeBands = true,
 }: Props): React.ReactElement {
   const w = Math.max(positioned.width, 1);
   const h = Math.max(positioned.height, 1);
@@ -260,6 +267,7 @@ export function DiagramSvg({
         <DiagramInner
           positioned={positioned}
           viewMode={viewMode}
+          showStereotypeBands={showStereotypeBands}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(selectedEdgeIds !== undefined ? { selectedEdgeIds } : {})}
           {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}

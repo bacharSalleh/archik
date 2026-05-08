@@ -2,7 +2,11 @@ import type { PositionedNode, ViewMode } from "../layout/types.ts";
 import { ServiceNode } from "./nodes/ServiceNode.tsx";
 import { QueueNode } from "./nodes/QueueNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
-import { DatabaseNode } from "./nodes/DatabaseNode.tsx";
+import {
+  DatabaseNode,
+  TOP_ELLIPSE_RY,
+  cylinderPath,
+} from "./nodes/DatabaseNode.tsx";
 import { CloudNode } from "./nodes/CloudNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { CompactNode } from "./nodes/CompactNode.tsx";
@@ -116,6 +120,12 @@ type Props = {
   viewMode?: ViewMode;
   /** Container nesting depth — 0 for roots, +1 per container ancestor. */
   depth?: number;
+  /** When true (default), render the 4px ECB stereotype band along the
+   *  top of stereotyped nodes. The toolbar toggle flips this off so
+   *  the canvas stays uncluttered when ECB tagging isn't relevant to
+   *  what the user is reviewing. The `data-archik-stereotype` attr
+   *  on the wrapper is unaffected — only the visible band toggles. */
+  showStereotypeBands?: boolean;
 };
 
 export function NodeRenderer({
@@ -128,6 +138,7 @@ export function NodeRenderer({
   crossFileByNode,
   viewMode = "detailed",
   depth = 0,
+  showStereotypeBands = true,
 }: Props): React.ReactElement {
   const isSelected = selectedNodeIds?.has(node.id) ?? false;
   const isGlowed = glowNodeIds?.has(node.id) ?? false;
@@ -176,14 +187,20 @@ export function NodeRenderer({
 
       {/* ECB stereotype band — 4px coloured stripe flush against the node's
           top border. Painted after Shape so the band isn't buried under the
-          node fill; clipped to the node's rx=8 corners so it follows the
-          curve. Selection stroke's outer half (above y=0) remains visible
-          because nothing in the node overlay can paint above the node's
-          own bounds. */}
-      {node.stereotype !== undefined && (
+          node fill; clipped to the node's body so it follows the actual
+          shape. For the database cylinder we clip to the cylinder path so
+          the band sits ON the curved top ellipse — the previous rect-with-
+          rx=8 clip overflowed past the lid. Selection stroke's outer half
+          (above y=0) remains visible because nothing in the node overlay
+          can paint above the node's own bounds. */}
+      {node.stereotype !== undefined && showStereotypeBands && (
         <>
           <clipPath id={`archik-nclip-${node.id}`}>
-            <rect width={node.width} height={node.height} rx={8} ry={8} />
+            {node.kind === "database" ? (
+              <path d={cylinderPath(node.width, node.height, TOP_ELLIPSE_RY)} />
+            ) : (
+              <rect width={node.width} height={node.height} rx={8} ry={8} />
+            )}
           </clipPath>
           <rect
             className="archik-stereotype-band"
@@ -230,7 +247,12 @@ export function NodeRenderer({
         if (hasDescription) trayItems.push("info");
         if (hasNotes) trayItems.push("notes");
         if (trayItems.length === 0) return null;
-        const anchors = iconAnchorsFor(node.kind, node.width, node.height);
+        const anchors = iconAnchorsFor(
+          node.kind,
+          node.width,
+          node.height,
+          isContainer,
+        );
         const slots = trayCenters(anchors.right, trayItems.length);
         return (
           <>
@@ -348,6 +370,7 @@ export function NodeRenderer({
           node={child}
           viewMode={viewMode}
           depth={childDepth}
+          showStereotypeBands={showStereotypeBands}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}

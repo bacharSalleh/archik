@@ -4,8 +4,10 @@ import { KIND_META } from "../kindPalette.ts";
 
 const TEXT_PADDING = 28;
 // Vertical radius of the top ellipse cap. ~10 reads as a cylinder
-// without dominating the body.
-const TOP_ELLIPSE_RY = 10;
+// without dominating the body. Exported for NodeRenderer's stereotype
+// band, which clips to the cylinder shape so the band sits on the lid
+// instead of overflowing past the curved top.
+export const TOP_ELLIPSE_RY = 10;
 // Footer strip — where the kind icon + KIND tag sit, like a label
 // band on a real bottle. Slim so the body keeps most of the room
 // for the name + stack.
@@ -150,7 +152,7 @@ export function DatabaseNode({
  */
 const CORNER_R = 10;
 
-function cylinderPath(w: number, h: number, ry: number): string {
+export function cylinderPath(w: number, h: number, ry: number): string {
   const r = CORNER_R;
   return [
     `M 0 ${ry}`,

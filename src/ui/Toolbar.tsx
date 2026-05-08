@@ -1,4 +1,4 @@
-import { GitBranch, LayoutGrid, Redo2, Rows3, Undo2 } from "lucide-react";
+import { GitBranch, LayoutGrid, Redo2, Rows3, Stamp, Undo2 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
@@ -32,6 +32,11 @@ type Props = {
   onDensityChange?: (value: number) => void;
   viewMode?: ViewMode;
   onViewModeChange?: (value: ViewMode) => void;
+  /** Current state of the ECB stereotype band overlay. When `undefined`
+   *  the toggle button is hidden — embedders that don't expose ECB
+   *  controls just don't pass it. */
+  showStereotypeBands?: boolean;
+  onToggleStereotypeBands?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -73,6 +78,8 @@ export function Toolbar({
   onDensityChange,
   viewMode,
   onViewModeChange,
+  showStereotypeBands,
+  onToggleStereotypeBands,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -211,6 +218,33 @@ export function Toolbar({
             )}
           </button>
         )}
+        {showStereotypeBands !== undefined &&
+          onToggleStereotypeBands !== undefined && (
+            <button
+              type="button"
+              onClick={onToggleStereotypeBands}
+              title={
+                showStereotypeBands
+                  ? "Hide ECB stereotype bands"
+                  : "Show ECB stereotype bands (boundary / control / entity)"
+              }
+              aria-label="Toggle ECB stereotype bands"
+              aria-pressed={showStereotypeBands}
+              className="archik-btn"
+              style={{
+                padding: "5px 8px",
+                ...(showStereotypeBands
+                  ? {
+                      background: "var(--archik-stereotype-control)",
+                      borderColor: "var(--archik-stereotype-control)",
+                      color: "white",
+                    }
+                  : {}),
+              }}
+            >
+              <Stamp size={14} strokeWidth={1.8} />
+            </button>
+          )}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />
         )}

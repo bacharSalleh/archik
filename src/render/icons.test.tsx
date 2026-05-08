@@ -52,6 +52,23 @@ describe("iconAnchorsFor", () => {
     const result = iconAnchorsFor("queue", 200, 200);
     expect(result.right.x).toBe(200 - 28 - 4);
   });
+
+  it("places right anchor below the header divider for any kind rendered as a container", () => {
+    // A `page` (or any non-module kind) rendered as a CustomNode
+    // container draws its KIND tag in the header — anchoring tray
+    // icons there causes the (i) badge to collide with "PAGE". When
+    // isContainer is true we use the same below-header strip the
+    // module/custom case uses (y=42).
+    const result = iconAnchorsFor("page", 200, 100, true);
+    expect(result.right.x).toBe(200 - 14);
+    expect(result.right.y).toBe(42);
+  });
+
+  it("treats module containers the same whether the flag is set or not", () => {
+    const flagged = iconAnchorsFor("module", 200, 100, true);
+    const unflagged = iconAnchorsFor("module", 200, 100);
+    expect(flagged).toEqual(unflagged);
+  });
 });
 
 describe("InfoIcon / NotesIcon", () => {

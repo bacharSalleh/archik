@@ -3,8 +3,34 @@ import { Popover } from "./Popover.tsx";
 
 const STORAGE_KEY = "archik-density";
 const VIEW_MODE_STORAGE_KEY = "archik-view-mode";
+const STEREOTYPE_BANDS_STORAGE_KEY = "archik-show-stereotype-bands";
 const DEFAULT_DENSITY = 1;
 const DEFAULT_VIEW_MODE: ViewMode = "detailed";
+// ECB bands are an opt-in detail — most users come for the structural
+// shape, not robustness analysis. Off by default keeps the canvas
+// clean; switching the toolbar toggle on persists the choice.
+const DEFAULT_SHOW_STEREOTYPE_BANDS = false;
+
+export function loadShowStereotypeBands(): boolean {
+  if (typeof localStorage === "undefined") return DEFAULT_SHOW_STEREOTYPE_BANDS;
+  try {
+    const raw = localStorage.getItem(STEREOTYPE_BANDS_STORAGE_KEY);
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    return DEFAULT_SHOW_STEREOTYPE_BANDS;
+  } catch {
+    return DEFAULT_SHOW_STEREOTYPE_BANDS;
+  }
+}
+
+export function saveShowStereotypeBands(value: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(STEREOTYPE_BANDS_STORAGE_KEY, value ? "true" : "false");
+  } catch {
+    // ignore
+  }
+}
 
 export function loadViewMode(): ViewMode {
   if (typeof localStorage === "undefined") return DEFAULT_VIEW_MODE;
