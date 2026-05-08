@@ -16,6 +16,29 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.12.44] - 2026-05-08
+
+### Added
+- **ECB stereotype band toggle** — new toolbar button (next to the
+  view-mode toggle) hides or shows the 4px ECB band along the top of
+  stereotyped nodes. Off by default; choice persists via
+  `localStorage` under `archik-show-stereotype-bands`.
+
+### Changed
+- **ECB palette refreshed** — boundary / control / entity now use sky
+  / amber / green (cool / warm / earth) instead of teal / orange /
+  violet. Higher hue separation and clearer distinction from the
+  lifecycle palette (`proposed` indigo, `deprecated` amber).
+
+### Fixed
+- **Info icon no longer overlaps the KIND tag on container nodes.**
+  Any kind rendered as a container (e.g. a `page` with children) now
+  parks the tray badges below the header divider, where the
+  `module`/`custom` cases already did.
+- **DB stereotype band fits the cylinder lid.** The band was clipped
+  to a rounded rect that overflowed past the curved top of database
+  nodes; it's now clipped to the cylinder path so it sits on the lid.
+
 ## [0.11.5] - 2026-05-02
 
 ### Added
