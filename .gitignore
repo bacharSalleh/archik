@@ -15,7 +15,6 @@ dist-ssr
 
 # Internal docs — not for public distribution.
 docs/superpowers
-docs/templates
 
 # Local Claude harness state — may contain API tokens.
 .claude/settings.backup.json
