@@ -16,6 +16,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.12.45] - 2026-05-11
+
+### Changed
+- **Nested sequence-diagram frames are now inset** by 6px per nesting
+  level (capped at `GROUP_PADDING`). An `opt` inside a `loop` reads as
+  "opt inside loop" instead of two stacked rectangles of identical
+  width.
+
+### Fixed
+- **Messages after a closed group no longer sit on its bottom border.**
+  Replaced the "gap before each group" with a `POST_GROUP_GAP` applied
+  after every group closes, so a following message (or sibling group)
+  gets breathing room below the frame border instead of the arrow line
+  drawing on top of it.
+
 ## [0.12.44] - 2026-05-08
 
 ### Added
