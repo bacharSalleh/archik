@@ -16,6 +16,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.12.46] - 2026-05-11
+
+### Fixed
+- **Message label after a group no longer crosses the frame border.**
+  `POST_GROUP_GAP` was 8px — enough to keep the arrow line clear of
+  the group's bottom border, but not enough for the label, which is
+  drawn above the arrow and rises another ~12px in text glyphs.
+  Bumped to 20px so the label top lands cleanly below the border with
+  a small visual buffer.
+
 ## [0.12.45] - 2026-05-11
 
 ### Changed
