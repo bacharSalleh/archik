@@ -7,12 +7,13 @@ export const PARTICIPANT_PADDING = 40;
 export const MESSAGE_ROW_HEIGHT = 56;
 export const GROUP_HEADER_HEIGHT = 24;
 export const GROUP_PADDING = 12;
-// Vertical breathing room AFTER each group closes — without this, a
-// following message lands at exactly group.y + group.height and the
-// arrow line draws on top of the bottom frame border. Also separates
-// a closing inner frame from its parent's closing frame, so two
-// "ResolvedFragment"-style sweeps don't visually merge.
-export const POST_GROUP_GAP = 8;
+// Vertical breathing room AFTER each group closes. Sized to clear the
+// LABEL of a following message — SeqMessage draws the label 6px above
+// the arrow and the text glyphs rise ~12px above that baseline, so
+// anything less than ~18 makes the label text cross the group's bottom
+// border (looked like the arrow overlapping the frame). 20 gives a
+// small visual buffer above the label top.
+export const POST_GROUP_GAP = 20;
 // Per-nesting-level horizontal inset. Nested groups are drawn slightly
 // narrower than their parent so the hierarchy reads as "X inside Y"
 // rather than two stacked rectangles. Total inset is capped at

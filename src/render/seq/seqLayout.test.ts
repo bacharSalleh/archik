@@ -254,11 +254,13 @@ describe("layoutSeqDocument", () => {
     expect(laid.steps[0]!.type).toBe("group");
   });
 
-  it("places a message after a group below the group's bottom edge with breathing room", () => {
-    // Without an explicit post-group gap, the next step lands at
-    // y = group.y + group.height — exactly on the bottom border —
-    // and the arrow line gets drawn on top of the frame. This guards
-    // the visual fix that adds POST_GROUP_GAP after each group.
+  it("leaves room for the next message's label above the group's bottom border", () => {
+    // SeqMessage draws the label at msg.y + LABEL_OFFSET_Y (= msg.y - 6)
+    // as a baseline, and the text glyphs rise upward from there by the
+    // font size (~11px). If POST_GROUP_GAP is too small, the label text
+    // crosses the just-closed group's bottom border. Assert the gap is
+    // big enough that the label TOP lands below the border with a small
+    // visual buffer.
     const doc: SeqDocument = {
       version: "1.0",
       name: "Post-group gap",
@@ -284,8 +286,10 @@ describe("layoutSeqDocument", () => {
     const group = laid.steps[0] as Extract<typeof laid.steps[number], { type: "group" }>;
     const msg = laid.steps[1] as Extract<typeof laid.steps[number], { type: "message" }>;
     const groupBottom = group.y + group.height;
-    expect(msg.y).toBeGreaterThan(groupBottom);
-    expect(msg.y - groupBottom).toBeGreaterThanOrEqual(4);
+    // Label baseline at msg.y - 6, text height ~12px, so label top ≈
+    // msg.y - 18. Require label top to clear the group border.
+    const labelTop = msg.y - 6 - 12;
+    expect(labelTop).toBeGreaterThan(groupBottom);
   });
 
   it("insets nested groups inside their parent so the hierarchy is visible", () => {
