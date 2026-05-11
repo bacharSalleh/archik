@@ -253,6 +253,85 @@ describe("layoutSeqDocument", () => {
     const laid = layoutSeqDocument(groupDoc);
     expect(laid.steps[0]!.type).toBe("group");
   });
+
+  it("places a message after a group below the group's bottom edge with breathing room", () => {
+    // Without an explicit post-group gap, the next step lands at
+    // y = group.y + group.height — exactly on the bottom border —
+    // and the arrow line gets drawn on top of the frame. This guards
+    // the visual fix that adds POST_GROUP_GAP after each group.
+    const doc: SeqDocument = {
+      version: "1.0",
+      name: "Post-group gap",
+      participants: [
+        { id: "a", nodeId: "svc-a" },
+        { id: "b", nodeId: "svc-b" },
+      ],
+      steps: [
+        {
+          type: "group",
+          id: "g",
+          kind: "opt",
+          branches: [{
+            steps: [
+              { type: "message", id: "m1", from: "a", to: "b", label: "x", arrow: "sync" },
+            ],
+          }],
+        },
+        { type: "message", id: "m2", from: "b", to: "a", label: "y", arrow: "return" },
+      ],
+    };
+    const laid = layoutSeqDocument(doc);
+    const group = laid.steps[0] as Extract<typeof laid.steps[number], { type: "group" }>;
+    const msg = laid.steps[1] as Extract<typeof laid.steps[number], { type: "message" }>;
+    const groupBottom = group.y + group.height;
+    expect(msg.y).toBeGreaterThan(groupBottom);
+    expect(msg.y - groupBottom).toBeGreaterThanOrEqual(4);
+  });
+
+  it("insets nested groups inside their parent so the hierarchy is visible", () => {
+    // A loop containing an opt: the inner opt frame should be drawn
+    // slightly narrower than the loop frame so the nesting reads as
+    // "opt INSIDE loop" rather than "two stacked frames." The inset
+    // never crosses the leftmost / rightmost lifeline.
+    const doc: SeqDocument = {
+      version: "1.0",
+      name: "Nested groups",
+      participants: [
+        { id: "a", nodeId: "svc-a" },
+        { id: "b", nodeId: "svc-b" },
+      ],
+      steps: [{
+        type: "group",
+        id: "outer",
+        kind: "loop",
+        branches: [{
+          steps: [{
+            type: "group",
+            id: "inner",
+            kind: "opt",
+            branches: [{
+              steps: [
+                { type: "message", id: "m1", from: "a", to: "b", label: "x", arrow: "sync" },
+              ],
+            }],
+          }],
+        }],
+      }],
+    };
+    const laid = layoutSeqDocument(doc);
+    const outer = laid.steps[0] as Extract<typeof laid.steps[number], { type: "group" }>;
+    const inner = outer.branches[0]!.steps[0] as Extract<
+      typeof outer.branches[number]["steps"][number],
+      { type: "group" }
+    >;
+    expect(inner.x).toBeGreaterThan(outer.x);
+    expect(inner.x + inner.width).toBeLessThan(outer.x + outer.width);
+    // And the inset must never push the inner frame past the lifelines:
+    // the leftmost lifeline cx must still be inside (or on the left edge
+    // of) the inner frame.
+    const leftmostCx = laid.participants[0]!.cx;
+    expect(inner.x).toBeLessThanOrEqual(leftmostCx);
+  });
 });
 
 describe("layoutSeqDocument — note overflow", () => {

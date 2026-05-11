@@ -7,6 +7,18 @@ export const PARTICIPANT_PADDING = 40;
 export const MESSAGE_ROW_HEIGHT = 56;
 export const GROUP_HEADER_HEIGHT = 24;
 export const GROUP_PADDING = 12;
+// Vertical breathing room AFTER each group closes — without this, a
+// following message lands at exactly group.y + group.height and the
+// arrow line draws on top of the bottom frame border. Also separates
+// a closing inner frame from its parent's closing frame, so two
+// "ResolvedFragment"-style sweeps don't visually merge.
+export const POST_GROUP_GAP = 8;
+// Per-nesting-level horizontal inset. Nested groups are drawn slightly
+// narrower than their parent so the hierarchy reads as "X inside Y"
+// rather than two stacked rectangles. Total inset is capped at
+// GROUP_PADDING so the frame can never push past the leftmost /
+// rightmost lifeline.
+export const NEST_INSET = 6;
 export const NOTE_HEIGHT = 64;
 export const DIAGRAM_H_PADDING = 32;
 export const DIAGRAM_V_PADDING = 24;
@@ -96,6 +108,7 @@ function layoutSteps(
   startY: number,
   leftX: number,
   rightX: number,
+  depth: number = 0,
 ): {
   items: LayoutedStep[];
   endY: number;
@@ -172,9 +185,12 @@ function layoutSteps(
       });
       y += NOTE_HEIGHT + 8;
     } else if (step.type === "group") {
-      y += 8; // gap before each group frame so sequential groups don't share a border
-      const groupX = leftX - GROUP_PADDING;
-      const groupWidth = rightX - leftX + GROUP_PADDING * 2;
+      // Inset nested frames inside their parent so the hierarchy is
+      // visually obvious. Inset is capped at GROUP_PADDING so the inner
+      // frame's edges never push past the leftmost / rightmost lifeline.
+      const inset = Math.min(depth * NEST_INSET, GROUP_PADDING);
+      const groupX = leftX - GROUP_PADDING + inset;
+      const groupWidth = rightX - leftX + GROUP_PADDING * 2 - inset * 2;
       const groupStartY = y;
       y += GROUP_HEADER_HEIGHT;
 
@@ -188,7 +204,7 @@ function layoutSteps(
             endY,
             contentMinX: branchMinX,
             contentMaxX: branchMaxX,
-          } = layoutSteps(branch.steps, participantMap, y, leftX, rightX);
+          } = layoutSteps(branch.steps, participantMap, y, leftX, rightX, depth + 1);
           y = endY;
           contentMinX = Math.min(contentMinX, branchMinX);
           contentMaxX = Math.max(contentMaxX, branchMaxX);
@@ -219,6 +235,12 @@ function layoutSteps(
       });
       contentMinX = Math.min(contentMinX, groupX);
       contentMaxX = Math.max(contentMaxX, groupX + groupWidth);
+      // Breathing room AFTER the group so the next step (message or
+      // another group) doesn't sit on the bottom border. Replaces the
+      // old "y += 8 before each group" — applying the gap on the
+      // trailing side covers both sequential groups AND groups
+      // followed by messages with a single rule.
+      y += POST_GROUP_GAP;
     }
   }
 
