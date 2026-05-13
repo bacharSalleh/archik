@@ -9,6 +9,7 @@ import { watchCommand } from "./commands/watch.ts";
 import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
 import { commandsCommand } from "./commands/commands.ts";
+import { loopCommand } from "./commands/loop.ts";
 import { skillCommand } from "./commands/skill.ts";
 import { COMMAND_HELP } from "./help.ts";
 import { startCommand } from "./commands/start.ts";
@@ -44,9 +45,10 @@ USAGE
 
 COMMANDS
   init              Scaffold a starter .archik/main.archik.yaml
-                                     (also installs the Claude skill + slash commands by default)
+                                     (also installs the Claude skill + slash commands + engineering loop by default)
                     --no-skill       skip installing the Claude skill
                     --no-commands    skip installing the /archik:* slash commands
+                    --no-loop        skip installing the engineering-loop template
   dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
@@ -108,7 +110,9 @@ COMMANDS
   commands          Install the /archik:* slash commands for Claude Code
                     --user           install to ~/.claude/commands (all projects)
                     --force          overwrite if any already exist
-  upgrade           Upgrade archik to latest and refresh the Claude skill + commands
+  loop              Install the engineering-loop template into .archik/ENGINEERING_LOOP.md
+                    --force          overwrite if it already exists
+  upgrade           Upgrade archik to latest and refresh the Claude skill + commands + loop
                     --user           refresh skill/commands user-wide (~/.claude/)
                     --skip-install   skip the npm upgrade; only re-copy skill/commands
 
@@ -164,6 +168,8 @@ async function main(): Promise<number> {
       return skillCommand(opts);
     case "commands":
       return commandsCommand(opts);
+    case "loop":
+      return loopCommand(opts);
     case "diff":
       return diffCommand(opts);
     case "suggest":

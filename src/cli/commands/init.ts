@@ -5,9 +5,14 @@ import { getString, type ParsedOptions } from "../options.ts";
 import { RUNTIME_FILENAME } from "../projectState.ts";
 import { resolveInitTarget } from "../resolveDocPath.ts";
 import {
+  ensureClaudeMdLink,
+  ENGINEERING_LOOP_REFERENCE,
   installCommands,
+  installEngineeringLoop,
   installSkill,
+  type ClaudeMdLinkResult,
   type InstallCommandsResult,
+  type InstallEngineeringLoopResult,
   type InstallSkillResult,
 } from "./skill.ts";
 
@@ -156,6 +161,41 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
       console.error(
         `${cross()} Commands source missing at ${dim(commandsResult.source)} — continuing without it.`,
       );
+    }
+  }
+
+  // Engineering-loop template lands as `.archik/ENGINEERING_LOOP.md`
+  // (refreshable by `archik upgrade`) and CLAUDE.md gets a one-line
+  // `@`-reference. Splitting the file from the reference means we can
+  // bump the template without touching the user's CLAUDE.md.
+  let loopResult: InstallEngineeringLoopResult | null = null;
+  let linkResult: ClaudeMdLinkResult | null = null;
+  if (getString(opts, "no-loop") !== "true") {
+    loopResult = await installEngineeringLoop({ force: false });
+    if (loopResult.ok) {
+      console.log(
+        `${tick()} Installed engineering loop → ${dim(path.relative(process.cwd(), loopResult.target) || loopResult.target)}`,
+      );
+    } else if (loopResult.reason === "exists") {
+      console.log(
+        `${gray("•")} Engineering loop already present at ${dim(path.relative(process.cwd(), loopResult.target) || loopResult.target)} ${dim("(refresh with `archik loop --force`)")}`,
+      );
+    } else {
+      console.error(
+        `${cross()} Engineering-loop template missing at ${dim(loopResult.source)} — continuing without it.`,
+      );
+    }
+
+    if (loopResult.ok || loopResult.reason === "exists") {
+      linkResult = await ensureClaudeMdLink();
+      const claudeMd = path.relative(process.cwd(), linkResult.target) || linkResult.target;
+      if (linkResult.action === "created") {
+        console.log(`${tick()} Created ${bold(claudeMd)} → references ${dim(ENGINEERING_LOOP_REFERENCE)}`);
+      } else if (linkResult.action === "appended") {
+        console.log(`${tick()} Linked engineering loop in ${bold(claudeMd)}`);
+      } else {
+        console.log(`${gray("•")} ${claudeMd} already references the engineering loop`);
+      }
     }
   }
 

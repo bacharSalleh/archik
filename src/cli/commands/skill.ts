@@ -1,8 +1,12 @@
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { getString, type ParsedOptions } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
+
+export const ENGINEERING_LOOP_FILENAME = "ENGINEERING_LOOP.md";
+export const ENGINEERING_LOOP_REL = `.archik/${ENGINEERING_LOOP_FILENAME}`;
+export const ENGINEERING_LOOP_REFERENCE = `@${ENGINEERING_LOOP_REL}`;
 
 export type SkillScope = "project" | "user";
 
@@ -130,6 +134,100 @@ export async function installCommands(args: {
     copied.push(file);
   }
   return { ok: true, targetDir, copied, scope: args.scope };
+}
+
+export type InstallEngineeringLoopResult =
+  | { ok: true; target: string }
+  | { ok: false; reason: "exists"; target: string }
+  | { ok: false; reason: "missing-source"; source: string };
+
+/**
+ * Copy the engineering-loop template (`docs/templates/CLAUDE.md`) into
+ * the project as `.archik/ENGINEERING_LOOP.md`. Separating the loop file
+ * from the user's own `CLAUDE.md` means `archik upgrade` can refresh it
+ * in place without ever touching the user's hand-written guidance.
+ * The user's CLAUDE.md picks it up via a one-line `@`-reference (see
+ * `ensureClaudeMdLink`).
+ */
+export async function installEngineeringLoop(args: {
+  force: boolean;
+}): Promise<InstallEngineeringLoopResult> {
+  const source = path.join(
+    pkgRoot(),
+    "docs",
+    "templates",
+    "CLAUDE.md",
+  );
+
+  try {
+    await stat(source);
+  } catch {
+    return { ok: false, reason: "missing-source", source };
+  }
+
+  const target = path.resolve(ENGINEERING_LOOP_REL);
+
+  if (!args.force) {
+    try {
+      await stat(target);
+      return { ok: false, reason: "exists", target };
+    } catch {
+      // missing — fine
+    }
+  }
+
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(source, target);
+  return { ok: true, target };
+}
+
+export type ClaudeMdLinkResult =
+  | { ok: true; action: "created" | "appended"; target: string }
+  | { ok: true; action: "already-linked"; target: string };
+
+/**
+ * Ensure the project's `CLAUDE.md` references the engineering-loop
+ * file via `@.archik/ENGINEERING_LOOP.md`. Three branches:
+ *
+ *   - file missing  → create it with a short header + the @-reference
+ *   - file exists, reference present → no-op
+ *   - file exists, reference absent  → append a section
+ *
+ * The `@<path>` syntax is Claude Code's file-include directive — the
+ * referenced file is loaded into context when CLAUDE.md is read, so
+ * users get the loop in every conversation without inlining 270 lines.
+ */
+export async function ensureClaudeMdLink(): Promise<ClaudeMdLinkResult> {
+  const target = path.resolve("CLAUDE.md");
+
+  let current: string | null;
+  try {
+    current = await readFile(target, "utf-8");
+  } catch {
+    current = null;
+  }
+
+  if (current === null) {
+    const body =
+      `# Project guidance for Claude\n\n` +
+      `${ENGINEERING_LOOP_REFERENCE}\n`;
+    await writeFile(target, body, "utf-8");
+    return { ok: true, action: "created", target };
+  }
+
+  // Match the reference whether or not it's at the start of a line and
+  // tolerate trailing punctuation/whitespace. Catches the case where
+  // a user has already pasted the line in by hand.
+  if (current.includes(ENGINEERING_LOOP_REFERENCE)) {
+    return { ok: true, action: "already-linked", target };
+  }
+
+  const trailing = current.endsWith("\n") ? "" : "\n";
+  const block =
+    `\n## Engineering loop\n\n` +
+    `${ENGINEERING_LOOP_REFERENCE}\n`;
+  await writeFile(target, `${current}${trailing}${block}`, "utf-8");
+  return { ok: true, action: "appended", target };
 }
 
 export async function skillCommand(opts: ParsedOptions): Promise<number> {

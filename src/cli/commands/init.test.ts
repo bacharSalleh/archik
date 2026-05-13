@@ -26,7 +26,7 @@ describe("initCommand", () => {
   });
 
   it("creates .archik/main.archik.yaml in a fresh directory", async () => {
-    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     expect(code).toBe(0);
     const content = await readFile(
       path.join(cwd, ".archik/main.archik.yaml"),
@@ -37,7 +37,7 @@ describe("initCommand", () => {
   });
 
   it("logs a success message after creating the file", async () => {
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(out).toMatch(/created/i);
     expect(out).toContain("main.archik.yaml");
@@ -49,7 +49,7 @@ describe("initCommand", () => {
       path.join(cwd, ".archik/main.archik.yaml"),
       "existing content",
     );
-    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     expect(code).toBe(1);
     const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(err).toMatch(/already exists/i);
@@ -62,7 +62,7 @@ describe("initCommand", () => {
   });
 
   it("creates the .archik directory if it doesn't exist", async () => {
-    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    const code = await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     expect(code).toBe(0);
     const stat = await import("node:fs/promises").then((m) =>
       m.stat(path.join(cwd, ".archik")),
@@ -72,7 +72,7 @@ describe("initCommand", () => {
 
   it("appends .archik/runtime.json to .gitignore when one exists", async () => {
     await writeFile(path.join(cwd, ".gitignore"), "node_modules\n");
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     const gitignore = await readFile(path.join(cwd, ".gitignore"), "utf-8");
     expect(gitignore).toContain(".archik/runtime.json");
   });
@@ -82,7 +82,7 @@ describe("initCommand", () => {
       path.join(cwd, ".gitignore"),
       "node_modules\n.archik/runtime.json\n",
     );
-    await initCommand({ _: [], "no-skill": "true", "no-commands": "true" });
+    await initCommand({ _: [], "no-skill": "true", "no-commands": "true", "no-loop": "true" });
     const gitignore = await readFile(path.join(cwd, ".gitignore"), "utf-8");
     const count = (gitignore.match(/\.archik\/runtime\.json/g) ?? []).length;
     expect(count).toBe(1);
@@ -94,6 +94,7 @@ describe("initCommand", () => {
       _: [target],
       "no-skill": "true",
       "no-commands": "true",
+      "no-loop": "true",
     });
     expect(code).toBe(0);
     const content = await readFile(target, "utf-8");

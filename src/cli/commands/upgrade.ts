@@ -147,6 +147,19 @@ async function refreshArtifacts(
   );
   if (noisy && cmdsCode === 0) process.stdout.write(` ${tick()}\n`);
   else if (noisy) process.stdout.write(` ${cross()}\n`);
+
+  // Engineering loop is always project-scoped (it lives under
+  // `.archik/`), so ignore --user here. We deliberately don't pass it
+  // through; the loop file is part of the project's artifacts, unlike
+  // the skill/commands which can sit user-wide.
+  if (noisy) process.stdout.write(`  Refreshing engineering loop...`);
+  const loopCode = await runCmd(
+    cmd,
+    [...prefix, "loop", "--force"],
+    { cwd, env },
+  );
+  if (noisy && loopCode === 0) process.stdout.write(` ${tick()}\n`);
+  else if (noisy) process.stdout.write(` ${cross()}\n`);
 }
 
 export async function upgradeCommand(opts: ParsedOptions): Promise<number> {

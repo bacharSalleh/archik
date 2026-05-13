@@ -21,20 +21,25 @@ USAGE
   archik init [path]
   archik init --no-skill
   archik init --no-commands
+  archik init --no-loop
 
 FLAGS
   --no-skill         skip installing the Claude Code skill
   --no-commands      skip installing the /archik:* slash commands
+  --no-loop          skip installing the engineering-loop template
 
 DEFAULTS
   Path defaults to .archik/main.archik.yaml; pass an explicit path
-  to override. Skill + slash commands install automatically unless
-  opted out.
+  to override. Skill, slash commands, and the engineering loop
+  install automatically unless opted out. The engineering loop
+  lands at .archik/ENGINEERING_LOOP.md and CLAUDE.md is updated
+  with a one-line @-reference to it.
 
 EXAMPLES
   archik init
   archik init --no-skill
   archik init --no-commands
+  archik init --no-loop
 `,
 
   dev: `archik dev — open the live canvas in your browser (foreground)
@@ -327,6 +332,27 @@ NOTES
   /archik:dev, /archik:accept, /archik:reject.
 `,
 
+  loop: `archik loop — install the engineering-loop template
+
+USAGE
+  archik loop
+  archik loop --force
+
+FLAGS
+  --force            overwrite if .archik/ENGINEERING_LOOP.md already exists
+
+DESCRIPTION
+  Copies the engineering-loop template (brief → requirements →
+  structural → behavioral → build → code, with HITL gates) into
+  .archik/ENGINEERING_LOOP.md. Project's CLAUDE.md picks it up via
+  @.archik/ENGINEERING_LOOP.md — add that line manually, or let
+  archik init wire it for you on a fresh project.
+
+NOTES
+  Installed automatically by archik init and refreshed in place by
+  archik upgrade. Always project-scoped (lives under .archik/).
+`,
+
   drift: `archik drift — detect when the diagram diverges from source code
 
 USAGE
@@ -415,9 +441,9 @@ WHAT IT DOES
   1. Checks the installed version against the npm registry.
   2. Upgrades the package using your project's package manager
      (npm / pnpm / yarn / bun — detected from lockfile).
-  3. Re-copies the bundled SKILL.md and /archik:* slash commands
-     from the newly installed version (--force, so stale files are
-     always overwritten).
+  3. Re-copies the bundled SKILL.md, /archik:* slash commands, and
+     .archik/ENGINEERING_LOOP.md from the newly installed version
+     (--force, so stale files are always overwritten).
   4. Tells you to start a new Claude Code conversation so the
      updated skill is loaded into context.
 
