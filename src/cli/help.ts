@@ -19,27 +19,36 @@ export const COMMAND_HELP: Record<string, string> = {
 
 USAGE
   archik init [path]
-  archik init --no-skill
-  archik init --no-commands
-  archik init --no-loop
+  archik init --paradigm oop|functional|none
+  archik init --superpowers | --no-superpowers
+  archik init --claude-md append|overwrite
+  archik init --no-skill | --no-commands | --no-loop
 
 FLAGS
   --no-skill         skip installing the Claude Code skill
   --no-commands      skip installing the /archik:* slash commands
-  --no-loop          skip installing the engineering-loop template
+  --no-loop          skip the engineering loop + CLAUDE.md wiring
+  --paradigm <p>     coding principles to install: oop | functional | none
+  --superpowers      wire superpowers skills into the loop phases
+  --no-superpowers   keep the loop self-contained (no overlay)
+  --claude-md <m>    when CLAUDE.md already exists: append | overwrite
 
-DEFAULTS
-  Path defaults to .archik/main.archik.yaml; pass an explicit path
-  to override. Skill, slash commands, and the engineering loop
-  install automatically unless opted out. The engineering loop
-  lands at .archik/ENGINEERING_LOOP.md and CLAUDE.md is updated
-  with a one-line @-reference to it.
+INTERACTIVE
+  In a TTY, init prompts for the paradigm (OOP / Functional), for
+  superpowers integration, and — if CLAUDE.md already exists — for
+  append vs overwrite. Pass the flags above to skip the prompts
+  (required in CI / piped contexts, where init falls back to
+  paradigm=none, no superpowers, claude-md=append).
+
+ARTIFACTS (all @-referenced from CLAUDE.md, refreshable by upgrade)
+  .archik/ENGINEERING_LOOP.md   the loop + HITL gates
+  .archik/PRINCIPLES.md         OOP or Functional coding rules
+  .archik/SUPERPOWERS.md        phase → superpowers-skill map (opt-in)
 
 EXAMPLES
   archik init
-  archik init --no-skill
-  archik init --no-commands
-  archik init --no-loop
+  archik init --paradigm functional --no-superpowers
+  archik init --paradigm oop --superpowers --claude-md append
 `,
 
   dev: `archik dev — open the live canvas in your browser (foreground)
@@ -353,6 +362,58 @@ NOTES
   archik upgrade. Always project-scoped (lives under .archik/).
 `,
 
+  principles: `archik principles — install coding principles for the BUILD phase
+
+USAGE
+  archik principles oop
+  archik principles functional
+  archik principles --force
+
+ARGUMENTS
+  oop | functional   which paradigm's rules to install. Omitted in a
+                     TTY → you're prompted; omitted in CI → error.
+
+FLAGS
+  --force            overwrite an existing .archik/PRINCIPLES.md
+
+DESCRIPTION
+  Writes .archik/PRINCIPLES.md from the chosen paradigm:
+    oop         — separation of concerns, composition over inheritance,
+                  SOLID, design patterns used judiciously, clean code.
+    functional  — purity, immutability, composition, side-effects at the
+                  edges, total functions, declarative style.
+  These govern HOW code is written once the loop reaches BUILD; they
+  never override a HITL gate. Reference from CLAUDE.md with
+  @.archik/PRINCIPLES.md.
+
+NOTES
+  Installed via the archik init paradigm prompt and refreshed in place
+  by archik upgrade (the source paradigm is recovered from a marker).
+`,
+
+  superpowers: `archik superpowers — install the superpowers overlay
+
+USAGE
+  archik superpowers
+  archik superpowers --force
+
+FLAGS
+  --force            overwrite an existing .archik/SUPERPOWERS.md
+
+DESCRIPTION
+  Writes .archik/SUPERPOWERS.md, mapping each loop phase to a
+  superpowers skill (DESIGN → brainstorming, BUILD plan → writing-plans,
+  BUILD → test-driven-development, bugs → systematic-debugging, VERIFY →
+  verification-before-completion, pre-merge → requesting-code-review).
+  Each skill FEEDS the matching archik artifact — it doesn't replace it.
+  Reference from CLAUDE.md with @.archik/SUPERPOWERS.md.
+
+NOTES
+  Opt-in at archik init time and refreshed by archik upgrade only when
+  already present. Warns (but still installs) if the superpowers plugin
+  isn't detected under ~/.claude/plugins.
+`,
+
   drift: `archik drift — detect when the diagram diverges from source code
 
 USAGE
@@ -443,7 +504,9 @@ WHAT IT DOES
      (npm / pnpm / yarn / bun — detected from lockfile).
   3. Re-copies the bundled SKILL.md, /archik:* slash commands, and
      .archik/ENGINEERING_LOOP.md from the newly installed version
-     (--force, so stale files are always overwritten).
+     (--force, so stale files are always overwritten). Also refreshes
+     .archik/PRINCIPLES.md and .archik/SUPERPOWERS.md — but only when
+     the project already has them (opt-in artifacts are never imposed).
   4. Tells you to start a new Claude Code conversation so the
      updated skill is loaded into context.
 

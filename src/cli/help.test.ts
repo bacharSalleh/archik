@@ -5,6 +5,7 @@ const KNOWN_COMMANDS = [
   "init", "dev", "start", "stop", "status",
   "validate", "render", "watch", "schema",
   "q", "diff", "suggest", "skill", "commands", "drift",
+  "loop", "principles", "superpowers",
 ] as const;
 
 describe("COMMAND_HELP", () => {

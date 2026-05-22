@@ -9,9 +9,13 @@ import {
   it,
 } from "vitest";
 import {
+  CLAUDE_BLOCK_START,
   ENGINEERING_LOOP_REFERENCE,
+  PRINCIPLES_REFERENCE,
   ensureClaudeMdLink,
   installEngineeringLoop,
+  installPrinciples,
+  installSuperpowersOverlay,
 } from "./skill.ts";
 
 /**
@@ -100,6 +104,7 @@ describe("installEngineeringLoop", () => {
 describe("ensureClaudeMdLink", () => {
   let projectRoot: string;
   let originalCwd: string;
+  const refs = [ENGINEERING_LOOP_REFERENCE, PRINCIPLES_REFERENCE];
 
   beforeEach(async () => {
     projectRoot = await mkdtemp(path.join(tmpdir(), "archik-claudemd-"));
@@ -112,29 +117,100 @@ describe("ensureClaudeMdLink", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
-  it("creates CLAUDE.md with the @-reference when missing", async () => {
-    const result = await ensureClaudeMdLink();
+  const read = () => readFile(path.join(projectRoot, "CLAUDE.md"), "utf-8");
+
+  it("creates CLAUDE.md with the managed block and all refs when missing", async () => {
+    const result = await ensureClaudeMdLink({ mode: "append", refs });
     expect(result.action).toBe("created");
-    const content = await readFile(path.join(projectRoot, "CLAUDE.md"), "utf-8");
+    const content = await read();
+    expect(content).toContain(CLAUDE_BLOCK_START);
     expect(content).toContain(ENGINEERING_LOOP_REFERENCE);
+    expect(content).toContain(PRINCIPLES_REFERENCE);
+    expect(content).toMatch(/Follow the archik engineering loop/i);
   });
 
-  it("appends the section when CLAUDE.md exists without the reference", async () => {
-    await writeFile(path.join(projectRoot, "CLAUDE.md"), "# existing\n");
-    const result = await ensureClaudeMdLink();
+  it("append preserves the user's existing prose", async () => {
+    await writeFile(path.join(projectRoot, "CLAUDE.md"), "# existing\n\nmy notes\n");
+    const result = await ensureClaudeMdLink({ mode: "append", refs });
     expect(result.action).toBe("appended");
-    const content = await readFile(path.join(projectRoot, "CLAUDE.md"), "utf-8");
+    const content = await read();
     expect(content).toMatch(/^# existing/);
-    expect(content).toContain(ENGINEERING_LOOP_REFERENCE);
+    expect(content).toContain("my notes");
+    expect(content).toContain(CLAUDE_BLOCK_START);
   });
 
-  it("is a no-op when the reference is already present", async () => {
-    const initial =
-      `# existing\n\n${ENGINEERING_LOOP_REFERENCE}\n`;
-    await writeFile(path.join(projectRoot, "CLAUDE.md"), initial);
-    const result = await ensureClaudeMdLink();
-    expect(result.action).toBe("already-linked");
-    const content = await readFile(path.join(projectRoot, "CLAUDE.md"), "utf-8");
-    expect(content).toBe(initial);
+  it("append is idempotent — re-running regenerates the marked region, no dupes", async () => {
+    await writeFile(path.join(projectRoot, "CLAUDE.md"), "# existing\n");
+    await ensureClaudeMdLink({ mode: "append", refs });
+    const result = await ensureClaudeMdLink({ mode: "append", refs });
+    expect(result.action).toBe("updated");
+    const content = await read();
+    const starts = content.split(CLAUDE_BLOCK_START).length - 1;
+    expect(starts).toBe(1);
+  });
+
+  it("overwrite replaces the whole file with the managed block", async () => {
+    await writeFile(path.join(projectRoot, "CLAUDE.md"), "# old stuff\n\nkeep? no\n");
+    const result = await ensureClaudeMdLink({ mode: "overwrite", refs });
+    expect(result.action).toBe("overwritten");
+    const content = await read();
+    expect(content).not.toContain("old stuff");
+    expect(content).toContain(ENGINEERING_LOOP_REFERENCE);
+  });
+});
+
+describe("installPrinciples / installSuperpowersOverlay", () => {
+  let projectRoot: string;
+  let pkgRoot: string;
+  let originalCwd: string;
+  let originalPkgRoot: string | undefined;
+
+  beforeEach(async () => {
+    pkgRoot = await mkdtemp(path.join(tmpdir(), "archik-pkg-"));
+    projectRoot = await mkdtemp(path.join(tmpdir(), "archik-project-"));
+
+    const principlesDir = path.join(pkgRoot, "docs/templates/principles");
+    await mkdir(principlesDir, { recursive: true });
+    await writeFile(path.join(principlesDir, "oop.md"), "# oop stub\n");
+    await writeFile(path.join(principlesDir, "functional.md"), "# fp stub\n");
+    await writeFile(
+      path.join(pkgRoot, "docs/templates/superpowers.md"),
+      "# sp stub\n",
+    );
+
+    originalCwd = process.cwd();
+    process.chdir(projectRoot);
+    originalPkgRoot = process.env["ARCHIK_PKG_ROOT"];
+    process.env["ARCHIK_PKG_ROOT"] = pkgRoot;
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    if (originalPkgRoot === undefined) delete process.env["ARCHIK_PKG_ROOT"];
+    else process.env["ARCHIK_PKG_ROOT"] = originalPkgRoot;
+    await rm(pkgRoot, { recursive: true, force: true });
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("copies the chosen paradigm into .archik/PRINCIPLES.md", async () => {
+    const result = await installPrinciples({ paradigm: "functional", force: false });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readFile(result.target, "utf-8")).toBe("# fp stub\n");
+  });
+
+  it("refuses to overwrite PRINCIPLES.md without --force", async () => {
+    await installPrinciples({ paradigm: "oop", force: false });
+    const result = await installPrinciples({ paradigm: "functional", force: false });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("exists");
+  });
+
+  it("copies the superpowers overlay into .archik/SUPERPOWERS.md", async () => {
+    const result = await installSuperpowersOverlay({ force: false });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(await readFile(result.target, "utf-8")).toBe("# sp stub\n");
   });
 });

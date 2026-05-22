@@ -14,6 +14,14 @@ import {
 } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
+import {
+  installCommands,
+  installEngineeringLoop,
+  installPrinciples,
+  installSkill,
+  installSuperpowersOverlay,
+  type SkillScope,
+} from "./skill.ts";
 
 function readOwnVersion(): string {
   try {
@@ -110,62 +118,122 @@ function buildInstallArgs(
   }
 }
 
+/** Which optional artifacts a project already has, so we refresh only those. */
+function projectArtifacts(cwd: string): {
+  paradigm: "oop" | "functional" | null;
+  hasSuperpowers: boolean;
+} {
+  return {
+    paradigm: readParadigmMarker(path.join(cwd, ".archik", "PRINCIPLES.md")),
+    hasSuperpowers: existsSync(path.join(cwd, ".archik", "SUPERPOWERS.md")),
+  };
+}
+
 async function refreshArtifacts(
   cwd: string,
-  scopeFlags: string[],
+  userScope: boolean,
 ): Promise<void> {
-  // Prefer the freshly installed local binary so pkgRoot() resolves
-  // to the new version's files — not the currently running process.
   const localBin = path.join(cwd, "node_modules", ".bin", "archik");
+  if (existsSync(localBin)) {
+    // In-project upgrade: `npm install` just put the new version in
+    // node_modules, so spawn THAT binary — it has the latest templates
+    // *and* the latest refresh logic (which the running process may lack
+    // if the user ran a plain `npx archik upgrade`).
+    await refreshViaSpawn(localBin, cwd, userScope);
+  } else {
+    // No local install (e.g. `npx archik@latest upgrade` against a project
+    // that doesn't depend on archik). The running process is already the
+    // target version, so refresh in-process from ITS pkgRoot — never via a
+    // bare `npx archik`, which could resolve to a stale global install.
+    await refreshInProcess(cwd, userScope);
+  }
+}
+
+async function refreshViaSpawn(
+  bin: string,
+  cwd: string,
+  userScope: boolean,
+): Promise<void> {
   const noisy = process.stdout.isTTY;
   const env = { ...process.env, ARCHIK_NO_BANNER: "1" };
+  const scopeFlags = userScope ? ["--user"] : [];
+  const { paradigm, hasSuperpowers } = projectArtifacts(cwd);
 
-  let cmd: string;
-  let prefix: string[];
-  if (existsSync(localBin)) {
-    cmd = localBin;
-    prefix = [];
-  } else {
-    cmd = "npx";
-    prefix = ["archik"];
+  const step = async (label: string, args: string[]): Promise<void> => {
+    if (noisy) process.stdout.write(`  ${label}...`);
+    const code = await runCmd(bin, args, { cwd, env });
+    if (noisy) process.stdout.write(code === 0 ? ` ${tick()}\n` : ` ${cross()}\n`);
+  };
+
+  await step("Refreshing skill", ["skill", "--force", ...scopeFlags]);
+  await step("Refreshing commands", ["commands", "--force", ...scopeFlags]);
+  // Loop/principles/superpowers always live under `.archik/`, so they're
+  // project-scoped — never pass --user.
+  await step("Refreshing engineering loop", ["loop", "--force"]);
+  if (paradigm) {
+    await step(`Refreshing ${paradigm} principles`, ["principles", paradigm, "--force"]);
   }
+  if (hasSuperpowers) {
+    await step("Refreshing superpowers overlay", ["superpowers", "--force"]);
+  }
+}
 
-  if (noisy) process.stdout.write(`  Refreshing skill...`);
-  const skillCode = await runCmd(
-    cmd,
-    [...prefix, "skill", "--force", ...scopeFlags],
-    { cwd, env },
-  );
-  if (noisy && skillCode === 0) process.stdout.write(` ${tick()}\n`);
-  else if (noisy) process.stdout.write(` ${cross()}\n`);
+async function refreshInProcess(
+  cwd: string,
+  userScope: boolean,
+): Promise<void> {
+  const noisy = process.stdout.isTTY;
+  const scope: SkillScope = userScope ? "user" : "project";
+  const { paradigm, hasSuperpowers } = projectArtifacts(cwd);
 
-  if (noisy) process.stdout.write(`  Refreshing commands...`);
-  const cmdsCode = await runCmd(
-    cmd,
-    [...prefix, "commands", "--force", ...scopeFlags],
-    { cwd, env },
-  );
-  if (noisy && cmdsCode === 0) process.stdout.write(` ${tick()}\n`);
-  else if (noisy) process.stdout.write(` ${cross()}\n`);
+  const step = async (
+    label: string,
+    fn: () => Promise<{ ok: boolean }>,
+  ): Promise<void> => {
+    if (noisy) process.stdout.write(`  ${label}...`);
+    let ok = false;
+    try {
+      ok = (await fn()).ok;
+    } catch {
+      ok = false;
+    }
+    if (noisy) process.stdout.write(ok ? ` ${tick()}\n` : ` ${cross()}\n`);
+  };
 
-  // Engineering loop is always project-scoped (it lives under
-  // `.archik/`), so ignore --user here. We deliberately don't pass it
-  // through; the loop file is part of the project's artifacts, unlike
-  // the skill/commands which can sit user-wide.
-  if (noisy) process.stdout.write(`  Refreshing engineering loop...`);
-  const loopCode = await runCmd(
-    cmd,
-    [...prefix, "loop", "--force"],
-    { cwd, env },
-  );
-  if (noisy && loopCode === 0) process.stdout.write(` ${tick()}\n`);
-  else if (noisy) process.stdout.write(` ${cross()}\n`);
+  await step("Refreshing skill", () => installSkill({ scope, force: true }));
+  await step("Refreshing commands", () => installCommands({ scope, force: true }));
+  await step("Refreshing engineering loop", () => installEngineeringLoop({ force: true }));
+  if (paradigm) {
+    await step(`Refreshing ${paradigm} principles`, () =>
+      installPrinciples({ paradigm, force: true }),
+    );
+  }
+  if (hasSuperpowers) {
+    await step("Refreshing superpowers overlay", () =>
+      installSuperpowersOverlay({ force: true }),
+    );
+  }
+}
+
+/**
+ * Recover the paradigm an installed PRINCIPLES.md was generated from, by
+ * reading its `archik:principles:<paradigm>` marker. Returns null when the
+ * file is absent or unmarked. Read synchronously in the (old) upgrade
+ * process — it's a project file, not a packaged template.
+ */
+function readParadigmMarker(file: string): "oop" | "functional" | null {
+  try {
+    const content = readFileSync(file, "utf-8");
+    const m = content.match(/archik:principles:(oop|functional)/);
+    return (m?.[1] as "oop" | "functional" | undefined) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function upgradeCommand(opts: ParsedOptions): Promise<number> {
   const skipInstall = getString(opts, "skip-install") === "true";
   const userScope = getString(opts, "user") === "true";
-  const scopeFlags = userScope ? ["--user"] : [];
   const cwd = process.cwd();
 
   const oldVersion = readOwnVersion();
@@ -228,9 +296,9 @@ export async function upgradeCommand(opts: ParsedOptions): Promise<number> {
     }
   }
 
-  // ── Step 3: refresh skill + commands ─────────────────────────────
+  // ── Step 3: refresh skill + commands + loop artifacts ────────────
   console.log("");
-  await refreshArtifacts(cwd, scopeFlags);
+  await refreshArtifacts(cwd, userScope);
 
   // ── Step 4: next-step message ─────────────────────────────────────
   const upgraded = latestVersion !== oldVersion;

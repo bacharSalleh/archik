@@ -10,6 +10,8 @@ import { qCommand } from "./commands/q.ts";
 import { devCommand } from "./commands/dev.ts";
 import { commandsCommand } from "./commands/commands.ts";
 import { loopCommand } from "./commands/loop.ts";
+import { principlesCommand } from "./commands/principles.ts";
+import { superpowersCommand } from "./commands/superpowers.ts";
 import { skillCommand } from "./commands/skill.ts";
 import { COMMAND_HELP } from "./help.ts";
 import { startCommand } from "./commands/start.ts";
@@ -48,7 +50,11 @@ COMMANDS
                                      (also installs the Claude skill + slash commands + engineering loop by default)
                     --no-skill       skip installing the Claude skill
                     --no-commands    skip installing the /archik:* slash commands
-                    --no-loop        skip installing the engineering-loop template
+                    --no-loop        skip the engineering loop + CLAUDE.md wiring
+                    --paradigm <p>   coding principles: oop | functional | none
+                    --superpowers    wire superpowers skills into the loop
+                    --no-superpowers keep the loop self-contained
+                    --claude-md <m>  when CLAUDE.md exists: append | overwrite
   dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
@@ -112,7 +118,11 @@ COMMANDS
                     --force          overwrite if any already exist
   loop              Install the engineering-loop template into .archik/ENGINEERING_LOOP.md
                     --force          overwrite if it already exists
-  upgrade           Upgrade archik to latest and refresh the Claude skill + commands + loop
+  principles [p]    Install coding principles (oop | functional) into .archik/PRINCIPLES.md
+                    --force          overwrite if it already exists
+  superpowers       Install the superpowers overlay into .archik/SUPERPOWERS.md
+                    --force          overwrite if it already exists
+  upgrade           Upgrade archik to latest and refresh the loop, principles + overlay
                     --user           refresh skill/commands user-wide (~/.claude/)
                     --skip-install   skip the npm upgrade; only re-copy skill/commands
 
@@ -170,6 +180,10 @@ async function main(): Promise<number> {
       return commandsCommand(opts);
     case "loop":
       return loopCommand(opts);
+    case "principles":
+      return principlesCommand(opts);
+    case "superpowers":
+      return superpowersCommand(opts);
     case "diff":
       return diffCommand(opts);
     case "suggest":

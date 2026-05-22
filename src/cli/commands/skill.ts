@@ -8,6 +8,21 @@ export const ENGINEERING_LOOP_FILENAME = "ENGINEERING_LOOP.md";
 export const ENGINEERING_LOOP_REL = `.archik/${ENGINEERING_LOOP_FILENAME}`;
 export const ENGINEERING_LOOP_REFERENCE = `@${ENGINEERING_LOOP_REL}`;
 
+export const PRINCIPLES_REL = ".archik/PRINCIPLES.md";
+export const PRINCIPLES_REFERENCE = `@${PRINCIPLES_REL}`;
+export const SUPERPOWERS_REL = ".archik/SUPERPOWERS.md";
+export const SUPERPOWERS_REFERENCE = `@${SUPERPOWERS_REL}`;
+
+export type Paradigm = "oop" | "functional";
+
+/**
+ * The CLAUDE.md region archik owns. Everything between these markers is
+ * regenerated on append/upgrade; anything outside them is the user's and
+ * never touched. Lets `init` re-run and `upgrade` refresh idempotently.
+ */
+export const CLAUDE_BLOCK_START = "<!-- archik:managed:start -->";
+export const CLAUDE_BLOCK_END = "<!-- archik:managed:end -->";
+
 export type SkillScope = "project" | "user";
 
 export type InstallSkillResult =
@@ -181,24 +196,114 @@ export async function installEngineeringLoop(args: {
   return { ok: true, target };
 }
 
-export type ClaudeMdLinkResult =
-  | { ok: true; action: "created" | "appended"; target: string }
-  | { ok: true; action: "already-linked"; target: string };
+export type InstallTemplateResult =
+  | { ok: true; target: string }
+  | { ok: false; reason: "exists"; target: string }
+  | { ok: false; reason: "missing-source"; source: string };
 
 /**
- * Ensure the project's `CLAUDE.md` references the engineering-loop
- * file via `@.archik/ENGINEERING_LOOP.md`. Three branches:
- *
- *   - file missing  → create it with a short header + the @-reference
- *   - file exists, reference present → no-op
- *   - file exists, reference absent  → append a section
- *
- * The `@<path>` syntax is Claude Code's file-include directive — the
- * referenced file is loaded into context when CLAUDE.md is read, so
- * users get the loop in every conversation without inlining 270 lines.
+ * Copy a coding-principles template (`docs/templates/principles/<paradigm>.md`)
+ * into the project as `.archik/PRINCIPLES.md`. The chosen paradigm's rules
+ * govern the BUILD phase; CLAUDE.md picks them up via `@.archik/PRINCIPLES.md`.
+ * The template carries an `archik:principles:<paradigm>` marker so
+ * `archik upgrade` can refresh it from the right source.
  */
-export async function ensureClaudeMdLink(): Promise<ClaudeMdLinkResult> {
+export async function installPrinciples(args: {
+  paradigm: Paradigm;
+  force: boolean;
+}): Promise<InstallTemplateResult> {
+  const source = path.join(
+    pkgRoot(),
+    "docs",
+    "templates",
+    "principles",
+    `${args.paradigm}.md`,
+  );
+  return copyTemplate(source, path.resolve(PRINCIPLES_REL), args.force);
+}
+
+/**
+ * Copy the superpowers overlay (`docs/templates/superpowers.md`) into the
+ * project as `.archik/SUPERPOWERS.md`. Written only when the user opts into
+ * superpowers integration; maps each loop phase to a superpowers skill.
+ */
+export async function installSuperpowersOverlay(args: {
+  force: boolean;
+}): Promise<InstallTemplateResult> {
+  const source = path.join(pkgRoot(), "docs", "templates", "superpowers.md");
+  return copyTemplate(source, path.resolve(SUPERPOWERS_REL), args.force);
+}
+
+async function copyTemplate(
+  source: string,
+  target: string,
+  force: boolean,
+): Promise<InstallTemplateResult> {
+  try {
+    await stat(source);
+  } catch {
+    return { ok: false, reason: "missing-source", source };
+  }
+  if (!force) {
+    try {
+      await stat(target);
+      return { ok: false, reason: "exists", target };
+    } catch {
+      // missing — fine
+    }
+  }
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(source, target);
+  return { ok: true, target };
+}
+
+export type ClaudeMdMode = "append" | "overwrite";
+
+export type ClaudeMdLinkResult = {
+  ok: true;
+  action: "created" | "appended" | "updated" | "overwritten";
+  target: string;
+};
+
+/**
+ * Render the archik-managed block: a strong directive to follow the loop
+ * plus `@`-references to each artifact file. Wrapped in markers so it can
+ * be regenerated in place without disturbing the user's own CLAUDE.md prose.
+ *
+ * The `@<path>` syntax is Claude Code's file-include directive — referenced
+ * files load into context when CLAUDE.md is read, so the loop and principles
+ * apply in every conversation without inlining hundreds of lines.
+ */
+export function buildManagedBlock(refs: string[]): string {
+  const lines = [
+    CLAUDE_BLOCK_START,
+    "**Follow the archik engineering loop for all work on this project.**",
+    "Model before code, respect the HITL gates, and fix the model before the",
+    "code when they disagree. The linked files below are authoritative:",
+    "",
+    ...refs,
+    CLAUDE_BLOCK_END,
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * Write the archik-managed block into the project's `CLAUDE.md`.
+ *
+ *   - file missing                  → create with header + managed block
+ *   - mode "overwrite"              → replace the whole file with the block
+ *   - mode "append", markers found  → regenerate just the marked region
+ *   - mode "append", no markers     → append a fresh managed region
+ *
+ * `refs` are the `@`-references to include (loop, principles, superpowers).
+ */
+export async function ensureClaudeMdLink(args: {
+  mode: ClaudeMdMode;
+  refs: string[];
+}): Promise<ClaudeMdLinkResult> {
   const target = path.resolve("CLAUDE.md");
+  const block = buildManagedBlock(args.refs);
+  const fresh = `# Project guidance for Claude\n\n${block}\n`;
 
   let current: string | null;
   try {
@@ -208,25 +313,28 @@ export async function ensureClaudeMdLink(): Promise<ClaudeMdLinkResult> {
   }
 
   if (current === null) {
-    const body =
-      `# Project guidance for Claude\n\n` +
-      `${ENGINEERING_LOOP_REFERENCE}\n`;
-    await writeFile(target, body, "utf-8");
+    await writeFile(target, fresh, "utf-8");
     return { ok: true, action: "created", target };
   }
 
-  // Match the reference whether or not it's at the start of a line and
-  // tolerate trailing punctuation/whitespace. Catches the case where
-  // a user has already pasted the line in by hand.
-  if (current.includes(ENGINEERING_LOOP_REFERENCE)) {
-    return { ok: true, action: "already-linked", target };
+  if (args.mode === "overwrite") {
+    await writeFile(target, fresh, "utf-8");
+    return { ok: true, action: "overwritten", target };
+  }
+
+  // append mode: replace an existing managed region in place if present,
+  // so re-running init never stacks duplicate blocks.
+  const start = current.indexOf(CLAUDE_BLOCK_START);
+  const end = current.indexOf(CLAUDE_BLOCK_END);
+  if (start !== -1 && end !== -1 && end > start) {
+    const before = current.slice(0, start);
+    const after = current.slice(end + CLAUDE_BLOCK_END.length);
+    await writeFile(target, `${before}${block}${after}`, "utf-8");
+    return { ok: true, action: "updated", target };
   }
 
   const trailing = current.endsWith("\n") ? "" : "\n";
-  const block =
-    `\n## Engineering loop\n\n` +
-    `${ENGINEERING_LOOP_REFERENCE}\n`;
-  await writeFile(target, `${current}${trailing}${block}`, "utf-8");
+  await writeFile(target, `${current}${trailing}\n${block}\n`, "utf-8");
   return { ok: true, action: "appended", target };
 }
 

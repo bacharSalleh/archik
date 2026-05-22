@@ -101,4 +101,109 @@ describe("initCommand", () => {
     expect(content).toContain('version: "1.0"');
   });
 
+  it("writes PRINCIPLES.md and links it when --paradigm is given", async () => {
+    const code = await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "functional",
+      "no-superpowers": "true",
+    });
+    expect(code).toBe(0);
+    const principles = await readFile(path.join(cwd, ".archik/PRINCIPLES.md"), "utf-8");
+    expect(principles).toMatch(/Functional/);
+    const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+    expect(claude).toContain("@.archik/PRINCIPLES.md");
+  });
+
+  it("skips PRINCIPLES.md when --paradigm none", async () => {
+    await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "none",
+      "no-superpowers": "true",
+    });
+    const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+    expect(claude).not.toContain("@.archik/PRINCIPLES.md");
+    await expect(
+      readFile(path.join(cwd, ".archik/PRINCIPLES.md"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("writes SUPERPOWERS.md and links it when --superpowers", async () => {
+    await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "none",
+      superpowers: "true",
+    });
+    const sp = await readFile(path.join(cwd, ".archik/SUPERPOWERS.md"), "utf-8");
+    expect(sp).toMatch(/superpowers/i);
+    const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(claude).toContain("@.archik/SUPERPOWERS.md");
+  });
+
+  it("--claude-md overwrite replaces an existing CLAUDE.md", async () => {
+    await writeFile(path.join(cwd, "CLAUDE.md"), "# mine\nkeep me? no\n");
+    await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "none",
+      "no-superpowers": "true",
+      "claude-md": "overwrite",
+    });
+    const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(claude).not.toContain("keep me? no");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+  });
+
+  it("rejects an invalid --paradigm before creating anything", async () => {
+    const code = await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "oo",
+    });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/invalid --paradigm/i);
+    // nothing scaffolded
+    await expect(
+      readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("rejects an invalid --claude-md value", async () => {
+    const code = await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      "claude-md": "merge",
+    });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/invalid --claude-md/i);
+  });
+
+  it("--claude-md append preserves an existing CLAUDE.md", async () => {
+    await writeFile(path.join(cwd, "CLAUDE.md"), "# mine\n\nmy notes\n");
+    await initCommand({
+      _: [],
+      "no-skill": "true",
+      "no-commands": "true",
+      paradigm: "none",
+      "no-superpowers": "true",
+      "claude-md": "append",
+    });
+    const claude = await readFile(path.join(cwd, "CLAUDE.md"), "utf-8");
+    expect(claude).toContain("# mine");
+    expect(claude).toContain("my notes");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+  });
+
 });

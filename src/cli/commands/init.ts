@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { arrow, bold, cross, cyan, dim, gray, magenta, tick } from "../colors.ts";
+import { arrow, bold, cross, cyan, dim, gray, magenta, tick, yellow } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { RUNTIME_FILENAME } from "../projectState.ts";
 import { resolveInitTarget } from "../resolveDocPath.ts";
@@ -9,12 +9,20 @@ import {
   ENGINEERING_LOOP_REFERENCE,
   installCommands,
   installEngineeringLoop,
+  installPrinciples,
   installSkill,
+  installSuperpowersOverlay,
+  PRINCIPLES_REFERENCE,
+  SUPERPOWERS_REFERENCE,
   type ClaudeMdLinkResult,
+  type ClaudeMdMode,
   type InstallCommandsResult,
   type InstallEngineeringLoopResult,
   type InstallSkillResult,
+  type Paradigm,
 } from "./skill.ts";
+import { detectSuperpowers, SUPERPOWERS_INSTALL_ID } from "../superpowers.ts";
+import { isInteractive, selectFromList } from "../prompts.ts";
 
 const STARTER = `version: "1.0"
 name: My Architecture
@@ -102,6 +110,14 @@ edges:
 `;
 
 export async function initCommand(opts: ParsedOptions): Promise<number> {
+  // Validate value-flags before any side effects, so a typo like
+  // `--paradigm oo` fails loudly instead of being silently ignored.
+  const flagError = validateInitFlags(opts);
+  if (flagError) {
+    console.error(`${cross()} ${flagError}`);
+    return 1;
+  }
+
   const abs = await resolveInitTarget(opts._[0] as string | undefined);
   const file = path.relative(process.cwd(), abs) || abs;
   try {
@@ -164,21 +180,21 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
     }
   }
 
-  // Engineering-loop template lands as `.archik/ENGINEERING_LOOP.md`
-  // (refreshable by `archik upgrade`) and CLAUDE.md gets a one-line
-  // `@`-reference. Splitting the file from the reference means we can
-  // bump the template without touching the user's CLAUDE.md.
+  // Engineering loop + coding principles + (optional) superpowers overlay
+  // all land under `.archik/` as `@`-referenced files, so `archik upgrade`
+  // can refresh them without touching the user's own CLAUDE.md prose.
   let loopResult: InstallEngineeringLoopResult | null = null;
   let linkResult: ClaudeMdLinkResult | null = null;
   if (getString(opts, "no-loop") !== "true") {
+    const plan = await resolveLoopPlan(opts);
+
     loopResult = await installEngineeringLoop({ force: false });
+    const loopRel = path.relative(process.cwd(), loopResult.ok ? loopResult.target : "") || ".archik/ENGINEERING_LOOP.md";
     if (loopResult.ok) {
-      console.log(
-        `${tick()} Installed engineering loop → ${dim(path.relative(process.cwd(), loopResult.target) || loopResult.target)}`,
-      );
+      console.log(`${tick()} Installed engineering loop → ${dim(loopRel)}`);
     } else if (loopResult.reason === "exists") {
       console.log(
-        `${gray("•")} Engineering loop already present at ${dim(path.relative(process.cwd(), loopResult.target) || loopResult.target)} ${dim("(refresh with `archik loop --force`)")}`,
+        `${gray("•")} Engineering loop already present ${dim("(refresh with `archik loop --force`)")}`,
       );
     } else {
       console.error(
@@ -187,20 +203,150 @@ export async function initCommand(opts: ParsedOptions): Promise<number> {
     }
 
     if (loopResult.ok || loopResult.reason === "exists") {
-      linkResult = await ensureClaudeMdLink();
-      const claudeMd = path.relative(process.cwd(), linkResult.target) || linkResult.target;
-      if (linkResult.action === "created") {
-        console.log(`${tick()} Created ${bold(claudeMd)} → references ${dim(ENGINEERING_LOOP_REFERENCE)}`);
-      } else if (linkResult.action === "appended") {
-        console.log(`${tick()} Linked engineering loop in ${bold(claudeMd)}`);
-      } else {
-        console.log(`${gray("•")} ${claudeMd} already references the engineering loop`);
+      const refs: string[] = [ENGINEERING_LOOP_REFERENCE];
+
+      if (plan.paradigm !== "none") {
+        const pr = await installPrinciples({ paradigm: plan.paradigm, force: false });
+        if (pr.ok) {
+          refs.push(PRINCIPLES_REFERENCE);
+          console.log(`${tick()} Installed ${plan.paradigm.toUpperCase()} principles → ${dim(".archik/PRINCIPLES.md")}`);
+        } else if (pr.reason === "exists") {
+          refs.push(PRINCIPLES_REFERENCE);
+          console.log(`${gray("•")} Principles already present ${dim("(refresh with `archik principles --force`)")}`);
+        } else {
+          console.error(`${cross()} Principles template missing at ${dim(pr.source)} — continuing without it.`);
+        }
       }
+
+      if (plan.superpowers) {
+        const sp = await installSuperpowersOverlay({ force: false });
+        if (sp.ok) {
+          refs.push(SUPERPOWERS_REFERENCE);
+          console.log(`${tick()} Installed superpowers overlay → ${dim(".archik/SUPERPOWERS.md")}`);
+        } else if (sp.reason === "exists") {
+          refs.push(SUPERPOWERS_REFERENCE);
+          console.log(`${gray("•")} Superpowers overlay already present`);
+        } else {
+          console.error(`${cross()} Superpowers template missing at ${dim(sp.source)} — continuing without it.`);
+        }
+        if (!(await detectSuperpowers())) {
+          console.log("");
+          console.log(`${yellow("!")} You enabled superpowers integration, but the plugin isn't installed.`);
+          console.log(`  Install it in Claude Code: ${bold(`/plugin install ${SUPERPOWERS_INSTALL_ID}`)}`);
+        }
+      }
+
+      linkResult = await ensureClaudeMdLink({ mode: plan.claudeMode, refs });
+      const claudeMd = path.relative(process.cwd(), linkResult.target) || "CLAUDE.md";
+      const verb = {
+        created: "Created",
+        appended: "Updated",
+        updated: "Refreshed archik block in",
+        overwritten: "Overwrote",
+      }[linkResult.action];
+      console.log(`${tick()} ${verb} ${bold(claudeMd)} ${dim(`(${refs.length} @-reference${refs.length === 1 ? "" : "s"})`)}`);
     }
   }
 
   printNextSteps(file, skillResult, commandsResult);
   return 0;
+}
+
+/**
+ * Validate the value-bearing flags up front. Returns an error string for the
+ * first invalid flag, or null when all are acceptable (or absent). Boolean
+ * flags (`--no-skill`, `--superpowers`, …) need no validation.
+ */
+function validateInitFlags(opts: ParsedOptions): string | null {
+  const paradigm = getString(opts, "paradigm");
+  if (paradigm !== undefined && !["oop", "functional", "none"].includes(paradigm)) {
+    return `Invalid --paradigm "${paradigm}". Use: oop | functional | none`;
+  }
+  const claudeMd = getString(opts, "claude-md");
+  if (claudeMd !== undefined && !["append", "overwrite"].includes(claudeMd)) {
+    return `Invalid --claude-md "${claudeMd}". Use: append | overwrite`;
+  }
+  return null;
+}
+
+type LoopPlan = {
+  paradigm: Paradigm | "none";
+  superpowers: boolean;
+  claudeMode: ClaudeMdMode;
+};
+
+/**
+ * Resolve the three loop choices from flags, falling back to interactive
+ * prompts when stdin is a TTY, and to safe defaults otherwise (so
+ * `npx archik init` stays non-blocking in CI / piped contexts).
+ *
+ *   paradigm   : --paradigm oop|functional|none   → prompt → "none"
+ *   superpowers: --superpowers / --no-superpowers → prompt → false
+ *   claudeMode : --claude-md append|overwrite     → prompt (only if
+ *                CLAUDE.md exists) → "append"
+ */
+async function resolveLoopPlan(opts: ParsedOptions): Promise<LoopPlan> {
+  const interactive = isInteractive();
+
+  const paradigmFlag = getString(opts, "paradigm");
+  let paradigm: Paradigm | "none";
+  if (paradigmFlag === "oop" || paradigmFlag === "functional" || paradigmFlag === "none") {
+    paradigm = paradigmFlag;
+  } else if (interactive) {
+    paradigm = await selectFromList<Paradigm>(
+      "Which coding principles should Claude follow for this project?",
+      [
+        { value: "oop", label: "OOP", hint: "separation of concerns, composition, design patterns, clean code" },
+        { value: "functional", label: "Functional", hint: "purity, immutability, composition, effects at the edges" },
+      ],
+    );
+  } else {
+    paradigm = "none";
+  }
+
+  let superpowers: boolean;
+  if (getString(opts, "superpowers") === "true") {
+    superpowers = true;
+  } else if (getString(opts, "no-superpowers") === "true") {
+    superpowers = false;
+  } else if (interactive) {
+    superpowers = await selectFromList<boolean>(
+      "Integrate superpowers skills into the engineering loop? (requires the superpowers plugin)",
+      [
+        { value: true, label: "Yes", hint: "wire brainstorming / TDD / verification into the loop steps" },
+        { value: false, label: "No", hint: "keep the loop self-contained" },
+      ],
+    );
+  } else {
+    superpowers = false;
+  }
+
+  const claudeFlag = getString(opts, "claude-md");
+  let claudeMode: ClaudeMdMode;
+  if (claudeFlag === "append" || claudeFlag === "overwrite") {
+    claudeMode = claudeFlag;
+  } else if (interactive && (await fileExists(path.resolve("CLAUDE.md")))) {
+    claudeMode = await selectFromList<ClaudeMdMode>(
+      "CLAUDE.md already exists. How should archik add its guidance?",
+      [
+        { value: "append", label: "Append", hint: "keep your file; add or refresh an archik-managed block" },
+        { value: "overwrite", label: "Overwrite", hint: "replace the whole file with archik's block" },
+      ],
+    );
+  } else {
+    claudeMode = "append";
+  }
+
+  return { paradigm, superpowers, claudeMode };
+}
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
