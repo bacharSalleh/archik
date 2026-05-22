@@ -15,6 +15,7 @@ import {
 import { getString, type ParsedOptions } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
 import {
+  CLAUDE_BLOCK_START,
   ENGINEERING_LOOP_REFERENCE,
   ensureClaudeMdLink,
   installCommands,
@@ -24,8 +25,11 @@ import {
   installSuperpowersOverlay,
   PRINCIPLES_REFERENCE,
   SUPERPOWERS_REFERENCE,
+  type Paradigm,
   type SkillScope,
 } from "./skill.ts";
+import { isInteractive, selectFromList } from "../prompts.ts";
+import { detectSuperpowers, SUPERPOWERS_INSTALL_ID } from "../superpowers.ts";
 
 function readOwnVersion(): string {
   try {
@@ -154,40 +158,105 @@ async function refreshArtifacts(
   }
 
   // Refreshing the .archik/* files alone isn't enough — CLAUDE.md must
-  // actually @-reference them or the model never sees the update. The
-  // @-wiring used to happen only in `init`, leaving upgraded projects with
-  // an orphaned loop file. Re-assert the managed block here (idempotent,
-  // append-only — the user's own prose is preserved).
-  if (wireClaude) await wireClaudeMd(cwd);
+  // @-reference them or the model never sees the update. `upgrade` is a
+  // REFRESH, not a reconfiguration: it never silently adds new artifacts or
+  // wires an unwired CLAUDE.md. In a TTY it OFFERS the missing pieces;
+  // non-interactively it only refreshes what's already there.
+  await completeSetup(cwd, wireClaude);
 }
 
 /**
- * Ensure CLAUDE.md's archik-managed block references every artifact the
- * project currently has (loop always; principles/superpowers when present).
- * Pure file manipulation — no templates — so it runs in-process regardless
- * of how the artifact files themselves were refreshed.
+ * After the pure refresh, optionally complete the project's loop setup:
+ *
+ *  - paradigm / superpowers: refreshed in step 1 if present; OFFERED here
+ *    (TTY only) when absent. Never imposed non-interactively.
+ *  - CLAUDE.md: if it already has the archik block, regenerate it in place
+ *    (a safe refresh of opted-in content). If it's NOT wired, ask first in
+ *    a TTY (append-only, prose preserved); non-interactively, leave it
+ *    untouched and print a hint instead of editing it.
  */
-async function wireClaudeMd(cwd: string): Promise<void> {
-  const noisy = process.stdout.isTTY;
-  const { paradigm, hasSuperpowers } = projectArtifacts(cwd);
+async function completeSetup(cwd: string, wireClaude: boolean): Promise<void> {
+  const interactive = isInteractive();
+
+  // ── Paradigm: offer only when none is installed ──────────────────
+  let { paradigm, hasSuperpowers } = projectArtifacts(cwd);
+  if (!paradigm && interactive) {
+    const choice = await selectFromList<Paradigm | "none">(
+      "Add coding principles for this project?",
+      [
+        { value: "oop", label: "OOP", hint: "separation of concerns, composition, design patterns, clean code" },
+        { value: "functional", label: "Functional", hint: "purity, immutability, composition, effects at the edges" },
+        { value: "none", label: "No", hint: "skip — don't add coding principles" },
+      ],
+    );
+    if (choice !== "none") {
+      const r = await installPrinciples({ paradigm: choice, force: true });
+      if (r.ok) {
+        paradigm = choice;
+        console.log(`  ${tick()} Added ${choice.toUpperCase()} principles → ${dim(".archik/PRINCIPLES.md")}`);
+      }
+    }
+  }
+
+  // ── Superpowers: offer only when the overlay isn't installed ──────
+  if (!hasSuperpowers && interactive) {
+    const yes = await selectFromList<boolean>(
+      "Integrate superpowers skills into the engineering loop? (requires the superpowers plugin)",
+      [
+        { value: true, label: "Yes", hint: "wire brainstorming / TDD / verification into the loop steps" },
+        { value: false, label: "No", hint: "keep the loop self-contained" },
+      ],
+    );
+    if (yes) {
+      const r = await installSuperpowersOverlay({ force: true });
+      if (r.ok) {
+        hasSuperpowers = true;
+        console.log(`  ${tick()} Added superpowers overlay → ${dim(".archik/SUPERPOWERS.md")}`);
+      }
+      if (!(await detectSuperpowers())) {
+        console.log(`  ${yellow("!")} superpowers plugin not detected — install: ${bold(`/plugin install ${SUPERPOWERS_INSTALL_ID}`)}`);
+      }
+    }
+  }
+
+  // ── CLAUDE.md ────────────────────────────────────────────────────
+  if (!wireClaude) return;
+
   const refs = [ENGINEERING_LOOP_REFERENCE];
   if (paradigm) refs.push(PRINCIPLES_REFERENCE);
   if (hasSuperpowers) refs.push(SUPERPOWERS_REFERENCE);
 
-  if (noisy) process.stdout.write(`  Wiring CLAUDE.md...`);
-  try {
-    const result = await ensureClaudeMdLink({ mode: "append", refs });
-    if (noisy) {
-      const note =
-        result.action === "created"
-          ? " (created)"
-          : result.action === "appended"
-            ? " (added archik block)"
-            : "";
-      process.stdout.write(` ${tick()}${dim(note)}\n`);
-    }
-  } catch {
-    if (noisy) process.stdout.write(` ${cross()}\n`);
+  const claudePath = path.join(cwd, "CLAUDE.md");
+  const exists = existsSync(claudePath);
+  const wired = exists && readFileSync(claudePath, "utf-8").includes(CLAUDE_BLOCK_START);
+
+  if (wired) {
+    // Already opted in — refresh the marked block in place (safe).
+    await ensureClaudeMdLink({ mode: "append", refs });
+    console.log(`  ${tick()} Refreshed the archik block in ${bold("CLAUDE.md")}`);
+    return;
+  }
+
+  if (!interactive) {
+    // Never silently introduce archik into an unwired CLAUDE.md.
+    console.log(
+      `  ${dim("CLAUDE.md isn't wired to the loop — run `archik init` (or add `" + ENGINEERING_LOOP_REFERENCE + "`).")}`,
+    );
+    return;
+  }
+
+  const add = await selectFromList<boolean>(
+    exists
+      ? "CLAUDE.md isn't wired to the engineering loop. Add an archik-managed block?"
+      : "No CLAUDE.md found. Create one wired to the engineering loop?",
+    [
+      { value: true, label: "Yes", hint: exists ? "append a block — your existing content is preserved" : "create CLAUDE.md with the loop reference" },
+      { value: false, label: "No", hint: "leave CLAUDE.md as-is" },
+    ],
+  );
+  if (add) {
+    const r = await ensureClaudeMdLink({ mode: "append", refs });
+    console.log(`  ${tick()} ${r.action === "created" ? "Created" : "Updated"} ${bold("CLAUDE.md")}`);
   }
 }
 
