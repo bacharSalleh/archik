@@ -65,7 +65,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "chokidar": "^5.0.0",
-    "elkjs": "^0.10.2",
+    "elkjs": "^0.11.1",
     "esbuild": "^0.28.0",
     "jsdom": "^25.0.1",
     "lucide-react": "^1.11.0",
