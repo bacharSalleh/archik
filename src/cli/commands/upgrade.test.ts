@@ -100,4 +100,29 @@ describe("upgradeCommand — in-process refresh (no local install)", () => {
     // loop is unconditional, so it still refreshes
     expect(await read(".archik/ENGINEERING_LOOP.md")).toBe("NEW loop\n");
   });
+
+  it("wires CLAUDE.md to reference the refreshed artifacts", async () => {
+    // No CLAUDE.md in the project — upgrade should create one that points at
+    // the now-refreshed loop file (the orphaned-loop bug).
+    await upgradeCommand({ _: [], "skip-install": "true" });
+    const claude = await read("CLAUDE.md");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+    expect(claude).toContain("@.archik/PRINCIPLES.md");
+    expect(claude).toContain("@.archik/SUPERPOWERS.md");
+  });
+
+  it("preserves the user's CLAUDE.md prose when wiring", async () => {
+    await writeFile(path.join(project, "CLAUDE.md"), "# my project\n\nhand-written rules\n");
+    await upgradeCommand({ _: [], "skip-install": "true" });
+    const claude = await read("CLAUDE.md");
+    expect(claude).toContain("# my project");
+    expect(claude).toContain("hand-written rules");
+    expect(claude).toContain("@.archik/ENGINEERING_LOOP.md");
+  });
+
+  it("--no-claude-md leaves CLAUDE.md untouched", async () => {
+    await writeFile(path.join(project, "CLAUDE.md"), "# mine only\n");
+    await upgradeCommand({ _: [], "skip-install": "true", "no-claude-md": "true" });
+    expect(await read("CLAUDE.md")).toBe("# mine only\n");
+  });
 });

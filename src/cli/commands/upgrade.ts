@@ -15,11 +15,15 @@ import {
 import { getString, type ParsedOptions } from "../options.ts";
 import { pkgRoot } from "../paths.ts";
 import {
+  ENGINEERING_LOOP_REFERENCE,
+  ensureClaudeMdLink,
   installCommands,
   installEngineeringLoop,
   installPrinciples,
   installSkill,
   installSuperpowersOverlay,
+  PRINCIPLES_REFERENCE,
+  SUPERPOWERS_REFERENCE,
   type SkillScope,
 } from "./skill.ts";
 
@@ -132,6 +136,7 @@ function projectArtifacts(cwd: string): {
 async function refreshArtifacts(
   cwd: string,
   userScope: boolean,
+  wireClaude: boolean,
 ): Promise<void> {
   const localBin = path.join(cwd, "node_modules", ".bin", "archik");
   if (existsSync(localBin)) {
@@ -146,6 +151,43 @@ async function refreshArtifacts(
     // target version, so refresh in-process from ITS pkgRoot — never via a
     // bare `npx archik`, which could resolve to a stale global install.
     await refreshInProcess(cwd, userScope);
+  }
+
+  // Refreshing the .archik/* files alone isn't enough — CLAUDE.md must
+  // actually @-reference them or the model never sees the update. The
+  // @-wiring used to happen only in `init`, leaving upgraded projects with
+  // an orphaned loop file. Re-assert the managed block here (idempotent,
+  // append-only — the user's own prose is preserved).
+  if (wireClaude) await wireClaudeMd(cwd);
+}
+
+/**
+ * Ensure CLAUDE.md's archik-managed block references every artifact the
+ * project currently has (loop always; principles/superpowers when present).
+ * Pure file manipulation — no templates — so it runs in-process regardless
+ * of how the artifact files themselves were refreshed.
+ */
+async function wireClaudeMd(cwd: string): Promise<void> {
+  const noisy = process.stdout.isTTY;
+  const { paradigm, hasSuperpowers } = projectArtifacts(cwd);
+  const refs = [ENGINEERING_LOOP_REFERENCE];
+  if (paradigm) refs.push(PRINCIPLES_REFERENCE);
+  if (hasSuperpowers) refs.push(SUPERPOWERS_REFERENCE);
+
+  if (noisy) process.stdout.write(`  Wiring CLAUDE.md...`);
+  try {
+    const result = await ensureClaudeMdLink({ mode: "append", refs });
+    if (noisy) {
+      const note =
+        result.action === "created"
+          ? " (created)"
+          : result.action === "appended"
+            ? " (added archik block)"
+            : "";
+      process.stdout.write(` ${tick()}${dim(note)}\n`);
+    }
+  } catch {
+    if (noisy) process.stdout.write(` ${cross()}\n`);
   }
 }
 
@@ -234,6 +276,7 @@ function readParadigmMarker(file: string): "oop" | "functional" | null {
 export async function upgradeCommand(opts: ParsedOptions): Promise<number> {
   const skipInstall = getString(opts, "skip-install") === "true";
   const userScope = getString(opts, "user") === "true";
+  const wireClaude = getString(opts, "no-claude-md") !== "true";
   const cwd = process.cwd();
 
   const oldVersion = readOwnVersion();
@@ -296,9 +339,9 @@ export async function upgradeCommand(opts: ParsedOptions): Promise<number> {
     }
   }
 
-  // ── Step 3: refresh skill + commands + loop artifacts ────────────
+  // ── Step 3: refresh skill + commands + loop artifacts + CLAUDE.md ─
   console.log("");
-  await refreshArtifacts(cwd, userScope);
+  await refreshArtifacts(cwd, userScope, wireClaude);
 
   // ── Step 4: next-step message ─────────────────────────────────────
   const upgraded = latestVersion !== oldVersion;

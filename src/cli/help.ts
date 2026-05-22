@@ -493,10 +493,12 @@ USAGE
   archik upgrade
   archik upgrade --user
   archik upgrade --skip-install
+  archik upgrade --no-claude-md
 
 FLAGS
   --user             refresh skill + commands user-wide (~/.claude/) instead of project-local
-  --skip-install     skip the npm upgrade; only re-copy the skill and slash commands
+  --skip-install     skip the npm upgrade; only re-copy the artifacts
+  --no-claude-md     don't touch CLAUDE.md (skip the @-reference wiring)
 
 WHAT IT DOES
   1. Checks the installed version against the npm registry.
@@ -507,22 +509,27 @@ WHAT IT DOES
      (--force, so stale files are always overwritten). Also refreshes
      .archik/PRINCIPLES.md and .archik/SUPERPOWERS.md — but only when
      the project already has them (opt-in artifacts are never imposed).
-  4. Tells you to start a new Claude Code conversation so the
+  4. Wires CLAUDE.md: ensures it @-references the refreshed artifacts via
+     an archik-managed block (append-only — your own prose is preserved;
+     the block is created if absent and regenerated if already present).
+     Skip with --no-claude-md.
+  5. Tells you to start a new Claude Code conversation so the
      updated skill is loaded into context.
 
 NOTES
   If archik is not in the project's package.json (global or npx
   usage), the package upgrade step is skipped and you are shown
-  the manual upgrade command. The skill and commands are still
-  refreshed from the currently running version.
+  the manual upgrade command. The artifacts are still refreshed
+  from the currently running version.
 
   Use --skip-install when you have already upgraded the package
-  manually and just need the skill/commands to catch up.
+  manually and just need the artifacts to catch up.
 
 EXAMPLES
   archik upgrade
   archik upgrade --user
   archik upgrade --skip-install
+  archik upgrade --no-claude-md
 `,
 
   alpha: `archik alpha — Essence alpha state tracker

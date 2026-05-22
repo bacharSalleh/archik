@@ -122,9 +122,10 @@ COMMANDS
                     --force          overwrite if it already exists
   superpowers       Install the superpowers overlay into .archik/SUPERPOWERS.md
                     --force          overwrite if it already exists
-  upgrade           Upgrade archik to latest and refresh the loop, principles + overlay
+  upgrade           Upgrade archik to latest, refresh loop/principles/overlay + wire CLAUDE.md
                     --user           refresh skill/commands user-wide (~/.claude/)
-                    --skip-install   skip the npm upgrade; only re-copy skill/commands
+                    --skip-install   skip the npm upgrade; only re-copy artifacts
+                    --no-claude-md   don't touch CLAUDE.md (skip the @-reference wiring)
 
 Default file resolution (when no [path] is given):
   1. .archik/main.archik.yaml      (preferred new convention)
