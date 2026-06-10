@@ -200,6 +200,7 @@ describe("createMcpHandler", () => {
     expect(list.result.prompts.map((p) => p.name)).toEqual([
       "propose-change",
       "review-architecture",
+      "evolution-loop",
     ]);
 
     const got = (await handle({
@@ -239,5 +240,77 @@ describe("createMcpHandler", () => {
       result: Record<string, unknown>;
     };
     expect(res.result).toEqual({});
+  });
+
+  it("lists the evolution and patterns tools", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 17,
+      method: "tools/list",
+    })) as { result: { tools: Array<{ name: string }> } };
+    const names = res.result.tools.map((t) => t.name);
+    expect(names).toContain("archik_evolution_status");
+    expect(names).toContain("archik_evolution_reflect");
+    expect(names).toContain("archik_evolution_proposals");
+    expect(names).toContain("archik_evolution_report");
+    expect(names).toContain("archik_patterns_list");
+    expect(names).toContain("archik_patterns_show");
+  });
+
+  it("runs archik_evolution_status and returns JSON", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 18,
+      method: "tools/call",
+      params: { name: "archik_evolution_status", arguments: {} },
+    })) as {
+      result: { isError: boolean; content: Array<{ type: string; text: string }> };
+    };
+    expect(res.result.isError).toBe(false);
+    const parsed = JSON.parse(res.result.content[0]!.text);
+    expect(parsed.enabled).toBe(false);
+  });
+
+  it("runs archik_patterns_list and includes the seed patterns", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 19,
+      method: "tools/call",
+      params: { name: "archik_patterns_list", arguments: {} },
+    })) as {
+      result: { isError: boolean; content: Array<{ type: string; text: string }> };
+    };
+    expect(res.result.isError).toBe(false);
+    const parsed = JSON.parse(res.result.content[0]!.text);
+    const ids = parsed.patterns.map((p: { id: string }) => p.id);
+    expect(ids).toContain("evolution-loop");
+  });
+
+  it("exposes evolution status and the learned overlay as resources", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 20,
+      method: "resources/list",
+    })) as { result: { resources: Array<{ uri: string }> } };
+    const uris = res.result.resources.map((r) => r.uri);
+    expect(uris).toContain("archik://evolution");
+    expect(uris).toContain("archik://learned");
+
+    const learned = (await handle({
+      jsonrpc: "2.0",
+      id: 21,
+      method: "resources/read",
+      params: { uri: "archik://learned" },
+    })) as { result: { contents: Array<{ text: string }> } };
+    expect(learned.result.contents[0]!.text).toContain("no learned notes");
+  });
+
+  it("offers the evolution-loop prompt", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 22,
+      method: "prompts/list",
+    })) as { result: { prompts: Array<{ name: string }> } };
+    expect(res.result.prompts.map((p) => p.name)).toContain("evolution-loop");
   });
 });

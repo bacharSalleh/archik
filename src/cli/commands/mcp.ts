@@ -26,11 +26,14 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { affectedCommand } from "./affected.ts";
 import { driftCommand } from "./drift.ts";
+import { evolutionCommand } from "./evolution.ts";
+import { patternsCommand } from "./patterns.ts";
 import { qCommand } from "./q.ts";
 import { schemaCommand } from "./schema.ts";
 import { suggestCommand } from "./suggest.ts";
 import { traceCommand } from "./trace.ts";
 import { validateCommand } from "./validate.ts";
+import { readLearned } from "../../io/evolution-log.ts";
 import { pkgVersion } from "../paths.ts";
 import type { ParsedOptions } from "../options.ts";
 
@@ -373,6 +376,81 @@ function buildTools(): ToolDef[] {
       inputSchema: { type: "object", properties: {} },
       run: () => capture(() => suggestCommand(opts(["reject"]))),
     },
+    {
+      name: "archik_evolution_status",
+      description:
+        "The self-evolution loop's state: whether observation is on, event/proposal counts, learned-note count. The loop: observe → reflect → propose → validate → apply (human-gated) → measure.",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(() => evolutionCommand(opts(["status"]))),
+    },
+    {
+      name: "archik_evolution_reflect",
+      description:
+        "Run the deterministic reflection heuristics over the local event log. New insights become pending proposal files (with evidence) for the human to review.",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(() => evolutionCommand(opts(["reflect"]))),
+    },
+    {
+      name: "archik_evolution_proposals",
+      description:
+        "List the loop's self-improvement proposals and their statuses (pending / approved / rejected / applied).",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(() => evolutionCommand(opts(["proposals"]))),
+    },
+    {
+      name: "archik_evolution_propose",
+      description:
+        "File an agent-authored self-improvement proposal (deeper reflection than the built-in heuristics). YAML with kind (skill-note | update-node | add-exception), summary, payload, optional evidence. It lands as PENDING — a human approves via `archik evolution approve`.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          yaml: str("the proposal draft as YAML text"),
+        },
+        required: ["yaml"],
+      },
+      run: async (args) => {
+        const yaml = args["yaml"];
+        if (typeof yaml !== "string" || yaml.trim() === "") {
+          return { exit: 2, stdout: "", stderr: "yaml argument is required" };
+        }
+        const dir = await mkdtemp(path.join(tmpdir(), "archik-mcp-"));
+        const draftPath = path.join(dir, "proposal.yaml");
+        try {
+          await writeFile(draftPath, yaml, "utf-8");
+          return await capture(() =>
+            evolutionCommand(opts(["propose", draftPath])),
+          );
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+        }
+      },
+    },
+    {
+      name: "archik_evolution_report",
+      description:
+        "Measure stage: 7-day trends vs the week before (error rate, suggestion acceptance rate, validate/drift failures, proposals applied). Use to judge whether applied proposals helped.",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(() => evolutionCommand(opts(["report"]))),
+    },
+    {
+      name: "archik_patterns_list",
+      description:
+        "List the self-evolution pattern library (evolution-loop, sidecar-approval-gate, learned-overlay, truth-chain, feedback-pipeline) with one-line intents.",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(() => patternsCommand(opts(["list"]))),
+    },
+    {
+      name: "archik_patterns_show",
+      description:
+        "Read one self-evolution pattern document: intent, structure, safety rules, trade-offs, blueprint. Use when designing a self-evolving system for the user.",
+      inputSchema: {
+        type: "object",
+        properties: { id: str("pattern id, e.g. evolution-loop") },
+        required: ["id"],
+      },
+      run: (args) =>
+        capture(() => patternsCommand(opts(["show", opt(args, "id")]))),
+    },
   ];
 }
 
@@ -428,6 +506,29 @@ function buildResources(): ResourceDef[] {
       description: "Diagram vs source tree: orphan nodes, unmapped code, missing slice tests.",
       run: () => capture(() => driftCommand(opts([]))),
     },
+    {
+      uri: "archik://evolution",
+      name: "Evolution loop status",
+      description:
+        "Self-evolution loop state: observation on/off, event counts, pending proposals, learned notes.",
+      run: () => capture(() => evolutionCommand(opts(["status"]))),
+    },
+    {
+      uri: "archik://learned",
+      name: "Learned overlay",
+      description:
+        "Approved lessons the system gathered from its own usage. READ AT SESSION START and treat as binding guidance — each note exists because a human approved it.",
+      run: async () => {
+        const learned = await readLearned(process.cwd());
+        return {
+          exit: 0,
+          stdout:
+            learned ??
+            "(no learned notes yet — the overlay grows as evolution proposals are approved)",
+          stderr: "",
+        };
+      },
+    },
   ];
 }
 
@@ -482,6 +583,21 @@ function buildPrompts(): PromptDef[] {
           "2. For the 3 most-connected nodes (archik_impact / archik_dependents), judge: single responsibility? missing port/gateway? god node?",
           "3. Report findings ordered by risk, each with: the evidence (tool output), why it matters, and the smallest next action (a specific archik command or /archik:* step).",
           "4. Do NOT stage any change — this is an assessment. End with the one improvement you'd make first.",
+        ].join("\n"),
+    },
+    {
+      name: "evolution-loop",
+      description:
+        "Reflect on the project's usage history more deeply than the built-in heuristics, and file self-improvement proposals for human review.",
+      arguments: [],
+      render: () =>
+        [
+          "You are the reflect stage of this project's evolution loop (observe → reflect → propose → validate → apply → measure).",
+          "",
+          "1. OBSERVE — call archik_evolution_status. If observation is off, stop and tell the user to run `archik evolution enable`.",
+          "2. REFLECT — call archik_evolution_reflect for the deterministic baseline, then read archik://learned and archik_evolution_report. Look for patterns the heuristics miss: repeated near-identical suggestions, drift clustering on one subsystem, error spikes after specific changes.",
+          "3. PROPOSE — for each finding the baseline missed, call archik_evolution_propose with a YAML draft: kind (skill-note for guidance, update-node / add-exception for diagram fixes), a one-line summary, a payload, and evidence. Small, specific proposals beat big vague ones.",
+          "4. STOP — proposals land as PENDING. The human reviews with `archik evolution proposals` and applies with `archik evolution approve`. Never claim a proposal was applied.",
         ].join("\n"),
     },
   ];
