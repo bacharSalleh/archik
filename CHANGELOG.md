@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.14.0] - 2026-06-10
+
+### Added
 - **`archik drift --edges`** — edge-level drift: scans the TS/JS
   imports under every node's sourcePath and reports shadow edges
   (code imports across nodes with no declared edge) and phantom
@@ -43,12 +54,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Floating major tag automation** — the publish workflow now
   force-updates `v0`/`v1` on every release so
   `uses: bacharSalleh/archik@v0` stays current.
-
-### Changed
--
-
-### Fixed
--
 
 ## [0.13.0] - 2026-06-10
 
@@ -809,7 +814,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/bacharSalleh/archik/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/bacharSalleh/archik/compare/v0.12.46...v0.13.0
 [0.7.5]: https://github.com/bacharSalleh/archik/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/bacharSalleh/archik/compare/v0.7.3...v0.7.4
