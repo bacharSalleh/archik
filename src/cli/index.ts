@@ -21,6 +21,7 @@ import { diffCommand } from "./commands/diff.ts";
 import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
 import { traceCommand } from "./commands/trace.ts";
+import { affectedCommand } from "./commands/affected.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -97,6 +98,11 @@ COMMANDS
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
+  affected          Map changed files back onto the model — affected nodes,
+                                     use case slices, tests to run, stale seq diagrams
+                    --since <ref>    git ref to diff against (default: HEAD)
+                    --files <list>   comma-separated file list (skips git)
+                    --json           structured output for agents
   trace             Use case x slice x test x seq x node coverage matrix
                     --use-case <id>  filter to one use case
                     --actor <id>     filter to use cases involving an actor
@@ -193,6 +199,8 @@ async function main(): Promise<number> {
       return driftCommand(opts);
     case "trace":
       return traceCommand(opts);
+    case "affected":
+      return affectedCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":

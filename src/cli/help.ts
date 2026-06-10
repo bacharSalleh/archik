@@ -446,6 +446,43 @@ EXAMPLES
   archik drift --ignore .archik/custom-ignore
 `,
 
+  affected: `archik affected — map changed files back onto the model
+
+USAGE
+  archik affected [--since <ref>] [--files <list>] [--json]
+
+FLAGS
+  --since <ref>      git ref to diff the working tree against (default: HEAD)
+  --files <list>     comma-separated file list — skips git entirely
+  --json             structured output for agents / CI
+
+DESCRIPTION
+  The reverse lookup over the Jacobson chain. Takes the files that
+  changed (committed + uncommitted + untracked vs --since, or an
+  explicit --files list) and reports what the model says they touch:
+
+    NODES             changed file sits at/under a node's sourcePath
+    USE CASE SLICES   slice pulled in via a changed test file, a changed
+                      realization seq file, or an affected participant node
+    TESTS TO RUN      union of tests across the affected slices
+    SEQ DIAGRAMS      realized flows whose participants changed — re-check them
+    UNMAPPED          changed files no node or test claims (a model gap)
+
+  Answers "what am I touching, which tests cover it, and which diagrams
+  might now be stale?" — for you, your reviewer, and your agent.
+
+EXIT CODES
+  0  success (even when nothing is affected)
+  1  git error / root file failed to load
+  2  argument error
+
+EXAMPLES
+  archik affected                       # working tree vs HEAD
+  archik affected --since main          # everything this branch touches
+  archik affected --since origin/main --json
+  archik affected --files src/api/routes.ts,src/worker/run.ts
+`,
+
   trace: `archik trace — use case x slice x test x seq x node coverage matrix
 
 USAGE
