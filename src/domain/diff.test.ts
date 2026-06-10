@@ -60,6 +60,24 @@ describe("diffDocuments", () => {
     expect(diff.nodes.unchanged).toEqual(["web", "db"]);
   });
 
+  it("detects owner changes", () => {
+    const before: Document = {
+      ...baseline,
+      nodes: [{ id: "api", kind: "service", name: "API" }],
+      edges: [],
+    };
+    const after: Document = {
+      ...baseline,
+      nodes: [{ id: "api", kind: "service", name: "API", owner: "team-core" }],
+      edges: [],
+    };
+    const d = diffDocuments(before, after);
+    expect(d.nodes.changed).toHaveLength(1);
+    expect(d.nodes.changed[0]!.changes).toEqual([
+      { field: "owner", before: undefined, after: "team-core" },
+    ]);
+  });
+
   it("counts added/removed edges", () => {
     expect(diff.edges.added.map((e) => e.id)).toEqual(["worker-db"]);
     expect(diff.edges.removed.map((e) => e.id)).toEqual(["api-cache"]);

@@ -7,7 +7,9 @@ import {
   stripSuggestionMarker,
   suggestionPath,
 } from "../../domain/suggestion.ts";
+import { checkConstraintsWithDraft } from "../../domain/constraints.ts";
 import { diffDocuments } from "../../domain/diff.ts";
+import { discoverDocs } from "../../io/discovery.ts";
 import {
   checkCrossFileReferences,
   checkSourcePaths,
@@ -329,6 +331,32 @@ async function set(opts: ParsedOptions): Promise<number> {
     } else {
       console.error(`✗ Draft fails sourcePath validation:`);
       console.error(formatErrors(sourcePathErrors));
+    }
+    return 1;
+  }
+
+  // Governance constraints — evaluated as if the draft had already
+  // replaced the main file, against the full merged diagram. A draft
+  // that violates a constraint must fail HERE, not in CI after the
+  // user accepted it.
+  const discovery = await discoverDocs(mainPath, root);
+  const mainRel =
+    path.relative(root, mainPath).split(path.sep).join("/") ||
+    path.basename(mainPath);
+  const constraintErrors = checkConstraintsWithDraft(
+    discovery.docs,
+    mainPath,
+    mainRel,
+    doc,
+  );
+  if (constraintErrors.length > 0) {
+    if (json) {
+      console.error(
+        JSON.stringify({ ok: false, errors: constraintErrors }, null, 2),
+      );
+    } else {
+      console.error(`✗ Draft violates governance constraints:`);
+      console.error(formatErrors(constraintErrors));
     }
     return 1;
   }

@@ -86,6 +86,16 @@ describe("importCompose", () => {
     expect(issues[0]!.message).toContain('"ghost"');
   });
 
+  it("skips the second service when sanitisation collapses two names onto one id", () => {
+    const compose = {
+      services: { "my-app": { image: "nginx" }, "My_App": { image: "nginx" } },
+    };
+    const { doc, issues } = importCompose(compose, "Demo", exists([]));
+    expect(doc.nodes).toHaveLength(1);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.message).toContain('"my-app"');
+  });
+
   it("sanitises service names into valid ids", () => {
     const compose = {
       services: { "My_App.web": { image: "nginx" }, "2nd-svc": { image: "nginx" } },

@@ -19,12 +19,11 @@
  *   1  git / file errors
  *   2  argument errors
  */
-import path from "node:path";
 import {
   buildAffectedReport,
   type AffectedReport,
 } from "../../domain/affected.ts";
-import { gitToplevel, runGit } from "../git.ts";
+import { runGit } from "../git.ts";
 import { discoverDocs } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
@@ -37,36 +36,23 @@ const isJson = (opts: ParsedOptions): boolean => {
   return v !== undefined && v !== "false" && v !== "0";
 };
 
-/** Changed files from git, relative to the project root. Paths from
- *  git are toplevel-relative; when the project root sits below the
- *  git toplevel (monorepo), translate and drop files outside it. */
+/** Changed files from git, relative to the project root. Both
+ *  commands run with cwd = project root and emit root-relative paths:
+ *  `--relative` pins `git diff` to the cwd (its default is
+ *  toplevel-relative), and `git ls-files` is cwd-relative already.
+ *  This also scopes a monorepo to the project's subtree for free. */
 function changedFromGit(
   root: string,
   since: string,
 ): { ok: true; files: string[] } | { ok: false; error: string } {
-  const top = gitToplevel(root);
-  if (!top.ok) return { ok: false, error: top.error };
-  const toplevel = top.out;
-
-  const diff = runGit(["diff", "--name-only", since], root);
+  const diff = runGit(["diff", "--name-only", "--relative", since], root);
   if (!diff.ok) return { ok: false, error: diff.error };
   const untracked = runGit(["ls-files", "--others", "--exclude-standard"], root);
   if (!untracked.ok) return { ok: false, error: untracked.error };
 
-  const all = [
-    ...diff.out.split("\n"),
-    ...untracked.out.split("\n"),
-  ]
+  const files = [...diff.out.split("\n"), ...untracked.out.split("\n")]
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
-
-  const files: string[] = [];
-  for (const f of all) {
-    const abs = path.resolve(toplevel, f);
-    const rel = path.relative(root, abs).split(path.sep).join("/");
-    if (rel.startsWith("../")) continue; // outside the project root
-    files.push(rel);
-  }
   return { ok: true, files };
 }
 

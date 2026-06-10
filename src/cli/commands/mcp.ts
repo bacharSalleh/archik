@@ -24,7 +24,6 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { readFileSync } from "node:fs";
 import { affectedCommand } from "./affected.ts";
 import { driftCommand } from "./drift.ts";
 import { qCommand } from "./q.ts";
@@ -32,7 +31,7 @@ import { schemaCommand } from "./schema.ts";
 import { suggestCommand } from "./suggest.ts";
 import { traceCommand } from "./trace.ts";
 import { validateCommand } from "./validate.ts";
-import { pkgRoot } from "../paths.ts";
+import { pkgVersion } from "../paths.ts";
 import type { ParsedOptions } from "../options.ts";
 
 const PROTOCOL_VERSION = "2024-11-05";
@@ -388,17 +387,6 @@ export type McpHandler = (
   message: JsonRpcMessage,
 ) => Promise<Record<string, unknown> | undefined>;
 
-function readVersion(): string {
-  try {
-    const pkg = JSON.parse(
-      readFileSync(path.join(pkgRoot(), "package.json"), "utf-8"),
-    ) as { version?: string };
-    return pkg.version ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
 /**
  * Protocol core, factored out of the transport so tests can drive it
  * message-by-message. Returns the response object (to be serialised
@@ -439,7 +427,7 @@ export function createMcpHandler(): McpHandler {
             protocolVersion:
               typeof requested === "string" ? requested : PROTOCOL_VERSION,
             capabilities: { tools: {} },
-            serverInfo: { name: "archik", version: readVersion() },
+            serverInfo: { name: "archik", version: pkgVersion() },
           },
         };
       }

@@ -101,6 +101,48 @@ describe("suggestCommand set", () => {
     expect(() => new Date(written.metadata.suggestion.at)).not.toThrow();
   });
 
+  it("rejects a draft that violates a governance constraint", async () => {
+    // The draft itself carries the constraint (the draft replaces the
+    // main file, so its constraints are the ones that will govern) —
+    // and one of its own edges violates it.
+    const violating = [
+      'version: "1.0"',
+      "name: Suggest Test",
+      "nodes:",
+      "  - id: web",
+      "    kind: frontend",
+      "    name: Web",
+      "    description: storefront UI",
+      "  - id: db",
+      "    kind: database",
+      "    name: DB",
+      "    description: Postgres database",
+      "edges:",
+      "  - id: direct",
+      "    from: web",
+      "    to: db",
+      "    relationship: reads",
+      "constraints:",
+      "  - id: no-frontend-db",
+      "    description: Frontends never talk to databases directly.",
+      "    forbidEdge:",
+      "      from: { kind: frontend }",
+      "      to: { kind: database }",
+      "",
+    ].join("\n");
+    const draft = path.join(cwd, "draft.yaml");
+    await writeFile(draft, violating);
+
+    const code = await suggestCommand({ _: ["set", "draft.yaml"] });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toContain("no-frontend-db");
+    // Nothing staged — the gate fires before the sidecar is written.
+    await expect(
+      readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
   it("refuses when no draft path is given", async () => {
     const code = await suggestCommand({ _: ["set"] });
     expect(code).toBe(1);

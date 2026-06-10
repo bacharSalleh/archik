@@ -116,6 +116,20 @@ describe("mergeDocuments", () => {
     expect(merged.name).toBe("Ours");
   });
 
+  it("preserves and merges document-level constraints", () => {
+    const constraint = {
+      id: "all-owned",
+      description: "Everything has an owner.",
+      requireOwner: {},
+    };
+    const base = doc([node("api", { owner: "t" })]);
+    const ours = { ...doc([node("api", { owner: "t" })]), constraints: [constraint] };
+    const theirs = doc([node("api", { owner: "t" })]);
+    const { doc: merged, conflicts } = mergeDocuments(base, ours, theirs);
+    expect(conflicts).toEqual([]);
+    expect(merged.constraints).toEqual([constraint]);
+  });
+
   it("drops a field both sides removed", () => {
     const base = doc([node("api", { stack: "node" })]);
     const ours = doc([node("api")]);

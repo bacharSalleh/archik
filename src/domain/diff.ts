@@ -105,6 +105,7 @@ const NODE_FIELDS = [
   "seqFiles",
   "status",
   "stereotype",
+  "owner",
 ] as const;
 
 const EDGE_FIELDS = [
@@ -204,7 +205,9 @@ export function statusMap(diff: DocumentDiff): StatusMap {
   return { nodes, edges };
 }
 
-function deepEqual(a: unknown, b: unknown): boolean {
+/** Structural deep-equal used by both the diff and the three-way
+ *  merge — one definition so "changed" means the same thing in both. */
+export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (a === null || b === null) return false;
   if (typeof a !== "object" || typeof b !== "object") return false;

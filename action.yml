@@ -56,8 +56,12 @@ runs:
         mkdir -p "$report"
         : > "$report/failures"
 
+        # Install once into an isolated prefix; per-command `npx -y`
+        # would re-resolve the version against the registry every call.
+        npm install --prefix "$RUNNER_TEMP/archik-cli" --no-audit --no-fund \
+          "archik@${ARCHIK_VERSION}" > /dev/null
         archik() {
-          npx -y "archik@${ARCHIK_VERSION}" "$@"
+          "$RUNNER_TEMP/archik-cli/node_modules/.bin/archik" "$@"
         }
         doc_args=()
         [ -n "$INPUT_PATH" ] && doc_args=("$INPUT_PATH")
@@ -102,7 +106,10 @@ runs:
         fi
         if [ -n "$base_ref" ]; then
           echo "$base_ref" > "$report/base-ref"
-          git fetch --no-tags --depth=50 origin "$base_ref" 2>/dev/null || true
+          # Explicit refspec so origin/<base> exists even when the
+          # checkout configured a narrowed fetch refspec.
+          git fetch --no-tags --depth=50 origin \
+            "+refs/heads/$base_ref:refs/remotes/origin/$base_ref" 2>/dev/null || true
           if archik diff "origin/$base_ref" --json \
               > "$report/diff.json" 2> "$report/diff.err"; then
             echo "diff vs origin/$base_ref: ok"
