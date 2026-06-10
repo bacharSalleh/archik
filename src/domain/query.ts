@@ -78,6 +78,8 @@ export type NodeFilters = {
   status?: NodeStatus;
   /** Case-insensitive substring match against node name and description. */
   search?: string;
+  /** Exact match against the node's `owner` field. */
+  owner?: string;
 };
 
 export function listNodes(
@@ -103,6 +105,9 @@ export function listNodes(
         const inName = node.name.toLowerCase().includes(term);
         const inDesc = node.description?.toLowerCase().includes(term) ?? false;
         if (!inName && !inDesc) continue;
+      }
+      if (filters.owner !== undefined && node.owner !== filters.owner) {
+        continue;
       }
       out.push({ node, relPath });
     }

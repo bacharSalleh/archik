@@ -28,6 +28,7 @@ import {
   checkUseCaseTestPaths,
 } from "../../domain/usecase-validate.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
+import { checkConstraints } from "../../domain/constraints.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 
@@ -233,6 +234,18 @@ export async function validateCommand(
     else {
       console.error(`✗ ${file}`);
       console.error(formatErrors(ucActorErrors));
+    }
+    return 1;
+  }
+
+  // Governance constraints — checked against the merged diagram so
+  // cross-file edges can't dodge a rule by living in a sub-file.
+  const constraintErrors = checkConstraints(discovery.docs);
+  if (constraintErrors.length > 0) {
+    if (json) emitJson({ ok: false, file, errors: constraintErrors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(constraintErrors));
     }
     return 1;
   }

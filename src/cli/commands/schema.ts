@@ -60,6 +60,13 @@ function buildSchema(): SchemaSpec {
       { name: "description", required: false, type: "string" },
       { name: "nodes", required: true, type: "array of Node" },
       { name: "edges", required: true, type: "array of Edge" },
+      {
+        name: "constraints",
+        required: false,
+        type: "array of Constraint",
+        notes:
+          "governance rules enforced by `archik validate` against the MERGED diagram (root + sub-files). Each constraint: { id, description, forbidEdge | requireOwner, except? }. forbidEdge: { relationship?, from?, to? } with node selectors { id?, kind?, parent?, notParent?, stereotype? } — parent/notParent walk the whole parentId chain. requireOwner: { kinds? } — matching nodes must declare `owner`. `except` lists grandfathered node/edge ids.",
+      },
       { name: "metadata", required: false, type: "DocumentMetadata" },
     ],
     node: [
@@ -135,6 +142,13 @@ function buildSchema(): SchemaSpec {
         type: "enum",
         notes:
           'boundary | control | entity — Jacobson ECB classification. When set on both endpoints of a message in a `realizes`-bound seq diagram, the validator enforces the robustness transition rules (boundary→control, control→{boundary|control|entity}, entity→{control|entity}). Adoption is incremental: untagged nodes are skipped.',
+      },
+      {
+        name: "owner",
+        required: false,
+        type: "string",
+        notes:
+          "owning team or person (free text — match your CODEOWNERS vocabulary). Query with `q list --owner <t>`; make it mandatory with a requireOwner constraint.",
       },
       { name: "metadata", required: false, type: "object" },
     ],
@@ -237,6 +251,7 @@ function buildSchema(): SchemaSpec {
       "Every node MUST have a non-empty `description` explaining what it does. Empty / omitted descriptions are rejected.",
       "Edges may carry a `status` field with the same enum (proposed / active / deprecated). The renderer applies the same dashed + coloured-border treatment used for node status.",
       "Optional `stereotype: boundary | control | entity` on a node enables Jacobson ECB validation inside `realizes`-bound seq diagrams. Forbidden transitions: boundary→boundary, boundary→entity, entity→boundary. Untagged nodes are skipped (gradual adoption).",
+      "Optional document-level `constraints` define governance rules (forbidEdge / requireOwner) that `archik validate` enforces across the merged diagram. Each constraint needs a unique id and exactly one rule; `except` grandfathers specific node/edge ids.",
     ],
   };
 }
