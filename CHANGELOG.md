@@ -8,7 +8,45 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- **`archik affected`** — the reverse lookup over the Jacobson chain.
+  Takes the change set (`--since <ref>` via git, default HEAD, or an
+  explicit `--files` list) and reports affected nodes (sourcePath
+  containment), affected use case slices (via changed tests, changed
+  realization seqs, or affected participant nodes), the union of
+  tests to run, seq diagrams to re-check, and changed files no node
+  or test claims. `--json` for agents/CI.
+- **Git refs in `archik diff`** — each side may now be a YAML file
+  *or* a git ref; `archik diff origin/main` (one-arg form) compares
+  the doc at the ref against the working tree, loading the full
+  merged diagram (root + sub-files) at that commit.
+- **`archik merge-driver`** — semantic three-way merge for archik
+  YAML as a git merge driver. Id-keyed nodes/edges merge entity- and
+  field-wise; only true conflicts (same field changed differently,
+  modify-vs-delete, or an invalid merged document) reach a human,
+  with an ours-preferred result written and a precise stderr report.
+  `--install` wires `merge.archik.*` git config + the
+  `*.archik.yaml merge=archik` .gitattributes line.
+- **`owner` field on nodes** — owning team/person (free text).
+  Shown by `q describe`, filterable via `q list --owner <t>`.
+- **Document-level `constraints`** — governance rules enforced by
+  `archik validate` against the merged diagram: `forbidEdge`
+  (relationship + from/to node selectors with id/kind/parent/
+  notParent/stereotype; parent rules walk the whole nesting chain)
+  and `requireOwner` (matching nodes must declare an owner).
+  `except` grandfathers specific ids visibly in the YAML.
+- **`archik mcp`** — zero-dependency Model Context Protocol server
+  over stdio. 20 tools (schema, queries, trace, validate, drift,
+  affected, suggest lifecycle) delegate in-process to the CLI with
+  `--json`, giving Cursor / Windsurf / Copilot / Claude Desktop /
+  Zed the same contract the Claude Code skill enforces.
+- **First-party GitHub Action** (`uses: bacharSalleh/archik@main`) —
+  runs validate + drift + trace (optional `trace-fail-on` gate),
+  writes the job step summary, and posts a sticky PR comment with
+  the architecture diff vs the base branch.
+- **`archik import compose`** — bootstrap a document from
+  docker-compose: known images map to kinds, build contexts on disk
+  become `service` nodes with sourcePath, `depends_on` becomes
+  edges; schema-validated output to stdout or `--out`.
 
 ### Changed
 -
