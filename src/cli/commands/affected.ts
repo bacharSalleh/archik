@@ -19,12 +19,12 @@
  *   1  git / file errors
  *   2  argument errors
  */
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import {
   buildAffectedReport,
   type AffectedReport,
 } from "../../domain/affected.ts";
+import { gitToplevel, runGit } from "../git.ts";
 import { discoverDocs } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
@@ -37,17 +37,6 @@ const isJson = (opts: ParsedOptions): boolean => {
   return v !== undefined && v !== "false" && v !== "0";
 };
 
-function git(args: string[], cwd: string): { ok: true; out: string } | { ok: false; error: string } {
-  const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
-  if (result.error !== undefined) {
-    return { ok: false, error: result.error.message };
-  }
-  if (result.status !== 0) {
-    return { ok: false, error: (result.stderr || `git ${args.join(" ")} exited ${result.status}`).trim() };
-  }
-  return { ok: true, out: result.stdout };
-}
-
 /** Changed files from git, relative to the project root. Paths from
  *  git are toplevel-relative; when the project root sits below the
  *  git toplevel (monorepo), translate and drop files outside it. */
@@ -55,13 +44,13 @@ function changedFromGit(
   root: string,
   since: string,
 ): { ok: true; files: string[] } | { ok: false; error: string } {
-  const top = git(["rev-parse", "--show-toplevel"], root);
+  const top = gitToplevel(root);
   if (!top.ok) return { ok: false, error: top.error };
-  const toplevel = top.out.trim();
+  const toplevel = top.out;
 
-  const diff = git(["diff", "--name-only", since], root);
+  const diff = runGit(["diff", "--name-only", since], root);
   if (!diff.ok) return { ok: false, error: diff.error };
-  const untracked = git(["ls-files", "--others", "--exclude-standard"], root);
+  const untracked = runGit(["ls-files", "--others", "--exclude-standard"], root);
   if (!untracked.ok) return { ok: false, error: untracked.error };
 
   const all = [

@@ -81,7 +81,9 @@ COMMANDS
                     stats              counts by kind and relationship
   schema            Print the document schema (kinds, relationships, fields)
                     --json           structured shape for agents
-  diff <a> <b>      Show what changed between two architecture YAMLs
+  diff <a> [b]      Show what changed between two architecture states
+                                     (each side is a YAML file or a git ref;
+                                     one arg = that ref vs the working tree)
                     --out <file>     also write a colour-coded SVG diff
                     --theme <name>   "dark" (default) or "light"
                     --json           structured diff output for agents
