@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { checkConstraintsWithDraft } from "../domain/constraints.ts";
 import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
 import {
   archikFileMode,
@@ -53,11 +54,11 @@ import { DiffSvg } from "../render/DiffSvg.tsx";
  * Accepts the project root so cross-file / sourcePath existence
  * checks resolve from the same place validate / suggest set use.
  */
-function validateYamlPayload(
+async function validateYamlPayload(
   body: string,
   targetPath: string,
   projectRoot: string,
-): string | null {
+): Promise<string | null> {
   let parsed: unknown;
   try {
     parsed = parseYaml(body);
@@ -85,6 +86,32 @@ function validateYamlPayload(
   const sp = checkSourcePaths(result.value, mode, exists);
   if (sp.length > 0) {
     return `sourcePath validation failed:\n${formatErrors(sp)}`;
+  }
+  // Governance constraints — evaluated against the merged diagram
+  // with this payload substituted for the file it (or, for a sidecar,
+  // the main file it proposes to replace) lives at. Same gate as
+  // `validate` and `suggest set`: a canvas edit must not be able to
+  // land a violation that only CI would catch. Root resolution
+  // mirrors resolveDocPath without pulling in the CLI layer.
+  const newRoot = path.resolve(projectRoot, ".archik/main.archik.yaml");
+  const legacyRoot = path.resolve(projectRoot, "architecture.archik.yaml");
+  const rootDoc = existsSync(newRoot)
+    ? newRoot
+    : existsSync(legacyRoot)
+      ? legacyRoot
+      : targetForMode;
+  const discovery = await discoverDocs(rootDoc, projectRoot);
+  const relPath =
+    path.relative(projectRoot, targetForMode).split(path.sep).join("/") ||
+    path.basename(targetForMode);
+  const constraintErrors = checkConstraintsWithDraft(
+    discovery.docs,
+    targetForMode,
+    relPath,
+    result.value,
+  );
+  if (constraintErrors.length > 0) {
+    return `Governance constraint violations:\n${formatErrors(constraintErrors)}`;
   }
   return null;
 }
@@ -196,7 +223,7 @@ export async function handleYaml(
     }
     try {
       const body = await readBody(req);
-      const validationError = validateYamlPayload(body, docPath, projectRoot);
+      const validationError = await validateYamlPayload(body, docPath, projectRoot);
       if (validationError !== null) {
         res.statusCode = 400;
         res.setHeader("content-type", "text/plain; charset=utf-8");
@@ -246,7 +273,7 @@ export async function handleSidecar(
     }
     try {
       const body = await readBody(req);
-      const validationError = validateYamlPayload(body, sidecarPath, projectRoot);
+      const validationError = await validateYamlPayload(body, sidecarPath, projectRoot);
       if (validationError !== null) {
         res.statusCode = 400;
         res.setHeader("content-type", "text/plain; charset=utf-8");

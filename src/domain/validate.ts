@@ -130,7 +130,7 @@ export function checkSourcePaths(
  *   src/orders         contains src/orders-legacy      → false (segment boundary)
  *   src/orders         contains src/payments           → false
  */
-function isUnderPath(child: string, parent: string): boolean {
+export function isUnderPath(child: string, parent: string): boolean {
   const c = child.replace(/\/+$/, "");
   const p = parent.replace(/\/+$/, "");
   if (c === p) return true;

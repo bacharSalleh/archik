@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,4 +29,17 @@ export function pkgRoot(): string {
   throw new Error(
     `archik: could not locate package root (start: ${here})`,
   );
+}
+
+/** Installed archik version, read from the package manifest. Shared
+ *  by `--version` and the MCP serverInfo so they can't disagree. */
+export function pkgVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(pkgRoot(), "package.json"), "utf-8"),
+    ) as { version?: string };
+    return pkg.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
 }

@@ -102,15 +102,19 @@ export function importCompose(
   const nodes: Node[] = [];
   const idByService = new Map<string, string>();
 
+  const usedIds = new Set<string>();
   for (const [name, service] of entries) {
     const id = toId(name);
-    if (idByService.has(name) || nodes.some((n) => n.id === id)) {
+    // Compose service names are unique, but sanitisation can collapse
+    // two of them onto one id ("My_App" and "my-app" → "my-app").
+    if (usedIds.has(id)) {
       issues.push({
         service: name,
         message: `service name collides with another service after id sanitisation ("${id}") — skipped`,
       });
       continue;
     }
+    usedIds.add(id);
     idByService.set(name, id);
 
     const image = service.image;

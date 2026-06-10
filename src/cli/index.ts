@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { initCommand } from "./commands/init.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { renderCommand } from "./commands/render.ts";
@@ -28,18 +26,7 @@ import { importCommand } from "./commands/import.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
-import { pkgRoot } from "./paths.ts";
-
-function readVersion(): string {
-  try {
-    const pkg = JSON.parse(
-      readFileSync(path.join(pkgRoot(), "package.json"), "utf-8"),
-    ) as { version?: string };
-    return pkg.version ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
+import { pkgVersion } from "./paths.ts";
 
 function printHelp(): void {
   console.log(`archik — JSON-native architecture diagram tool
@@ -229,7 +216,7 @@ async function main(): Promise<number> {
     case "--version":
     case "-v":
     case "version":
-      console.log(readVersion());
+      console.log(pkgVersion());
       return 0;
     case undefined:
     case "--help":

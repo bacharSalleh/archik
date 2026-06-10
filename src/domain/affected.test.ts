@@ -160,6 +160,26 @@ describe("buildAffectedReport", () => {
     expect(report.slices).toHaveLength(0);
   });
 
+  it("matches stale seqs when realization.seqFile carries a ./ prefix", () => {
+    const prefixed: UseCaseDocument = {
+      ...uc,
+      slices: [
+        {
+          ...uc.slices[0]!,
+          realization: { seqFile: "./.archik/flow.archik.seq.yaml" },
+        },
+      ],
+    };
+    const report = buildAffectedReport(
+      ["src/api/routes.ts"],
+      archDocs,
+      [{ ...ucDocs[0]!, doc: prefixed }],
+      seqDocs,
+    );
+    expect(report.slices).toHaveLength(1);
+    expect(report.slices[0]!.via).toContain("node");
+  });
+
   it("classifies archik model files separately from unmapped code", () => {
     const report = buildAffectedReport(
       [".archik/main.archik.yaml", "docs/readme.md"],

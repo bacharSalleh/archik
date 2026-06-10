@@ -57,6 +57,24 @@ function matches(
   return true;
 }
 
+/**
+ * Constraint check for the WRITE paths (`suggest set`, canvas PUT):
+ * evaluate the project's constraints as if `draft` had already
+ * replaced the document at `draftAbs`. Catching a violation here —
+ * before the sidecar is staged or the file hits disk — beats letting
+ * CI reject it after the user already accepted the change.
+ */
+export function checkConstraintsWithDraft(
+  docs: LoadedDoc[],
+  draftAbs: string,
+  draftRelPath: string,
+  draftDoc: LoadedDoc["doc"],
+): ValidationError[] {
+  const substituted = docs.filter((d) => d.abs !== draftAbs);
+  substituted.push({ abs: draftAbs, relPath: draftRelPath, doc: draftDoc });
+  return checkConstraints(substituted);
+}
+
 export function checkConstraints(docs: LoadedDoc[]): ValidationError[] {
   const errors: ValidationError[] = [];
   const nodes: Node[] = docs.flatMap((d) => d.doc.nodes);

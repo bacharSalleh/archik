@@ -196,5 +196,43 @@ describe("affectedCommand", () => {
       const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
       expect(err).toContain("git");
     });
+
+    it("resolves paths correctly when the project sits below the git toplevel", async () => {
+      // Monorepo layout: git root one level up, archik project in app/.
+      const top = await mkdtemp(path.join(tmpdir(), "archik-mono-"));
+      const app = path.join(top, "app");
+      await mkdir(path.join(app, ".archik/usecases"), { recursive: true });
+      await mkdir(path.join(app, "src/api"), { recursive: true });
+      await mkdir(path.join(app, "tests"), { recursive: true });
+      await writeFile(path.join(app, ".archik/main.archik.yaml"), archYaml);
+      await writeFile(path.join(app, "tests/happy.spec.ts"), "");
+      await writeFile(path.join(app, "src/api/routes.ts"), "export {};\n");
+      gitIn(top, "init", "-q");
+      gitIn(top, "config", "user.email", "t@t");
+      gitIn(top, "config", "user.name", "t");
+      gitIn(top, "config", "commit.gpgsign", "false");
+      gitIn(top, "add", "-A");
+      gitIn(top, "commit", "-qm", "init");
+      // One modified + one untracked file, both inside the project.
+      await writeFile(
+        path.join(app, "src/api/routes.ts"),
+        "export const x = 1;\n",
+      );
+      await writeFile(path.join(app, "src/api/new.ts"), "export {};\n");
+      process.chdir(app);
+      try {
+        const code = await affectedCommand({ _: [], json: "true" });
+        expect(code).toBe(0);
+        const parsed = JSON.parse(output());
+        expect(parsed.nodes).toHaveLength(1);
+        expect(parsed.nodes[0].files.sort()).toEqual([
+          "src/api/new.ts",
+          "src/api/routes.ts",
+        ]);
+      } finally {
+        process.chdir(cwd);
+        await rm(top, { recursive: true, force: true });
+      }
+    });
   });
 });

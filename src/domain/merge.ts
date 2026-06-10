@@ -18,6 +18,7 @@
  * Pure function — file I/O, YAML, and git semantics live in the CLI
  * wrapper.
  */
+import { deepEqual } from "./diff.ts";
 import type { Document, Edge, Node } from "./types.ts";
 
 export type MergeConflict = {
@@ -34,30 +35,6 @@ export type MergeOutcome = {
   doc: Document;
   conflicts: MergeConflict[];
 };
-
-function deepEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== typeof b) return false;
-  if (a === null || b === null) return false;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
-      return false;
-    }
-    return a.every((v, i) => deepEqual(v, b[i]));
-  }
-  if (typeof a === "object" && typeof b === "object") {
-    const ka = Object.keys(a as Record<string, unknown>);
-    const kb = Object.keys(b as Record<string, unknown>);
-    if (ka.length !== kb.length) return false;
-    return ka.every((k) =>
-      deepEqual(
-        (a as Record<string, unknown>)[k],
-        (b as Record<string, unknown>)[k],
-      ),
-    );
-  }
-  return false;
-}
 
 /**
  * Field-wise merge of one entity that exists on both sides. For each
@@ -181,8 +158,10 @@ export function mergeDocuments(
 ): MergeOutcome {
   const conflicts: MergeConflict[] = [];
 
-  // Document-level scalar fields share the entity field logic.
-  const docFields = ["name", "description", "metadata"] as const;
+  // Document-level fields share the entity field logic. `constraints`
+  // rides along here — governance rules must survive the merge, and
+  // both sides editing them differently is a human decision.
+  const docFields = ["name", "description", "metadata", "constraints"] as const;
   const head: Record<string, unknown> = { version: ours.version };
   for (const field of docFields) {
     const b = base[field];

@@ -22,6 +22,7 @@
 import type { LoadedDoc } from "../io/discovery.ts";
 import type { LoadedSeqDoc } from "../io/seq-discovery.ts";
 import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
+import { isUnderPath } from "./validate.ts";
 import type { Node } from "./types.ts";
 
 export type AffectedNode = {
@@ -74,15 +75,6 @@ export type AffectedReport = {
   };
 };
 
-/** Same segment-wise containment rule the validator uses for
- *  parent/child sourcePath checks: equal, or under the directory. */
-function isAtOrUnder(file: string, base: string): boolean {
-  const f = file.replace(/\/+$/, "");
-  const b = base.replace(/\/+$/, "");
-  if (f === b) return true;
-  return f.startsWith(b + "/");
-}
-
 function normalize(p: string): string {
   let out = p.split("\\").join("/");
   while (out.startsWith("./")) out = out.slice(2);
@@ -101,14 +93,19 @@ export function buildAffectedReport(
 ): AffectedReport {
   const changed = [...new Set(changedFiles.map(normalize).filter((f) => f.length > 0))];
 
-  // changed file → nodes via sourcePath containment.
+  // changed file → nodes via sourcePath containment (the same
+  // segment-wise rule the validator uses). `claimedByNode` doubles as
+  // the index for the unmapped classification below, so the node scan
+  // happens exactly once.
   const allNodes: Node[] = archDocs.flatMap((d) => d.doc.nodes);
   const affectedNodes: AffectedNode[] = [];
   const affectedNodeIds = new Set<string>();
+  const claimedByNode = new Set<string>();
   for (const node of allNodes) {
     if (node.sourcePath === undefined) continue;
-    const files = changed.filter((f) => isAtOrUnder(f, node.sourcePath!));
+    const files = changed.filter((f) => isUnderPath(f, node.sourcePath!));
     if (files.length === 0) continue;
+    for (const f of files) claimedByNode.add(f);
     affectedNodes.push({
       id: node.id,
       kind: node.kind,
@@ -121,6 +118,8 @@ export function buildAffectedReport(
 
   // Seq diagrams whose participants include an affected node — the
   // documented flow may no longer match the code that just changed.
+  // Keyed by NORMALISED path so lookups via slice.realization.seqFile
+  // (user-authored, may carry a ./ prefix) still hit.
   const staleSeqs: StaleSeq[] = [];
   const staleByRel = new Map<string, StaleSeq>();
   for (const { relPath, doc } of seqDocs) {
@@ -134,7 +133,7 @@ export function buildAffectedReport(
     if (nodes.length === 0) continue;
     const entry: StaleSeq = { seqFile: relPath, seqName: doc.name, nodes };
     staleSeqs.push(entry);
-    staleByRel.set(relPath, entry);
+    staleByRel.set(normalize(relPath), entry);
   }
 
   // Slices: pulled in by a changed test file, a changed realization
@@ -150,7 +149,7 @@ export function buildAffectedReport(
       if (slice.realization !== undefined) {
         const seqRel = normalize(slice.realization.seqFile);
         if (changedSet.has(seqRel)) via.push("seq");
-        if (staleByRel.has(slice.realization.seqFile)) via.push("node");
+        if (staleByRel.has(seqRel)) via.push("node");
       }
       if (via.length === 0) continue;
       slices.push({
@@ -172,13 +171,9 @@ export function buildAffectedReport(
       u.doc.slices.flatMap((s) => (s.tests ?? []).map(normalize)),
     ),
   );
-  const coveredByNodes = (f: string): boolean =>
-    allNodes.some(
-      (n) => n.sourcePath !== undefined && isAtOrUnder(f, n.sourcePath),
-    );
   const modelFiles = changed.filter(isModelFile);
   const unmapped = changed.filter(
-    (f) => !isModelFile(f) && !coveredByNodes(f) && !coveredByTests.has(f),
+    (f) => !isModelFile(f) && !claimedByNode.has(f) && !coveredByTests.has(f),
   );
 
   return {

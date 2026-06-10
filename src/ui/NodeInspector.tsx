@@ -84,6 +84,21 @@ export function NodeInspector({
         />
       </Field>
 
+      <Field label="Owner" htmlFor="ni-owner">
+        <input
+          id="ni-owner"
+          type="text"
+          value={node.owner ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            update(v === "" ? { owner: undefined } : { owner: v });
+          }}
+          disabled={readOnly}
+          placeholder="e.g. team-billing"
+          className="archik-input w-full"
+        />
+      </Field>
+
       <Field label="Description" htmlFor="ni-desc">
         <textarea
           id="ni-desc"
