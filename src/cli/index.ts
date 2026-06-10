@@ -29,6 +29,7 @@ import { otelCommand } from "./commands/otel.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { evolutionCommand } from "./commands/evolution.ts";
+import { patternsCommand } from "./commands/patterns.ts";
 import { parseOptions, type ParsedOptions } from "./options.ts";
 import { pkgVersion } from "./paths.ts";
 import { UNOBSERVED, flagNames, recordRun } from "./observe.ts";
@@ -146,6 +147,11 @@ COMMANDS
                     approve <id>     apply: learned.md note or sidecar diff
                     reject <id>      decline (recorded — the loop learns)
                     report           7-day trends vs the week before
+  patterns <sub>    Self-evolution pattern library (ships with archik)
+                    list             all patterns + one-line intents
+                    show <id>        print the full pattern document
+                    apply <id>       stage the blueprint as a suggestion
+                                     sidecar (approval-gated)
   mcp               Run a Model Context Protocol server over stdio so any
                                      MCP client (Cursor, Windsurf, Copilot, Claude
                                      Desktop, Zed) can query + propose via archik tools
@@ -271,6 +277,8 @@ async function dispatch(
       return alphaCommand(opts);
     case "evolution":
       return evolutionCommand(opts);
+    case "patterns":
+      return patternsCommand(opts);
     case "upgrade":
       return upgradeCommand(opts);
     case "--version":

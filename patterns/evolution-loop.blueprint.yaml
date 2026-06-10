@@ -1,0 +1,69 @@
+# Blueprint fragment merged into your diagram by `archik patterns apply
+# evolution-loop`. All nodes are `status: proposed` — they describe what
+# you are about to build, so no sourcePath is required yet. Rename ids
+# and fill in sourcePaths as you implement each piece.
+nodes:
+  - id: evo-event-log
+    kind: database
+    name: Event Log
+    status: proposed
+    description: >-
+      Append-only store of usage events (actions, outcomes, corrections).
+      Sanitized at capture time; local to the project; opt-in.
+  - id: evo-reflect-engine
+    kind: module
+    name: Reflect Engine
+    status: proposed
+    description: >-
+      Pure rules that turn events into insights with evidence, e.g.
+      "the same failure happened 5 times this week". Deterministic and
+      unit-testable; an LLM can reflect more deeply on the same data.
+  - id: evo-proposal-store
+    kind: database
+    name: Proposal Store
+    status: proposed
+    description: >-
+      One readable file per proposed self-improvement, with evidence
+      and a status (pending / approved / rejected / applied).
+  - id: evo-approval-gate
+    kind: module
+    name: Approval Gate
+    status: proposed
+    description: >-
+      The human yes/no step. Approved proposals are applied as normal,
+      reviewable changes; rejected ones are recorded as signals too.
+  - id: evo-learned-overlay
+    kind: prompt
+    name: Learned Overlay
+    status: proposed
+    description: >-
+      Append-only file of approved lessons, read by the AI at session
+      start. The system gets smarter without code or prompt redeploys.
+  - id: evo-metrics
+    kind: module
+    name: Evolution Metrics
+    status: proposed
+    description: >-
+      Before/after trend reports (error rate, acceptance rate) that
+      prove an applied proposal actually helped.
+edges:
+  - id: evo-reflect-reads-log
+    from: evo-reflect-engine
+    to: evo-event-log
+    relationship: reads
+  - id: evo-reflect-writes-proposals
+    from: evo-reflect-engine
+    to: evo-proposal-store
+    relationship: writes
+  - id: evo-gate-reads-proposals
+    from: evo-approval-gate
+    to: evo-proposal-store
+    relationship: reads
+  - id: evo-gate-writes-overlay
+    from: evo-approval-gate
+    to: evo-learned-overlay
+    relationship: writes
+  - id: evo-metrics-reads-log
+    from: evo-metrics
+    to: evo-event-log
+    relationship: reads

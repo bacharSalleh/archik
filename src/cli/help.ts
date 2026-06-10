@@ -913,4 +913,38 @@ EXAMPLES
   archik evolution approve p-2026-06-10-a1b2
   archik evolution report --json
 `,
+  patterns: `archik patterns — self-evolution pattern library
+
+USAGE
+  archik patterns list          all patterns with one-line intents
+  archik patterns show <id>     print the full pattern document
+  archik patterns apply <id>    stage the blueprint into your diagram
+
+DESCRIPTION
+  A library of named, documented architecture patterns for building
+  self-evolving systems — each with intent, structure, safety rules,
+  trade-offs, and where archik itself uses it.
+
+  'apply' never edits your diagram directly: the blueprint is merged,
+  validated, and staged as a suggestion sidecar (status: proposed
+  nodes), which you review on the canvas and accept or reject.
+
+PATTERNS
+  evolution-loop          observe → reflect → propose → validate →
+                          apply → measure, as components (has blueprint)
+  sidecar-approval-gate   machines propose via a sidecar; humans accept
+  learned-overlay         approved lessons layered over a fixed prompt
+  truth-chain             model verified vs itself, code, and production
+  feedback-pipeline       every user correction becomes a signal
+
+EXIT CODES
+  0  success
+  1  apply failed (pending sidecar, id collision, validation, doc-only)
+  2  argument error or unknown pattern
+
+EXAMPLES
+  archik patterns list
+  archik patterns show evolution-loop
+  archik patterns apply evolution-loop
+`,
 };

@@ -39,6 +39,7 @@
     "docs/templates/principles/functional.md",
     "skills",
     "commands",
+    "patterns",
     ".claude-plugin",
     "README.md",
     "LICENSE"
