@@ -49,13 +49,14 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Describe one use case             | `npx archik q describe-usecase <id>`          |
 | List actors                       | `npx archik q actors`                         |
 | Use case coverage matrix          | `npx archik trace [--json] [--fail-on partial\|none]` |
+| Map changed files onto the model  | `npx archik affected [--since <ref>] [--files <list>] [--json]` |
 | Alpha state snapshot              | `npx archik alpha show [--json]`              |
 | Promote / demote an alpha state   | `npx archik alpha promote\|demote <alpha> <state>` |
 | Validate a file                   | `npx archik validate <path>`                  |
 | Stage a proposed change           | `npx archik suggest set --note '…' - <<'YAML' … YAML` |
 | Show / accept / reject pending    | `npx archik suggest show \| accept \| reject` |
 | Render an SVG                     | `npx archik render --out diagram.svg`         |
-| Diff two files                    | `npx archik diff a.yaml b.yaml`               |
+| Diff two files or git refs        | `npx archik diff a.yaml b.yaml` / `npx archik diff origin/main` |
 | Detect drift vs source tree       | `npx archik drift`                            |
 | Open the live canvas (foreground) | `npx archik dev`                              |
 | Open the canvas (detached)        | `npx archik start` / `stop` / `status`        |
@@ -104,7 +105,7 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
 
 | Phase    | Driver        | Tool you reach for                                  |
 | -------- | ------------- | --------------------------------------------------- |
-| Discover | Claude        | `npx archik q ...` + `q usecases` + `q actors` + `ls` |
+| Discover | Claude        | `npx archik q ...` + `q usecases` + `q actors` + `npx archik affected` + `ls` |
 | Design   | Claude → User | actors / uc files (direct-write) + sidecar via `suggest set` |
 | Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate)    |
 | Build    | Claude → User | numbered plan (HITL approval), then small commits   |
@@ -189,10 +190,16 @@ The CLI parses, schema-validates, checks cross-file references, stamps `metadata
 ### 3. Verify before declaring done
 
 ```bash
-npx archik validate .archik/main.archik.yaml   # schema + cross-file checks
+npx archik validate .archik/main.archik.yaml   # schema + cross-file + constraints
 npx archik drift                                # diagram vs source tree
+npx archik affected --json                      # what did this change touch? which tests?
 npx archik render --out docs/architecture.svg  # if the project commits an SVG
 ```
+
+`affected` is also the right opener in DISCOVER when work starts from
+an existing branch: `npx archik affected --since origin/main --json`
+tells you which nodes, use case slices, and tests the branch already
+touches — ground your plan in that instead of re-deriving it.
 
 ### 4. Sub-architecture (a brand-new `archikFile`)
 
@@ -316,6 +323,45 @@ stereotype: entity     # stores data; domain model
 ```
 
 The validator enforces the ECB transition rules on **seq diagrams that carry a `realizes` block**: actors call boundaries, boundaries call controls, controls call entities or other controls. Direct actor→entity or entity→boundary messages are errors. Untagged nodes are silently skipped so adoption is incremental.
+
+### Node owner — who to talk to
+
+Nodes may carry `owner: <team-or-person>` (free text — match the
+project's CODEOWNERS vocabulary). Surface it when answering "who owns
+this?" (`q describe`, `q list --owner <t>`). Carry it forward like any
+user-authored field. If the document declares a `requireOwner`
+constraint, new nodes of the matching kinds MUST include an owner or
+validation fails.
+
+### Governance constraints — document-level fitness rules
+
+The root document may declare `constraints` — rules `archik validate`
+enforces across the MERGED diagram (root + sub-files):
+
+```yaml
+constraints:
+  - id: billing-isolation
+    description: Only billing-context nodes may write to billing-db.
+    forbidEdge:
+      relationship: writes
+      from: { notParent: billing }
+      to: { id: billing-db }
+  - id: services-owned
+    description: Every service and worker declares an owning team.
+    requireOwner: { kinds: [service, worker] }
+```
+
+- Selectors: `{ id?, kind?, parent?, notParent?, stereotype? }` — all
+  set fields must match; `parent`/`notParent` walk the whole parentId
+  chain.
+- Exactly one rule per constraint (`forbidEdge` or `requireOwner`).
+- `except: [<id>, …]` grandfathers specific node/edge ids — when a
+  violation is intentional, add the id to `except` and say why in the
+  suggestion note rather than weakening the rule.
+- When `suggest set` or `validate` rejects with a constraint
+  violation, treat the constraint as a hard design input: reroute the
+  edge (usually via the context's own service or a port), don't
+  delete the rule.
 
 ### Other rules worth pre-empting
 
@@ -604,10 +650,14 @@ npx archik alpha show [--json]          # alpha state snapshot with verification
               alpha promote <alpha> <state> [--note <text>]   # runs machine check first
               alpha demote <alpha> <state>
 
-npx archik validate <path> [--json]     # schema + cross-file check (CI-friendly)
+npx archik validate <path> [--json]     # schema + cross-file + governance constraints
 npx archik render --out diagram.svg --theme light|dark
               render --seq <path> --out seq.svg --theme light|dark
-npx archik diff a.yaml b.yaml [--out diff.svg] [--json]
+npx archik diff <a> [b] [--out diff.svg] [--json]
+                                        # each side: YAML file OR git ref;
+                                        # one arg = that ref vs working tree
+npx archik affected [--since <ref>] [--files <list>] [--json]
+                                        # changed files → nodes / slices / tests
 npx archik drift [--json] [--ignore <file>]   # diagram vs source tree
 
 npx archik suggest show [--json]
@@ -621,6 +671,9 @@ npx archik suggest show [--json]
 npx archik dev | start | stop | status  # canvas server lifecycle
 npx archik watch                        # re-render to SVG on save
 npx archik init                         # scaffold + install skill + slash commands
+npx archik import compose [file] [--out <f>]  # bootstrap a doc from docker-compose
+npx archik merge-driver --install       # semantic git merge for *.archik.yaml
+npx archik mcp                          # MCP server (for non-Claude-Code agents)
 npx archik skill | commands             # refresh the skill / slash commands
 ```
 

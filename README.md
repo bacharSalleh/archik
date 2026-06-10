@@ -172,6 +172,26 @@ npx archik trace --fail-on partial    # exit 1 if anything's not fully traced
 
 **Closing the milestone.** `/archik:trace` surfaces what's left. `/archik:alpha promote requirements addressed` runs the criteria check before advancing — over-claiming is a hard error. `npx archik drift` catches sourcePath gaps from the source tree side.
 
+**On every branch.** `npx archik affected --since main` is the reverse lookup over the whole chain: it takes the files your branch changed and answers *"which nodes am I touching, which use case slices does that hit, which tests should I run, and which sequence diagrams might now be stale?"* — for you, your reviewer, and your agent. Files no node or test claims are flagged as model gaps.
+
+```
+$ npx archik affected --since main
+
+NODES (1)
+  ~ payments-worker        (worker)  3 files in services/payments/worker
+
+USE CASE SLICES (1)
+  ~ place-order/happy            via node
+
+TESTS TO RUN (1)
+  • tests/e2e/place-order.happy.spec.ts
+
+SEQ DIAGRAMS TO RE-CHECK (1)
+  ? .archik/place-order.happy.archik.seq.yaml  touches payments-worker
+```
+
+**Reviewing a branch.** `npx archik diff origin/main` loads the full merged diagram at the base ref and diffs it against your working tree — "what does this PR change architecturally?" in one command (add `--out diff.svg` for the visual).
+
 ## How it differs
 
 |                       | archik                | Mermaid / PlantUML | Structurizr      | ADRs               |
@@ -244,6 +264,12 @@ archik render [path]     Render to a self-contained SVG file
                          --seq <path>     render a sequence diagram instead of the structural one
 archik watch [path]      Re-render to SVG on every file change (Ctrl+C to stop)
 
+archik affected          Map changed files back onto the model — affected nodes,
+                         use case slices, tests to run, stale seq diagrams
+                         --since <ref>    git ref to diff against (default: HEAD)
+                         --files <list>   comma-separated list (skips git)
+                         --json           structured output
+
 archik trace [path]      Use case × slice × test × seq × ECB coverage matrix
                          --json              structured rows + summary
                          --fail-on <level>   exit 1 on partial | none (CI gate)
@@ -282,6 +308,25 @@ archik q [sub]           Query the diagram (--json supported on every subcommand
                          describe-usecase <id>   one use case, full detail
                          actors           actor index
                          sequences        sequence diagram index (--node filters)
+
+archik diff <a> [b]      Show what changed between two architecture states
+                         Each side is a YAML file or a git ref; one argument
+                         compares that ref against the working tree
+                         (archik diff origin/main → "what does this branch change?")
+                         --out <file>     colour-coded SVG diff
+                         --json           structured diff
+
+archik import compose    Bootstrap a document from docker-compose
+                         [file]           compose file (default: docker-compose.yml)
+                         --out <file>     write instead of printing (--force to overwrite)
+                         --name <n>       document name
+
+archik merge-driver      Semantic three-way merge for *.archik.yaml (git merge driver)
+                         --install        wire git config + .gitattributes for this clone
+
+archik mcp               Model Context Protocol server over stdio — gives Cursor,
+                         Windsurf, Copilot, Claude Desktop, Zed the same contract
+                         the Claude Code skill enforces
 
 archik upgrade           Pull the latest archik via the project's package manager
                          (auto-detects npm / pnpm / yarn / bun from the lockfile)
@@ -347,14 +392,81 @@ Either path leaves the same skill + the same 11 slash commands in the same targe
 
 The full schema reference (every node kind, every relationship, common patterns, hard rules) lives in [`skills/archik/SKILL.md`](skills/archik/SKILL.md) — installed automatically by `archik init` so Claude reads it before doing structural work.
 
+## Works in any AI editor (MCP)
+
+The Claude Code skill is the deepest integration, but the contract itself — *query through tools, propose through sidecars, never edit the YAML by hand* — is editor-agnostic. `archik mcp` runs a zero-dependency [Model Context Protocol](https://modelcontextprotocol.io) server over stdio, exposing 20 tools (schema, describe/deps/impact, list, trace, validate, drift, affected, the full suggest lifecycle) to Cursor, Windsurf, Copilot agent mode, Claude Desktop, Zed, or anything else that speaks MCP:
+
+```jsonc
+// e.g. .cursor/mcp.json / claude_desktop_config.json
+{
+  "mcpServers": {
+    "archik": { "command": "npx", "args": ["archik", "mcp"] }
+  }
+}
+```
+
+Every tool delegates to the matching CLI command with `--json`, so the MCP surface and the CLI surface cannot drift apart.
+
+## Built for teams
+
+**Semantic merges.** Two branches editing `main.archik.yaml` used to mean line-based YAML conflicts. `npx archik merge-driver --install` registers a git merge driver that merges nodes and edges by id: both-side additions keep both, single-side changes win, different fields of the same entity merge cleanly, deletions apply. Only true conflicts (same field changed differently, modify-vs-delete, or a merge producing an invalid document) reach a human — with a precise report of what to look at. The `.gitattributes` line is committed once; each clone runs `--install` once.
+
+**Ownership.** Nodes carry an optional `owner: <team>` (match your CODEOWNERS vocabulary). `archik q describe payments-db` answers *who do I talk to*; `archik q list --owner team-billing` lists a team's surface area.
+
+**Governance constraints.** The document can declare architecture fitness rules the validator enforces on every run — in the same YAML the rules govern, reviewed in the same PRs:
+
+```yaml
+constraints:
+  - id: billing-isolation
+    description: Only billing-context nodes may write to billing-db.
+    forbidEdge:
+      relationship: writes
+      from: { notParent: billing }
+      to: { id: billing-db }
+  - id: services-owned
+    description: Every service and worker declares an owning team.
+    requireOwner: { kinds: [service, worker] }
+```
+
+Selectors match on `id` / `kind` / `parent` / `notParent` / `stereotype` (parent rules walk the whole nesting chain), and checks run against the merged diagram so a cross-file edge can't dodge a rule. Intentional exceptions are grandfathered by id in an `except` list — visible in review, never silent.
+
 ## Use it in CI
 
 ```bash
-archik validate                                # schema + cross-file integrity
+archik validate                                # schema + cross-file integrity + constraints
 archik drift                                   # source-tree gaps
 archik trace --fail-on partial                 # block merge on incomplete traceability
 archik render --theme light --out docs/architecture.svg    # commit a static SVG
 ```
+
+Or use the first-party GitHub Action, which runs all three and posts a sticky PR comment with the architecture diff against the base branch (added/removed/changed nodes and edges) plus the trace summary:
+
+```yaml
+# .github/workflows/archik.yml
+name: archik
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  archik:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bacharSalleh/archik@main
+        with:
+          trace-fail-on: partial      # optional gate; omit for report-only
+```
+
+Inputs: `path`, `working-directory`, `validate`, `drift`, `trace-fail-on`, `compare-ref`, `comment`, `version`. The architecture diff is report-only by design — a branch that predates archik must not fail CI.
+
+## Already have docker-compose?
+
+```bash
+npx archik import compose --out .archik/main.archik.yaml
+```
+
+Compose services become a first-pass diagram: well-known images map to kinds (`postgres` → database, `redis` → cache, `kafka` → stream, `nginx` → gateway, `qdrant` → vectordb, …), services with a build context on disk become `service` nodes with a `sourcePath`, and `depends_on` becomes edges. Review it, refine the descriptions (or ask your agent to), and you've skipped the blank-canvas step.
 
 ## Design notes
 
