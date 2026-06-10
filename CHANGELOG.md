@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.15.0] - 2026-06-10
+
+### Added
 - **Self-evolution loop** (`archik evolution`): observe → reflect → propose → validate → apply → measure. Opt-in (`evolution enable`), local-only event log under `.archik/evolution/`, deterministic reflection heuristics, evidence-carrying proposal files, human approval gate (`approve`/`reject`), and 7-day trend reports (`report`). Approved skill-notes land in `.archik/evolution/learned.md` (the Learned Overlay); approved diagram changes are staged through the suggestion sidecar — nothing applies silently.
 - **Pattern library** (`archik patterns list|show|apply`): five named self-evolution design patterns ship with the package — evolution-loop (with an applyable blueprint), sidecar-approval-gate, learned-overlay, truth-chain, feedback-pipeline.
 - **MCP**: tools `archik_evolution_status|reflect|proposals|propose|report`, `archik_patterns_list|show`; resources `archik://evolution`, `archik://learned`; prompt `evolution-loop` (turns any MCP agent into a deeper reflect stage).
