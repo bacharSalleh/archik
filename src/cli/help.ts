@@ -493,6 +493,37 @@ CLIENT CONFIGURATION (typical mcpServers entry)
   relative to the server's working directory.
 `,
 
+  owners: `archik owners — keep CODEOWNERS in step with node owners
+
+USAGE
+  archik owners sync [--json]
+  archik owners check [--json]
+
+DESCRIPTION
+  Every node declaring both \`owner\` and \`sourcePath\` becomes a
+  CODEOWNERS rule (\`/<sourcePath>/ @<owner>\`), written into a
+  clearly-marked managed block. Hand-authored rules outside the
+  block are never touched. The file is found where GitHub looks
+  (.github/CODEOWNERS, CODEOWNERS, docs/CODEOWNERS); sync creates
+  .github/CODEOWNERS when none exists.
+
+  \`check\` is the CI side: exit 1 when the block is missing or
+  stale, so ownership changes in the model can't silently drift
+  from review routing.
+
+  Owner handles get an @ prefix unless they already carry one —
+  keep node \`owner\` values aligned with GitHub team/user names.
+
+EXIT CODES
+  0  in sync (check) / synced (sync)
+  1  stale or missing (check)
+  2  argument / document errors
+
+EXAMPLES
+  archik owners sync
+  archik owners check --json     # CI gate
+`,
+
   hooks: `archik hooks — git pre-commit hook for model validation
 
 USAGE

@@ -24,6 +24,7 @@ import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { importCommand } from "./commands/import.ts";
 import { hooksCommand } from "./commands/hooks.ts";
+import { ownersCommand } from "./commands/owners.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -99,6 +100,10 @@ COMMANDS
                     install          write the hook (--with-drift adds the drift gate,
                                      --force overwrites a foreign hook)
                     uninstall        remove the hook (only if archik installed it)
+  owners <sub>      Keep CODEOWNERS in step with node owners
+                    sync             write/refresh the managed block
+                    check            exit 1 when missing or stale (CI gate)
+                    --json           structured output
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
@@ -216,6 +221,8 @@ async function main(): Promise<number> {
       return importCommand(opts);
     case "hooks":
       return hooksCommand(opts);
+    case "owners":
+      return ownersCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":
