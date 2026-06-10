@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createElement } from "react";
@@ -13,8 +14,19 @@ import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
 import { DiffSvg } from "../../render/DiffSvg.tsx";
+import {
+  gitToplevel,
+  isGitRef,
+  listFilesAtRef,
+  readFileAtRef,
+} from "../git.ts";
 import { getString, type ParsedOptions } from "../options.ts";
-import { projectRoot } from "../resolveDocPath.ts";
+import {
+  LEGACY_DEFAULT_REL,
+  NEW_DEFAULT_REL,
+  projectRoot,
+  resolveDocPath,
+} from "../resolveDocPath.ts";
 import {
   injectBackground,
   inlineThemeVars,
@@ -28,15 +40,31 @@ const isJson = (opts: ParsedOptions): boolean => {
 
 export async function diffCommand(opts: ParsedOptions): Promise<number> {
   const beforePath = opts._[0];
-  const afterPath = opts._[1];
+  let afterPath = opts._[1];
   const json = isJson(opts);
-  if (beforePath === undefined || afterPath === undefined) {
+  if (beforePath === undefined) {
     if (json) {
-      console.log(JSON.stringify({ ok: false, error: "usage: archik diff <before.yaml> <after.yaml> [--out diff.svg] [--json]" }));
+      console.log(JSON.stringify({ ok: false, error: "usage: archik diff <before> [after] [--out diff.svg] [--json] — each side is a YAML file or a git ref; with one argument, compares <ref> against the working tree" }));
     } else {
-      console.error("✗ Usage: archik diff <before.yaml> <after.yaml> [--out diff.svg]");
+      console.error("✗ Usage: archik diff <before> [after] [--out diff.svg]");
+      console.error("  Each side is a YAML file or a git ref. With one argument,");
+      console.error("  compares the document at <ref> against the working tree:");
+      console.error("    archik diff main");
+      console.error("    archik diff v1.2.0 v1.4.0");
     }
     return 1;
+  }
+  // One-argument form: `archik diff main` — the before side is a git
+  // ref, the after side is the working-tree document.
+  if (afterPath === undefined) {
+    try {
+      afterPath = await resolveDocPath(undefined);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (json) console.log(JSON.stringify({ ok: false, error: message }));
+      else console.error(`✗ ${message}`);
+      return 1;
+    }
   }
   const themeRaw = getString(opts, "theme") ?? "dark";
   if (themeRaw !== "dark" && themeRaw !== "light") {
@@ -45,13 +73,13 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
   }
   const theme: ThemeName = themeRaw;
 
-  const before = await readDocument(beforePath);
+  const before = await readDocumentAuto(beforePath);
   if ("error" in before) {
     if (json) console.log(JSON.stringify({ ok: false, file: beforePath, error: before.error }));
     else console.error(`✗ ${beforePath}: ${before.error}`);
     return 1;
   }
-  const after = await readDocument(afterPath);
+  const after = await readDocumentAuto(afterPath);
   if ("error" in after) {
     if (json) console.log(JSON.stringify({ ok: false, file: afterPath, error: after.error }));
     else console.error(`✗ ${afterPath}: ${after.error}`);
@@ -100,6 +128,107 @@ export async function diffCommand(opts: ParsedOptions): Promise<number> {
   }
 
   return 0;
+}
+
+/**
+ * Each side of the diff is either a YAML file on disk or a git ref.
+ * Disambiguation: an existing path always wins (a branch named like a
+ * file you actually have is the rarer case, and the file is what you
+ * can see); otherwise the spec must resolve to a commit.
+ */
+async function readDocumentAuto(
+  spec: string,
+): Promise<{ doc: Document } | { error: string }> {
+  if (existsSync(path.resolve(spec))) return readDocument(spec);
+  const cwd = process.cwd();
+  if (!isGitRef(spec, cwd)) {
+    return {
+      error: `"${spec}" is neither a file on disk nor a git ref that resolves to a commit`,
+    };
+  }
+  return readDocumentAtRef(spec, cwd);
+}
+
+/**
+ * Load the merged architecture (root doc + every sub-file under
+ * `.archik/`) from the git tree at `ref`, without touching the
+ * working tree. The project layout at the ref is located the same
+ * way `resolveDocPath` does on disk: `.archik/main.archik.yaml`
+ * preferred, legacy root file still honoured, both present = error.
+ */
+async function readDocumentAtRef(
+  ref: string,
+  cwd: string,
+): Promise<{ doc: Document } | { error: string }> {
+  const top = gitToplevel(cwd);
+  if (!top.ok) return { error: top.error };
+  const toplevel = top.out;
+
+  // Project root in the working tree → the same prefix inside the repo.
+  let prefix: string;
+  try {
+    const docAbs = await resolveDocPath(undefined, cwd);
+    const rel = path.relative(toplevel, projectRoot(docAbs));
+    prefix = rel === "" ? "" : rel.split(path.sep).join("/") + "/";
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+
+  const listed = listFilesAtRef(ref, cwd);
+  if (!listed.ok) return { error: listed.error };
+  const files = new Set(
+    listed.out.split("\n").map((l) => l.trim()).filter((l) => l.length > 0),
+  );
+
+  const newRoot = `${prefix}${NEW_DEFAULT_REL}`;
+  const legacyRoot = `${prefix}${LEGACY_DEFAULT_REL}`;
+  const hasNew = files.has(newRoot);
+  const hasLegacy = files.has(legacyRoot);
+  if (hasNew && hasLegacy) {
+    return {
+      error: `at ${ref}: found both ${LEGACY_DEFAULT_REL} and ${NEW_DEFAULT_REL} — ambiguous layout`,
+    };
+  }
+  if (!hasNew && !hasLegacy) {
+    return { error: `at ${ref}: no archik document (looked for ${newRoot} and ${legacyRoot})` };
+  }
+  const rootRel = hasNew ? newRoot : legacyRoot;
+
+  // Same membership rule discoverDocs uses: every *.archik.yaml under
+  // `.archik/`, sidecars excluded.
+  const subRels = [...files].filter(
+    (f) =>
+      f !== rootRel &&
+      f.startsWith(`${prefix}.archik/`) &&
+      f.endsWith(".archik.yaml") &&
+      !f.endsWith(".archik.suggested.yaml"),
+  );
+
+  const rootText = readFileAtRef(ref, rootRel, cwd);
+  if (!rootText.ok) return { error: rootText.error };
+  let rootDoc: Document;
+  try {
+    rootDoc = parseYaml(rootText.out);
+  } catch (err) {
+    return {
+      error: `at ${ref}: ${rootRel}: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  const nodes = [...rootDoc.nodes];
+  const edges = [...rootDoc.edges];
+  for (const rel of subRels) {
+    const text = readFileAtRef(ref, rel, cwd);
+    if (!text.ok) continue;
+    try {
+      const doc = parseYaml(text.out);
+      nodes.push(...doc.nodes);
+      edges.push(...doc.edges);
+    } catch {
+      // Mirror readDocument: a broken sub-file doesn't abort the diff.
+    }
+  }
+  return { doc: { version: "1.0", name: "merged", nodes, edges } };
 }
 
 async function readDocument(

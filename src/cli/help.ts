@@ -250,12 +250,22 @@ EXAMPLES
   archik q impact payments-db
 `,
 
-  diff: `archik diff — compare two archik documents
+  diff: `archik diff — compare two archik documents (files or git refs)
 
 USAGE
-  archik diff <a.yaml> <b.yaml>
+  archik diff <before> [after]
   archik diff <a.yaml> <b.yaml> --out diff.svg
+  archik diff main                  # doc at ref main vs working tree
+  archik diff v1.2.0 v1.4.0         # doc at one ref vs another
   archik diff <a.yaml> <b.yaml> --json
+
+ARGUMENTS
+  Each side is a YAML file on disk or a git ref (branch, tag, SHA).
+  An existing file path always wins; otherwise the argument must
+  resolve to a commit. With a single argument, the before side is
+  that ref and the after side is the working-tree document. Git refs
+  load the full merged diagram at that commit (root + every
+  .archik/*.archik.yaml sub-file, sidecars excluded).
 
 FLAGS
   --out <file>       also write a colour-coded SVG diff
@@ -264,8 +274,9 @@ FLAGS
 
 NOTES
   Intended for human review of suggestion sidecars (archik diff
-  main.archik.yaml main.archik.suggested.yaml) and for CI
-  pre/post architectural drift checks.
+  main.archik.yaml main.archik.suggested.yaml), for "what did this
+  branch change architecturally?" (archik diff origin/main), and for
+  CI pre/post architectural drift checks.
 `,
 
   suggest: `archik suggest — manage Claude's pending architecture suggestion
