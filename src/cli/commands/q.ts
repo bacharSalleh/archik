@@ -99,6 +99,7 @@ SUBCOMMANDS
                   --file <p>      filter by file (substring match)
                   --status <s>    filter by lifecycle status (active, proposed, deprecated)
                   --search <t>    case-insensitive substring match on name or description
+                  --owner <t>     filter by owning team (exact match)
   edges                    All edges
                   --from <id>     filter by source
                   --to <id>       filter by target
@@ -191,6 +192,7 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
     console.log(`  ${bold("status")}: ${badge}`);
   }
   if (n.stack) console.log(`  ${bold("stack")}: ${n.stack}`);
+  if (n.owner) console.log(`  ${bold("owner")}: ${n.owner}`);
   if (n.stereotype) console.log(`  ${bold("stereotype")}: ${n.stereotype}`);
   if (n.description) console.log(`  ${bold("description")}: ${n.description}`);
   if (n.sourcePath) console.log(`  ${bold("sourcePath")}: ${n.sourcePath}`);
@@ -310,6 +312,8 @@ async function qList(opts: ParsedOptions): Promise<number> {
   if (parent !== undefined) filters.parent = parent;
   if (file !== undefined) filters.file = file;
   if (search !== undefined) filters.search = search;
+  const owner = getString(opts, "owner");
+  if (owner !== undefined) filters.owner = owner;
   if (statusArg !== undefined) {
     if (statusArg !== "active" && statusArg !== "proposed" && statusArg !== "deprecated") {
       console.error(`${cross()} --status must be active, proposed, or deprecated`);

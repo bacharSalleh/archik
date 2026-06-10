@@ -570,4 +570,98 @@ describe("validateCommand cross-file existence", () => {
       expect(err).toMatch(/other\.archik\.seq\.yaml|Pick one canonical/);
     });
   });
+
+  describe("governance constraints", () => {
+    it("exits 1 when a forbidEdge constraint is violated", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: web",
+          "    kind: frontend",
+          "    name: Web",
+          "    description: test fixture",
+          "  - id: db",
+          "    kind: database",
+          "    name: DB",
+          "    description: test fixture",
+          "edges:",
+          "  - id: direct",
+          "    from: web",
+          "    to: db",
+          "    relationship: reads",
+          "constraints:",
+          "  - id: no-frontend-db",
+          "    description: Frontends never talk to databases directly.",
+          "    forbidEdge:",
+          "      from: { kind: frontend }",
+          "      to: { kind: database }",
+          "",
+        ].join("\n"),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("no-frontend-db");
+      expect(err).toContain('edge "direct"');
+    });
+
+    it("exits 1 when a requireOwner constraint is violated, 0 once owned", async () => {
+      const doc = (ownerLine: string): string =>
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: external",
+          "    name: API",
+          "    description: test fixture",
+          ownerLine,
+          "edges: []",
+          "constraints:",
+          "  - id: all-owned",
+          "    description: Every node declares an owning team.",
+          "    requireOwner: {}",
+          "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), doc(""));
+      expect(await validateCommand({ _: [] })).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("all-owned");
+
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        doc("    owner: team-core"),
+      );
+      expect(await validateCommand({ _: [] })).toBe(0);
+    });
+
+    it("rejects a constraint without exactly one rule at schema level", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Demo",
+          "nodes:",
+          "  - id: api",
+          "    kind: external",
+          "    name: API",
+          "    description: test fixture",
+          "edges: []",
+          "constraints:",
+          "  - id: empty-rule",
+          "    description: Has no rule body.",
+          "",
+        ].join("\n"),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("exactly one rule");
+    });
+  });
 });

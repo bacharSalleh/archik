@@ -139,6 +139,11 @@ export const NodeSchema = z.strictObject({
    *  `checkSeqEcbRules` to enforce robustness-analysis transitions
    *  inside `realizes`-bound seq diagrams. See StereotypeSchema docs. */
   stereotype: StereotypeSchema.optional(),
+  /** Owning team or person (free text — match your CODEOWNERS /
+   *  org vocabulary). Surfaced by `q describe` / `q list --owner`
+   *  so "who do I talk to about this?" is one query, and usable in
+   *  `requireOwner` constraints to make ownership mandatory. */
+  owner: z.string().min(1).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -171,6 +176,88 @@ export const EdgeSchema = z.strictObject({
 });
 
 /**
+ * Node selector for governance constraints. Every set field must
+ * match (AND semantics). `parent` / `notParent` walk the whole
+ * parentId chain, so "inside the billing context" works at any
+ * nesting depth.
+ */
+export const NodeSelectorSchema = z
+  .strictObject({
+    id: IdSchema.optional(),
+    kind: NodeKindSchema.optional(),
+    /** Matches when the named node is anywhere on the parentId chain. */
+    parent: IdSchema.optional(),
+    /** Matches when the named node is NOT on the parentId chain —
+     *  "everything outside this context". */
+    notParent: IdSchema.optional(),
+    stereotype: StereotypeSchema.optional(),
+  })
+  .refine(
+    (s) => Object.values(s).some((v) => v !== undefined),
+    {
+      message:
+        "selector must set at least one of id / kind / parent / notParent / stereotype",
+    },
+  );
+
+/**
+ * `forbidEdge` — no edge may match this shape. Any combination of
+ * relationship / from-selector / to-selector; all set parts must
+ * match for an edge to violate. Classic uses: context isolation
+ * ("nothing outside billing writes to billing-db"), layer rules
+ * ("frontends never talk to databases directly").
+ */
+export const ForbidEdgeRuleSchema = z
+  .strictObject({
+    relationship: RelationshipSchema.optional(),
+    from: NodeSelectorSchema.optional(),
+    to: NodeSelectorSchema.optional(),
+  })
+  .refine(
+    (r) =>
+      r.relationship !== undefined ||
+      r.from !== undefined ||
+      r.to !== undefined,
+    { message: "forbidEdge must set at least one of relationship / from / to" },
+  );
+
+/**
+ * `requireOwner` — every matching node must declare an `owner`.
+ * Without `kinds` the rule applies to every node in the merged
+ * diagram; scope it down with `kinds: [service, worker]` etc.
+ */
+export const RequireOwnerRuleSchema = z.strictObject({
+  kinds: z.array(NodeKindSchema).min(1).optional(),
+});
+
+/**
+ * One governance constraint — an architecture fitness rule the
+ * validator enforces across the merged diagram (root + sub-files).
+ * Exactly one rule field per constraint; `except` lists node/edge
+ * ids that are explicitly grandfathered (each exception stays
+ * visible in the YAML where review can see it).
+ */
+export const ConstraintSchema = z
+  .strictObject({
+    id: IdSchema,
+    description: z.string().min(1),
+    forbidEdge: ForbidEdgeRuleSchema.optional(),
+    requireOwner: RequireOwnerRuleSchema.optional(),
+    except: z.array(IdSchema).min(1).optional(),
+  })
+  .superRefine((c, ctx) => {
+    const rules = [c.forbidEdge, c.requireOwner].filter(
+      (r) => r !== undefined,
+    );
+    if (rules.length !== 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `constraint "${c.id}" must define exactly one rule (forbidEdge or requireOwner)`,
+      });
+    }
+  });
+
+/**
  * Marker block that turns a regular document into a "suggestion"
  * sidecar. When present, archik treats the file as Claude's draft of
  * a proposed architecture change rather than the source of truth.
@@ -200,6 +287,11 @@ export const DocumentSchema = z
     description: z.string().optional(),
     nodes: z.array(NodeSchema),
     edges: z.array(EdgeSchema),
+    /** Governance constraints checked by `archik validate` against the
+     *  MERGED diagram (this file + every sub-file), so cross-file edges
+     *  can't dodge a rule by living in a different file. Usually
+     *  authored in the root document only. */
+    constraints: z.array(ConstraintSchema).min(1).optional(),
     metadata: DocumentMetadataSchema.optional(),
   })
   // Cross-reference invariants. Without these, the structural schema
