@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.13.0] - 2026-06-10
+
+### Added
 - **`archik affected`** — the reverse lookup over the Jacobson chain.
   Takes the change set (`--since <ref>` via git, default HEAD, or an
   explicit `--files` list) and reports affected nodes (sourcePath
@@ -28,8 +39,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `*.archik.yaml merge=archik` .gitattributes line.
 - **`owner` field on nodes** — owning team/person (free text).
   Shown by `q describe`, filterable via `q list --owner <t>`.
-- **Document-level `constraints`** — governance rules enforced by
-  `archik validate` against the merged diagram: `forbidEdge`
+- **Document-level `constraints`** — governance rules enforced
+  against the merged diagram at every gate (`archik validate`,
+  `archik suggest set`, and the canvas PUT): `forbidEdge`
   (relationship + from/to node selectors with id/kind/parent/
   notParent/stereotype; parent rules walk the whole nesting chain)
   and `requireOwner` (matching nodes must declare an owner).
@@ -47,12 +59,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   docker-compose: known images map to kinds, build contexts on disk
   become `service` nodes with sourcePath, `depends_on` becomes
   edges; schema-validated output to stdout or `--out`.
-
-### Changed
--
-
-### Fixed
--
 
 ## [0.12.46] - 2026-05-11
 
@@ -769,7 +775,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/bacharSalleh/archik/compare/v0.12.46...v0.13.0
 [0.7.5]: https://github.com/bacharSalleh/archik/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/bacharSalleh/archik/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/bacharSalleh/archik/compare/v0.7.2...v0.7.3
