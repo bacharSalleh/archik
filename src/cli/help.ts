@@ -591,6 +591,7 @@ USAGE
 FLAGS
   --json             structured output for agents (JSON)
   --ignore <file>    custom ignore file (default: .archik/.driftignore)
+  --edges            also verify edges against the code's import graph
 
 DESCRIPTION
   Compares the archik YAML against the actual source tree and reports
@@ -598,6 +599,24 @@ DESCRIPTION
 
     ORPHAN   — a node has a sourcePath but that path doesn't exist on disk.
     UNMAPPED — a source directory exists but no node claims it.
+
+  With --edges, the TS/JS files under every node's sourcePath are
+  scanned for imports (static, re-export, require, dynamic; comments
+  stripped) and the resulting graph is compared with the declared
+  edges:
+
+    SHADOW EDGE   — code in node A imports code in node B, but no
+                    edge connects them. An undeclared dependency.
+    PHANTOM EDGE  — a structural edge (depends_on, uses, has_a,
+                    implements, extends) is declared between two
+                    scannable nodes, but no import exists in either
+                    direction.
+
+  Conservative by design: only relative imports are resolved, a pair
+  counts as covered by an edge in either direction, parent/child
+  pairs are skipped, wire relationships (http_call, publishes, …)
+  are never phantom-checked, and nodes without TS/JS files are
+  exempt (other languages aren't penalised).
 
   Nodes with status "proposed" or "deprecated" are skipped.
   Nodes without sourcePath are skipped (e.g. external services).

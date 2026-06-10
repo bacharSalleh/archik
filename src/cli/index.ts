@@ -107,6 +107,8 @@ COMMANDS
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
+                    --edges          verify edges against the TS/JS import graph
+                                     (shadow + phantom edge detection)
   affected          Map changed files back onto the model — affected nodes,
                                      use case slices, tests to run, stale seq diagrams
                     --since <ref>    git ref to diff against (default: HEAD)

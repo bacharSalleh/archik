@@ -318,3 +318,97 @@ describe("driftCommand", () => {
     expect(out).toMatch(/No drift detected/);
   });
 });
+
+describe("driftCommand --edges", () => {
+  let cwd: string;
+  let originalCwd: string;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  const arch = (edges: string[]): string =>
+    [
+      'version: "1.0"',
+      "name: Demo",
+      "nodes:",
+      "  - id: orders",
+      "    kind: module",
+      "    name: Orders",
+      "    description: x",
+      "    sourcePath: src/orders",
+      "  - id: billing",
+      "    kind: module",
+      "    name: Billing",
+      "    description: x",
+      "    sourcePath: src/billing",
+      edges.length > 0 ? "edges:" : "edges: []",
+      ...edges,
+      "",
+    ].join("\n");
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(path.join(tmpdir(), "archik-drift-edges-"));
+    await mkdir(path.join(cwd, ".archik"));
+    await mkdir(path.join(cwd, "src/orders"), { recursive: true });
+    await mkdir(path.join(cwd, "src/billing"), { recursive: true });
+    await writeFile(
+      path.join(cwd, "src/orders/api.ts"),
+      'import { charge } from "../billing/charge.ts";\nexport const p = charge;\n',
+    );
+    await writeFile(
+      path.join(cwd, "src/billing/charge.ts"),
+      "export const charge = 1;\n",
+    );
+    await writeFile(path.join(cwd, ".archik/main.archik.yaml"), arch([]));
+    originalCwd = process.cwd();
+    process.chdir(cwd);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it("exits 1 and reports a shadow edge when an import has no declared edge", async () => {
+    const code = await driftCommand({ _: [], edges: "true" });
+    expect(code).toBe(1);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toContain("SHADOW EDGE");
+    expect(out).toContain("orders → billing");
+  });
+
+  it("includes edge findings in the JSON shape", async () => {
+    const code = await driftCommand({ _: [], edges: "true", json: "true" });
+    expect(code).toBe(1);
+    const parsed = JSON.parse(
+      logSpy.mock.calls.map((c) => c.join(" ")).join("\n"),
+    );
+    expect(parsed.shadowEdges).toHaveLength(1);
+    expect(parsed.shadowEdges[0]).toMatchObject({ from: "orders", to: "billing" });
+    expect(parsed.summary.shadowEdges).toBe(1);
+  });
+
+  it("exits 0 once the edge is declared", async () => {
+    await writeFile(
+      path.join(cwd, ".archik/main.archik.yaml"),
+      arch([
+        "  - id: o-b",
+        "    from: orders",
+        "    to: billing",
+        "    relationship: uses",
+      ]),
+    );
+    const code = await driftCommand({ _: [], edges: "true" });
+    expect(code).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toContain("Edges match the import graph");
+  });
+
+  it("without --edges the import gap is not reported", async () => {
+    const code = await driftCommand({ _: [] });
+    expect(code).toBe(0);
+  });
+});
