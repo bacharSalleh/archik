@@ -24,6 +24,7 @@ import { traceCommand } from "./commands/trace.ts";
 import { affectedCommand } from "./commands/affected.ts";
 import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { mcpCommand } from "./commands/mcp.ts";
+import { importCommand } from "./commands/import.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -58,6 +59,11 @@ COMMANDS
                     --superpowers    wire superpowers skills into the loop
                     --no-superpowers keep the loop self-contained
                     --claude-md <m>  when CLAUDE.md exists: append | overwrite
+  import compose    Bootstrap an archik document from docker-compose
+                    [file]           compose file (default: docker-compose.yml)
+                    --out <file>     write instead of printing to stdout
+                    --force          overwrite an existing --out file
+                    --name <n>       document name (default: directory name)
   dev [path]        Open the canvas in your browser (live editor, foreground)
                     --port <n>       dev server port
                     --host <addr>    bind to host
@@ -214,6 +220,8 @@ async function main(): Promise<number> {
       return mergeDriverCommand(opts);
     case "mcp":
       return mcpCommand();
+    case "import":
+      return importCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":

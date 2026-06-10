@@ -425,6 +425,40 @@ NOTES
   isn't detected under ~/.claude/plugins.
 `,
 
+  import: `archik import — bootstrap an archik document from existing config
+
+USAGE
+  archik import compose [file] [--out <file>] [--force] [--name <n>]
+
+SUBCOMMANDS
+  compose            import from docker-compose (default file:
+                     docker-compose.yml / .yaml, compose.yml / .yaml)
+
+FLAGS
+  --out <file>       write the generated YAML (refuses to overwrite
+                     without --force); default prints to stdout
+  --force            overwrite an existing --out target
+  --name <n>         document name (default: current directory name)
+
+DESCRIPTION
+  Turns compose services into a first-pass diagram: well-known images
+  map to kinds (postgres → database, redis → cache, kafka → stream,
+  nginx → gateway, qdrant → vectordb, …); services with a build
+  context that exists on disk become \`service\` nodes with a
+  sourcePath; everything else imports as \`external\` until you
+  reclassify it. depends_on (list or map form) becomes depends_on
+  edges. The output is schema-validated before it is emitted.
+
+  Imported descriptions state their provenance — refining them into
+  real responsibility statements is the natural next step (or hand
+  the file to your agent and ask for /archik:evolve).
+
+EXAMPLES
+  archik import compose
+  archik import compose --out .archik/main.archik.yaml
+  archik import compose infra/docker-compose.yml --name "Shop"
+`,
+
   mcp: `archik mcp — Model Context Protocol server over stdio
 
 USAGE
