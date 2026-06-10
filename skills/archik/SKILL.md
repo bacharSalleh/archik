@@ -349,12 +349,24 @@ constraints:
   - id: services-owned
     description: Every service and worker declares an owning team.
     requireOwner: { kinds: [service, worker] }
+  - id: workers-have-dlq
+    description: Every worker publishes somewhere (DLQ discipline).
+    requireEdge:
+      node: { kind: worker }
+      to: { kind: queue }
+      relationship: publishes
+  - id: no-god-services
+    description: Services keep at most 6 outgoing dependencies.
+    maxDependencies: { node: { kind: service }, max: 6 }
 ```
 
 - Selectors: `{ id?, kind?, parent?, notParent?, stereotype? }` — all
   set fields must match; `parent`/`notParent` walk the whole parentId
   chain.
-- Exactly one rule per constraint (`forbidEdge` or `requireOwner`).
+- Exactly one rule per constraint: `forbidEdge`, `requireOwner`,
+  `requireEdge` (`node` + exactly one of `to`/`from` + optional
+  `relationship`), or `maxDependencies` (`node` + `max` + optional
+  `relationship`).
 - `except: [<id>, …]` grandfathers specific node/edge ids — when a
   violation is intentional, add the id to `except` and say why in the
   suggestion note rather than weakening the rule.

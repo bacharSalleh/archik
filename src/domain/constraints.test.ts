@@ -211,6 +211,123 @@ describe("checkConstraints / requireOwner", () => {
   });
 });
 
+describe("checkConstraints / requireEdge", () => {
+  const nodes: Node[] = [
+    node("auth", { kind: "auth" }),
+    node("api"),
+    node("internal-api"),
+  ];
+
+  it("flags a node missing the required incoming edge", () => {
+    const docs = [
+      loaded({
+        nodes,
+        edges: [edge("auth-api", "auth", "api", { relationship: "routes_to" })],
+        constraints: [
+          {
+            id: "services-behind-auth",
+            description: "Every service sits behind the auth node.",
+            requireEdge: { node: { kind: "service" }, from: { kind: "auth" } },
+          },
+        ],
+      }),
+    ];
+    const errors = checkConstraints(docs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain('node "internal-api"');
+  });
+
+  it("supports the outgoing direction and relationship filter", () => {
+    const docs = [
+      loaded({
+        nodes: [
+          node("worker", { kind: "worker" }),
+          node("dlq", { kind: "queue" }),
+        ],
+        edges: [
+          edge("w-dlq", "worker", "dlq", { relationship: "publishes" }),
+        ],
+        constraints: [
+          {
+            id: "workers-have-dlq",
+            description: "Every worker publishes to a queue (DLQ).",
+            requireEdge: {
+              node: { kind: "worker" },
+              to: { kind: "queue" },
+              relationship: "publishes",
+            },
+          },
+        ],
+      }),
+    ];
+    expect(checkConstraints(docs)).toEqual([]);
+  });
+
+  it("respects except", () => {
+    const docs = [
+      loaded({
+        nodes,
+        edges: [],
+        constraints: [
+          {
+            id: "services-behind-auth",
+            description: "Every service sits behind the auth node.",
+            requireEdge: { node: { kind: "service" }, from: { kind: "auth" } },
+            except: ["api", "internal-api"],
+          },
+        ],
+      }),
+    ];
+    expect(checkConstraints(docs)).toEqual([]);
+  });
+});
+
+describe("checkConstraints / maxDependencies", () => {
+  it("flags a node over the outgoing-edge budget", () => {
+    const docs = [
+      loaded({
+        nodes: [node("god"), node("a"), node("b"), node("c")],
+        edges: [
+          edge("g-a", "god", "a", { relationship: "invokes" }),
+          edge("g-b", "god", "b", { relationship: "invokes" }),
+          edge("g-c", "god", "c", { relationship: "invokes" }),
+        ],
+        constraints: [
+          {
+            id: "no-god-services",
+            description: "Services keep at most 2 outgoing dependencies.",
+            maxDependencies: { node: { kind: "service" }, max: 2 },
+          },
+        ],
+      }),
+    ];
+    const errors = checkConstraints(docs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain('node "god"');
+    expect(errors[0]!.message).toContain("max is 2");
+  });
+
+  it("filters by relationship when set", () => {
+    const docs = [
+      loaded({
+        nodes: [node("api"), node("db", { kind: "database" }), node("cache", { kind: "cache" })],
+        edges: [
+          edge("a-d", "api", "db", { relationship: "writes" }),
+          edge("a-c", "api", "cache", { relationship: "reads" }),
+        ],
+        constraints: [
+          {
+            id: "one-write-target",
+            description: "A service writes to at most one store.",
+            maxDependencies: { node: { kind: "service" }, max: 1, relationship: "writes" },
+          },
+        ],
+      }),
+    ];
+    expect(checkConstraints(docs)).toEqual([]);
+  });
+});
+
 describe("checkConstraints / ids", () => {
   it("rejects duplicate constraint ids across files", () => {
     const c = {

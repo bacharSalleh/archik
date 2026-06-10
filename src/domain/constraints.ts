@@ -137,6 +137,68 @@ export function checkConstraints(docs: LoadedDoc[]): ValidationError[] {
       }
     }
 
+    if (constraint.requireEdge !== undefined) {
+      const rule = constraint.requireEdge;
+      for (const node of nodes) {
+        if (except.has(node.id)) continue;
+        if (!matches(node, rule.node, ancestry)) continue;
+        const satisfied = edges.some(({ edge }) => {
+          if (
+            rule.relationship !== undefined &&
+            edge.relationship !== rule.relationship
+          ) {
+            return false;
+          }
+          if (rule.to !== undefined) {
+            if (edge.from !== node.id) return false;
+            const target = nodeById.get(edge.to);
+            return target !== undefined && matches(target, rule.to, ancestry);
+          }
+          // rule.from — incoming direction (schema guarantees one is set)
+          if (edge.to !== node.id) return false;
+          const source = nodeById.get(edge.from);
+          return source !== undefined && matches(source, rule.from!, ancestry);
+        });
+        if (satisfied) continue;
+        const wanted =
+          rule.to !== undefined
+            ? `an outgoing edge to a node matching ${JSON.stringify(rule.to)}`
+            : `an incoming edge from a node matching ${JSON.stringify(rule.from)}`;
+        errors.push({
+          path: `constraints.${constraint.id}`,
+          message:
+            `node "${node.id}" (kind: ${node.kind}) violates constraint "${constraint.id}": ` +
+            `${constraint.description} — it needs ${wanted}` +
+            (rule.relationship !== undefined ? ` (relationship: ${rule.relationship})` : "") +
+            `, or add "${node.id}" to the constraint's \`except\` list.`,
+        });
+      }
+    }
+
+    if (constraint.maxDependencies !== undefined) {
+      const rule = constraint.maxDependencies;
+      for (const node of nodes) {
+        if (except.has(node.id)) continue;
+        if (!matches(node, rule.node, ancestry)) continue;
+        const outgoing = edges.filter(
+          ({ edge }) =>
+            edge.from === node.id &&
+            (rule.relationship === undefined ||
+              edge.relationship === rule.relationship),
+        );
+        if (outgoing.length <= rule.max) continue;
+        errors.push({
+          path: `constraints.${constraint.id}`,
+          message:
+            `node "${node.id}" (kind: ${node.kind}) violates constraint "${constraint.id}": ` +
+            `${constraint.description} — ${outgoing.length} outgoing ` +
+            `${rule.relationship ?? ""} edge(s), max is ${rule.max} ` +
+            `(${outgoing.map((e) => e.edge.to).join(", ")}). Split the node, ` +
+            `introduce a port/gateway, or add "${node.id}" to \`except\`.`,
+        });
+      }
+    }
+
     if (constraint.requireOwner !== undefined) {
       const kinds = constraint.requireOwner.kinds;
       for (const node of nodes) {

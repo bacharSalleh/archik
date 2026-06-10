@@ -231,6 +231,37 @@ export const RequireOwnerRuleSchema = z.strictObject({
 });
 
 /**
+ * `requireEdge` — every node matching `node` must have at least one
+ * edge in the stated direction: an OUTGOING edge to a node matching
+ * `to`, or an INCOMING edge from a node matching `from` (exactly one
+ * of the two). `relationship` narrows further when set. Classic
+ * uses: "every async producer has a DLQ", "every public-facing
+ * service sits behind an auth node".
+ */
+export const RequireEdgeRuleSchema = z
+  .strictObject({
+    node: NodeSelectorSchema,
+    to: NodeSelectorSchema.optional(),
+    from: NodeSelectorSchema.optional(),
+    relationship: RelationshipSchema.optional(),
+  })
+  .refine((r) => (r.to !== undefined) !== (r.from !== undefined), {
+    message: "requireEdge must set exactly one of `to` (outgoing) or `from` (incoming)",
+  });
+
+/**
+ * `maxDependencies` — no node matching `node` may have more than
+ * `max` outgoing edges (optionally filtered by `relationship`).
+ * The god-service detector: a node wired to everything is a missing
+ * bounded context waiting to be named.
+ */
+export const MaxDependenciesRuleSchema = z.strictObject({
+  node: NodeSelectorSchema,
+  max: z.number().int().min(0),
+  relationship: RelationshipSchema.optional(),
+});
+
+/**
  * One governance constraint — an architecture fitness rule the
  * validator enforces across the merged diagram (root + sub-files).
  * Exactly one rule field per constraint; `except` lists node/edge
@@ -243,16 +274,21 @@ export const ConstraintSchema = z
     description: z.string().min(1),
     forbidEdge: ForbidEdgeRuleSchema.optional(),
     requireOwner: RequireOwnerRuleSchema.optional(),
+    requireEdge: RequireEdgeRuleSchema.optional(),
+    maxDependencies: MaxDependenciesRuleSchema.optional(),
     except: z.array(IdSchema).min(1).optional(),
   })
   .superRefine((c, ctx) => {
-    const rules = [c.forbidEdge, c.requireOwner].filter(
-      (r) => r !== undefined,
-    );
+    const rules = [
+      c.forbidEdge,
+      c.requireOwner,
+      c.requireEdge,
+      c.maxDependencies,
+    ].filter((r) => r !== undefined);
     if (rules.length !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `constraint "${c.id}" must define exactly one rule (forbidEdge or requireOwner)`,
+        message: `constraint "${c.id}" must define exactly one rule (forbidEdge, requireOwner, requireEdge, or maxDependencies)`,
       });
     }
   });
