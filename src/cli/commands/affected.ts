@@ -8,17 +8,27 @@
  *   archik affected                       # working tree vs HEAD
  *   archik affected --since main          # this branch vs main
  *   archik affected --files src/api/x.ts  # explicit list, no git
+ *   archik affected --run                 # …and execute the affected tests
  *
  * Changed files come from `git diff --name-only <ref>` plus untracked
  * files (`git ls-files --others --exclude-standard`), translated to
  * project-root-relative paths when the git toplevel sits above the
  * project root.
  *
+ * `--run` executes the affected test files with the project's test
+ * runner (vitest / jest / playwright / mocha, detected from
+ * package.json; override with --runner '<cmd>'). The runner's output
+ * streams through and its exit code becomes ours, so "run what my
+ * change touches" is one command in a pre-push hook or CI.
+ *
  * Exit codes:
  *   0  success (even when nothing is affected)
- *   1  git / file errors
+ *   1  git / file errors — or, with --run, failing tests
  *   2  argument errors
  */
+import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   buildAffectedReport,
   type AffectedReport,
@@ -110,7 +120,74 @@ export async function affectedCommand(opts: ParsedOptions): Promise<number> {
   } else {
     printText(report);
   }
-  return 0;
+
+  if (getString(opts, "run") === undefined) return 0;
+  return runAffectedTests(report, root, getString(opts, "runner"));
+}
+
+/** Test runners we can detect from package.json, in priority order.
+ *  Each entry: dependency name → argv prefix (files are appended). */
+const KNOWN_RUNNERS: Array<{ dep: string; argv: string[] }> = [
+  { dep: "vitest", argv: ["npx", "--no-install", "vitest", "run"] },
+  { dep: "@playwright/test", argv: ["npx", "--no-install", "playwright", "test"] },
+  { dep: "jest", argv: ["npx", "--no-install", "jest"] },
+  { dep: "mocha", argv: ["npx", "--no-install", "mocha"] },
+];
+
+export function detectRunner(pkg: {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}): string[] | undefined {
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  for (const { dep, argv } of KNOWN_RUNNERS) {
+    if (deps[dep] !== undefined) return argv;
+  }
+  return undefined;
+}
+
+function runAffectedTests(
+  report: AffectedReport,
+  root: string,
+  runnerOverride: string | undefined,
+): number {
+  if (report.testsToRun.length === 0) {
+    console.log("affected --run: no tests to run.");
+    return 0;
+  }
+
+  let argv: string[] | undefined;
+  if (runnerOverride !== undefined && runnerOverride !== "true") {
+    argv = runnerOverride.split(/\s+/).filter((p) => p.length > 0);
+  } else {
+    let pkg: Record<string, unknown> = {};
+    try {
+      pkg = JSON.parse(
+        readFileSync(path.join(root, "package.json"), "utf-8"),
+      ) as Record<string, unknown>;
+    } catch {
+      // fall through — no package.json is the same as no known runner
+    }
+    argv = detectRunner(pkg as Parameters<typeof detectRunner>[0]);
+  }
+  if (argv === undefined || argv.length === 0) {
+    console.error(
+      `${cross()} couldn't detect a test runner (looked for ${KNOWN_RUNNERS.map((r) => r.dep).join(", ")} in package.json).`,
+    );
+    console.error(`  Pass one explicitly: archik affected --run --runner 'npx vitest run'`);
+    return 2;
+  }
+
+  const [cmd, ...args] = argv;
+  const full = [...args, ...report.testsToRun];
+  console.log(
+    `${dim("affected --run:")} ${cmd} ${full.join(" ")}`,
+  );
+  const result = spawnSync(cmd!, full, { cwd: root, stdio: "inherit" });
+  if (result.error !== undefined) {
+    console.error(`${cross()} ${cmd}: ${result.error.message}`);
+    return 1;
+  }
+  return result.status ?? 1;
 }
 
 function printText(report: AffectedReport): void {

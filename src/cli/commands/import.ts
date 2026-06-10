@@ -1,7 +1,10 @@
 /**
- * `archik import compose [file]` — bootstrap an archik document from
- * docker-compose, so adoption on an existing containerised project
- * starts from a mostly-correct diagram instead of a blank canvas.
+ * `archik import <compose|mermaid> [file]` — bootstrap an archik
+ * document from things teams already have, so adoption starts from a
+ * mostly-correct diagram instead of a blank canvas:
+ *
+ *   compose   docker-compose services → nodes/kinds/edges
+ *   mermaid   flowchart/graph diagrams (raw .mmd or fenced markdown)
  *
  * Output: the generated YAML on stdout by default (pipe it, review
  * it, hand it to `suggest set`); `--out <file>` writes it (refusing
@@ -13,8 +16,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 import { importCompose } from "../../domain/compose-import.ts";
+import { importMermaid } from "../../domain/mermaid-import.ts";
 import { formatErrors, validateDocument } from "../../domain/validate.ts";
 import { stringifyYaml } from "../../io/yaml.ts";
+import type { Document } from "../../domain/types.ts";
 import { cross, dim, tick, yellow } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 
@@ -25,54 +30,93 @@ const DEFAULT_COMPOSE_FILES = [
   "compose.yaml",
 ];
 
+const USAGE =
+  "Usage: archik import compose|mermaid [file] [--out <file>] [--force] [--name <n>]";
+
 export async function importCommand(opts: ParsedOptions): Promise<number> {
   const sub = opts._[0];
-  if (sub !== "compose") {
-    console.error(
-      `${cross()} Usage: archik import compose [file] [--out <file>] [--force] [--name <n>]`,
-    );
+  if (sub !== "compose" && sub !== "mermaid") {
+    console.error(`${cross()} ${USAGE}`);
     return 2;
   }
 
   const cwd = process.cwd();
-  let composePath = opts._[1];
-  if (composePath === undefined) {
-    composePath = DEFAULT_COMPOSE_FILES.find((f) =>
-      existsSync(path.resolve(cwd, f)),
-    );
+  const projectName =
+    getString(opts, "name") ?? path.basename(cwd) ?? "Imported architecture";
+
+  let doc: Document;
+  let issues: Array<{ message: string; label: string }>;
+  let sourceLabel: string;
+
+  if (sub === "compose") {
+    let composePath = opts._[1];
     if (composePath === undefined) {
+      composePath = DEFAULT_COMPOSE_FILES.find((f) =>
+        existsSync(path.resolve(cwd, f)),
+      );
+      if (composePath === undefined) {
+        console.error(
+          `${cross()} no compose file found (looked for ${DEFAULT_COMPOSE_FILES.join(", ")})`,
+        );
+        return 1;
+      }
+    }
+    sourceLabel = composePath;
+
+    let raw: unknown;
+    try {
+      raw = YAML.parse(await readFile(path.resolve(cwd, composePath), "utf-8"));
+    } catch (err) {
       console.error(
-        `${cross()} no compose file found (looked for ${DEFAULT_COMPOSE_FILES.join(", ")})`,
+        `${cross()} ${composePath}: ${err instanceof Error ? err.message : String(err)}`,
       );
       return 1;
     }
-  }
-  const composeAbs = path.resolve(cwd, composePath);
-
-  let raw: unknown;
-  try {
-    raw = YAML.parse(await readFile(composeAbs, "utf-8"));
-  } catch (err) {
-    console.error(
-      `${cross()} ${composePath}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return 1;
-  }
-
-  const projectName =
-    getString(opts, "name") ?? path.basename(cwd) ?? "Imported architecture";
-  const existsDir = (rel: string): boolean => {
-    try {
-      return statSync(path.resolve(cwd, rel)).isDirectory();
-    } catch {
-      return false;
+    const existsDir = (rel: string): boolean => {
+      try {
+        return statSync(path.resolve(cwd, rel)).isDirectory();
+      } catch {
+        return false;
+      }
+    };
+    const result = importCompose(raw, projectName, existsDir);
+    doc = result.doc;
+    issues = result.issues.map((i) => ({ label: i.service, message: i.message }));
+    if (doc.nodes.length === 0) {
+      console.error(`${cross()} ${composePath}: no services found`);
+      return 1;
     }
-  };
-
-  const { doc, issues } = importCompose(raw, projectName, existsDir);
-  if (doc.nodes.length === 0) {
-    console.error(`${cross()} ${composePath}: no services found`);
-    return 1;
+  } else {
+    const mermaidPath = opts._[1];
+    if (mermaidPath === undefined) {
+      console.error(
+        `${cross()} archik import mermaid needs a file (a .mmd diagram or markdown with a \`\`\`mermaid block)`,
+      );
+      return 2;
+    }
+    sourceLabel = mermaidPath;
+    let text: string;
+    try {
+      text = await readFile(path.resolve(cwd, mermaidPath), "utf-8");
+    } catch (err) {
+      console.error(
+        `${cross()} ${mermaidPath}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return 1;
+    }
+    const result = importMermaid(text, projectName);
+    doc = result.doc;
+    issues = result.issues.map((i) => ({
+      label: i.line > 0 ? `line ${i.line}` : "diagram",
+      message: i.message,
+    }));
+    if (doc.nodes.length === 0) {
+      for (const issue of issues) {
+        console.error(`${yellow("warn:")} ${issue.label}: ${issue.message}`);
+      }
+      console.error(`${cross()} ${mermaidPath}: no flowchart nodes found`);
+      return 1;
+    }
   }
 
   const validated = validateDocument(doc);
@@ -83,7 +127,7 @@ export async function importCommand(opts: ParsedOptions): Promise<number> {
   }
 
   for (const issue of issues) {
-    console.error(`${yellow("warn:")} ${issue.service}: ${issue.message}`);
+    console.error(`${yellow("warn:")} ${issue.label}: ${issue.message}`);
   }
 
   const yaml = stringifyYaml(doc);
@@ -92,7 +136,7 @@ export async function importCommand(opts: ParsedOptions): Promise<number> {
     console.log(yaml);
     console.error(
       dim(
-        `# ${doc.nodes.length} nodes, ${doc.edges.length} edges from ${composePath} — review, then save as .archik/main.archik.yaml or stage via \`archik suggest set\``,
+        `# ${doc.nodes.length} nodes, ${doc.edges.length} edges from ${sourceLabel} — review, then save as .archik/main.archik.yaml or stage via \`archik suggest set\``,
       ),
     );
     return 0;
@@ -104,13 +148,13 @@ export async function importCommand(opts: ParsedOptions): Promise<number> {
     console.error(
       `${cross()} ${out} already exists — pass --force to overwrite, or stage the import as a suggestion instead:`,
     );
-    console.error(`  archik import compose ${composePath} | archik suggest set --note "import from compose" -`);
+    console.error(`  archik import ${sub} ${sourceLabel} | archik suggest set --note "import from ${sub}" -`);
     return 1;
   }
   await mkdir(path.dirname(outAbs), { recursive: true });
   await writeFile(outAbs, yaml, "utf-8");
   console.log(
-    `${tick()} ${out} — ${doc.nodes.length} nodes, ${doc.edges.length} edges from ${composePath}`,
+    `${tick()} ${out} — ${doc.nodes.length} nodes, ${doc.edges.length} edges from ${sourceLabel}`,
   );
   console.log(
     dim(

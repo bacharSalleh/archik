@@ -23,6 +23,9 @@ import { affectedCommand } from "./commands/affected.ts";
 import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { importCommand } from "./commands/import.ts";
+import { hooksCommand } from "./commands/hooks.ts";
+import { ownersCommand } from "./commands/owners.ts";
+import { otelCommand } from "./commands/otel.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -46,8 +49,9 @@ COMMANDS
                     --superpowers    wire superpowers skills into the loop
                     --no-superpowers keep the loop self-contained
                     --claude-md <m>  when CLAUDE.md exists: append | overwrite
-  import compose    Bootstrap an archik document from docker-compose
-                    [file]           compose file (default: docker-compose.yml)
+  import <sub>      Bootstrap an archik document from existing config
+                    compose [file]   docker-compose (default: docker-compose.yml)
+                    mermaid <file>   flowchart .mmd / fenced markdown block
                     --out <file>     write instead of printing to stdout
                     --force          overwrite an existing --out file
                     --name <n>       document name (default: directory name)
@@ -94,13 +98,28 @@ COMMANDS
                     reject           discard the sidecar
   merge-driver      Semantic three-way merge for archik YAML (git merge driver)
                     --install        wire git config + .gitattributes for this clone
+  hooks <sub>       Git pre-commit hook running archik validate
+                    install          write the hook (--with-drift adds the drift gate,
+                                     --force overwrites a foreign hook)
+                    uninstall        remove the hook (only if archik installed it)
+  otel check        Verify the diagram against a production service graph
+                    --graph <file>   Jaeger /api/dependencies JSON export
+                    --json           structured output
+  owners <sub>      Keep CODEOWNERS in step with node owners
+                    sync             write/refresh the managed block
+                    check            exit 1 when missing or stale (CI gate)
+                    --json           structured output
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
+                    --edges          verify edges against the TS/JS import graph
+                                     (shadow + phantom edge detection)
   affected          Map changed files back onto the model — affected nodes,
                                      use case slices, tests to run, stale seq diagrams
                     --since <ref>    git ref to diff against (default: HEAD)
                     --files <list>   comma-separated file list (skips git)
+                    --run            execute the affected tests (runner auto-detected)
+                    --runner <cmd>   override the test runner command
                     --json           structured output for agents
   trace             Use case x slice x test x seq x node coverage matrix
                     --use-case <id>  filter to one use case
@@ -209,6 +228,12 @@ async function main(): Promise<number> {
       return mcpCommand();
     case "import":
       return importCommand(opts);
+    case "hooks":
+      return hooksCommand(opts);
+    case "owners":
+      return ownersCommand(opts);
+    case "otel":
+      return otelCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":

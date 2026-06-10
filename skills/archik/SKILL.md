@@ -50,6 +50,8 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | List actors                       | `npx archik q actors`                         |
 | Use case coverage matrix          | `npx archik trace [--json] [--fail-on partial\|none]` |
 | Map changed files onto the model  | `npx archik affected [--since <ref>] [--files <list>] [--json]` |
+| Run the tests a change touches    | `npx archik affected --run [--runner '<cmd>']` |
+| Verify edges against the code     | `npx archik drift --edges [--json]`           |
 | Alpha state snapshot              | `npx archik alpha show [--json]`              |
 | Promote / demote an alpha state   | `npx archik alpha promote\|demote <alpha> <state>` |
 | Validate a file                   | `npx archik validate <path>`                  |
@@ -349,12 +351,24 @@ constraints:
   - id: services-owned
     description: Every service and worker declares an owning team.
     requireOwner: { kinds: [service, worker] }
+  - id: workers-have-dlq
+    description: Every worker publishes somewhere (DLQ discipline).
+    requireEdge:
+      node: { kind: worker }
+      to: { kind: queue }
+      relationship: publishes
+  - id: no-god-services
+    description: Services keep at most 6 outgoing dependencies.
+    maxDependencies: { node: { kind: service }, max: 6 }
 ```
 
 - Selectors: `{ id?, kind?, parent?, notParent?, stereotype? }` — all
   set fields must match; `parent`/`notParent` walk the whole parentId
   chain.
-- Exactly one rule per constraint (`forbidEdge` or `requireOwner`).
+- Exactly one rule per constraint: `forbidEdge`, `requireOwner`,
+  `requireEdge` (`node` + exactly one of `to`/`from` + optional
+  `relationship`), or `maxDependencies` (`node` + `max` + optional
+  `relationship`).
 - `except: [<id>, …]` grandfathers specific node/edge ids — when a
   violation is intentional, add the id to `except` and say why in the
   suggestion note rather than weakening the rule.
@@ -658,7 +672,13 @@ npx archik diff <a> [b] [--out diff.svg] [--json]
                                         # one arg = that ref vs working tree
 npx archik affected [--since <ref>] [--files <list>] [--json]
                                         # changed files → nodes / slices / tests
+                    [--run] [--runner '<cmd>']  # …and execute those tests
 npx archik drift [--json] [--ignore <file>]   # diagram vs source tree
+                 [--edges]              # + verify edges vs the TS/JS import
+                                        #   graph (shadow / phantom edges)
+npx archik otel check --graph <deps.json> [--json]
+                                        # verify edges vs a production
+                                        # service-dependency graph export
 
 npx archik suggest show [--json]
               suggest set <draft|->     # validate + stage a sidecar
@@ -671,8 +691,12 @@ npx archik suggest show [--json]
 npx archik dev | start | stop | status  # canvas server lifecycle
 npx archik watch                        # re-render to SVG on save
 npx archik init                         # scaffold + install skill + slash commands
-npx archik import compose [file] [--out <f>]  # bootstrap a doc from docker-compose
+npx archik import compose|mermaid [file] [--out <f>]
+                                        # bootstrap a doc from docker-compose
+                                        # or a Mermaid flowchart
 npx archik merge-driver --install       # semantic git merge for *.archik.yaml
+npx archik hooks install [--with-drift] # pre-commit validate gate
+npx archik owners sync | check          # CODEOWNERS managed block from node owners
 npx archik mcp                          # MCP server (for non-Claude-Code agents)
 npx archik skill | commands             # refresh the skill / slash commands
 ```

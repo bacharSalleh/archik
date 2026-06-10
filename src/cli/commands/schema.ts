@@ -65,7 +65,7 @@ function buildSchema(): SchemaSpec {
         required: false,
         type: "array of Constraint",
         notes:
-          "governance rules enforced by `archik validate` against the MERGED diagram (root + sub-files). Each constraint: { id, description, forbidEdge | requireOwner, except? }. forbidEdge: { relationship?, from?, to? } with node selectors { id?, kind?, parent?, notParent?, stereotype? } — parent/notParent walk the whole parentId chain. requireOwner: { kinds? } — matching nodes must declare `owner`. `except` lists grandfathered node/edge ids.",
+          "governance rules enforced against the MERGED diagram (root + sub-files) at validate, suggest set, and canvas PUT. Each constraint: { id, description, <one rule>, except? }. Rules: forbidEdge { relationship?, from?, to? }; requireOwner { kinds? } — matching nodes must declare `owner`; requireEdge { node, to | from, relationship? } — matching nodes need an outgoing edge to / incoming edge from a match; maxDependencies { node, max, relationship? } — outgoing-edge budget. Node selectors: { id?, kind?, parent?, notParent?, stereotype? } — parent/notParent walk the whole parentId chain. `except` lists grandfathered node/edge ids.",
       },
       { name: "metadata", required: false, type: "DocumentMetadata" },
     ],
@@ -251,7 +251,7 @@ function buildSchema(): SchemaSpec {
       "Every node MUST have a non-empty `description` explaining what it does. Empty / omitted descriptions are rejected.",
       "Edges may carry a `status` field with the same enum (proposed / active / deprecated). The renderer applies the same dashed + coloured-border treatment used for node status.",
       "Optional `stereotype: boundary | control | entity` on a node enables Jacobson ECB validation inside `realizes`-bound seq diagrams. Forbidden transitions: boundary→boundary, boundary→entity, entity→boundary. Untagged nodes are skipped (gradual adoption).",
-      "Optional document-level `constraints` define governance rules (forbidEdge / requireOwner) that `archik validate` enforces across the merged diagram. Each constraint needs a unique id and exactly one rule; `except` grandfathers specific node/edge ids.",
+      "Optional document-level `constraints` define governance rules (forbidEdge / requireOwner / requireEdge / maxDependencies) enforced across the merged diagram at validate, suggest set, and canvas PUT. Each constraint needs a unique id and exactly one rule; `except` grandfathers specific node/edge ids.",
     ],
   };
 }

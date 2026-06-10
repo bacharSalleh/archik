@@ -429,10 +429,13 @@ NOTES
 
 USAGE
   archik import compose [file] [--out <file>] [--force] [--name <n>]
+  archik import mermaid <file> [--out <file>] [--force] [--name <n>]
 
 SUBCOMMANDS
   compose            import from docker-compose (default file:
                      docker-compose.yml / .yaml, compose.yml / .yaml)
+  mermaid            import a flowchart/graph diagram — a raw .mmd
+                     file or markdown containing a \`\`\`mermaid block
 
 FLAGS
   --out <file>       write the generated YAML (refuses to overwrite
@@ -441,13 +444,21 @@ FLAGS
   --name <n>         document name (default: current directory name)
 
 DESCRIPTION
-  Turns compose services into a first-pass diagram: well-known images
-  map to kinds (postgres → database, redis → cache, kafka → stream,
-  nginx → gateway, qdrant → vectordb, …); services with a build
-  context that exists on disk become \`service\` nodes with a
+  compose: turns services into a first-pass diagram — well-known
+  images map to kinds (postgres → database, redis → cache, kafka →
+  stream, nginx → gateway, qdrant → vectordb, …); services with a
+  build context that exists on disk become \`service\` nodes with a
   sourcePath; everything else imports as \`external\` until you
   reclassify it. depends_on (list or map form) becomes depends_on
-  edges. The output is schema-validated before it is emitted.
+  edges.
+
+  mermaid: parses the flowchart subset — node shapes map to kinds
+  ([(…)] cylinder → database, ((…)) circle → external, label
+  keywords for queue/cache/gateway), subgraphs become module parents,
+  arrows become depends_on edges with |labels| preserved. Unsupported
+  syntax is skipped with a warning, never a hard failure.
+
+  Output is schema-validated before it is emitted.
 
   Imported descriptions state their provenance — refining them into
   real responsibility statements is the natural next step (or hand
@@ -457,6 +468,7 @@ EXAMPLES
   archik import compose
   archik import compose --out .archik/main.archik.yaml
   archik import compose infra/docker-compose.yml --name "Shop"
+  archik import mermaid docs/architecture.mmd --out .archik/main.archik.yaml
 `,
 
   mcp: `archik mcp — Model Context Protocol server over stdio
@@ -491,6 +503,95 @@ CLIENT CONFIGURATION (typical mcpServers entry)
 
   Launch from the project root — tools resolve the archik document
   relative to the server's working directory.
+`,
+
+  otel: `archik otel — verify the diagram against production telemetry
+
+USAGE
+  archik otel check --graph <dependencies.json> [--json]
+
+FLAGS
+  --graph <file>     a service-dependency graph export: Jaeger's
+                     GET /api/dependencies JSON (raw array or
+                     {data: …} wrapper) — entries of
+                     {parent, child, callCount}
+  --json             structured output
+
+DESCRIPTION
+  Maps graph service names onto nodes (metadata.otelService wins,
+  node id is the fallback) and compares production reality with the
+  declared edges:
+
+    UNDECLARED CALL   runtime traffic between two nodes with no edge
+                      in the diagram. Fails the check (exit 1).
+    UNOBSERVED EDGE   a wire edge (http_call, grpc, websocket,
+                      webhook, invokes, routes_to) between two
+                      observed services saw no traffic — reported
+                      informationally; rare paths go quiet.
+    UNMAPPED SERVICE  a graph name no node claims — bind it with
+                      metadata.otelService rather than guessing.
+
+  This is the runtime end of the truth chain: validate proves the
+  model is internally consistent, drift --edges proves it matches
+  the code, otel check proves it matches production.
+
+EXAMPLES
+  curl -s http://jaeger:16686/api/dependencies?endTs=...&lookback=86400000 > deps.json
+  archik otel check --graph deps.json
+  archik otel check --graph deps.json --json    # CI / dashboards
+`,
+
+  owners: `archik owners — keep CODEOWNERS in step with node owners
+
+USAGE
+  archik owners sync [--json]
+  archik owners check [--json]
+
+DESCRIPTION
+  Every node declaring both \`owner\` and \`sourcePath\` becomes a
+  CODEOWNERS rule (\`/<sourcePath>/ @<owner>\`), written into a
+  clearly-marked managed block. Hand-authored rules outside the
+  block are never touched. The file is found where GitHub looks
+  (.github/CODEOWNERS, CODEOWNERS, docs/CODEOWNERS); sync creates
+  .github/CODEOWNERS when none exists.
+
+  \`check\` is the CI side: exit 1 when the block is missing or
+  stale, so ownership changes in the model can't silently drift
+  from review routing.
+
+  Owner handles get an @ prefix unless they already carry one —
+  keep node \`owner\` values aligned with GitHub team/user names.
+
+EXIT CODES
+  0  in sync (check) / synced (sync)
+  1  stale or missing (check)
+  2  argument / document errors
+
+EXAMPLES
+  archik owners sync
+  archik owners check --json     # CI gate
+`,
+
+  hooks: `archik hooks — git pre-commit hook for model validation
+
+USAGE
+  archik hooks install [--with-drift] [--force]
+  archik hooks uninstall
+
+FLAGS
+  --with-drift       also run \`archik drift\` in the hook
+  --force            overwrite a pre-commit hook archik didn't write
+
+DESCRIPTION
+  Installs a pre-commit hook that runs \`archik validate\` before every
+  commit, so a broken model never reaches CI. Honours core.hooksPath
+  (husky-style setups) and refuses to clobber a hook it didn't write.
+  Uninstall removes the hook only when archik installed it.
+
+EXAMPLES
+  archik hooks install
+  archik hooks install --with-drift
+  archik hooks uninstall
 `,
 
   "merge-driver": `archik merge-driver — semantic three-way merge for archik YAML
@@ -538,6 +639,7 @@ USAGE
 FLAGS
   --json             structured output for agents (JSON)
   --ignore <file>    custom ignore file (default: .archik/.driftignore)
+  --edges            also verify edges against the code's import graph
 
 DESCRIPTION
   Compares the archik YAML against the actual source tree and reports
@@ -545,6 +647,24 @@ DESCRIPTION
 
     ORPHAN   — a node has a sourcePath but that path doesn't exist on disk.
     UNMAPPED — a source directory exists but no node claims it.
+
+  With --edges, the TS/JS files under every node's sourcePath are
+  scanned for imports (static, re-export, require, dynamic; comments
+  stripped) and the resulting graph is compared with the declared
+  edges:
+
+    SHADOW EDGE   — code in node A imports code in node B, but no
+                    edge connects them. An undeclared dependency.
+    PHANTOM EDGE  — a structural edge (depends_on, uses, has_a,
+                    implements, extends) is declared between two
+                    scannable nodes, but no import exists in either
+                    direction.
+
+  Conservative by design: only relative imports are resolved, a pair
+  counts as covered by an edge in either direction, parent/child
+  pairs are skipped, wire relationships (http_call, publishes, …)
+  are never phantom-checked, and nodes without TS/JS files are
+  exempt (other languages aren't penalised).
 
   Nodes with status "proposed" or "deprecated" are skipped.
   Nodes without sourcePath are skipped (e.g. external services).
@@ -566,10 +686,14 @@ EXAMPLES
 
 USAGE
   archik affected [--since <ref>] [--files <list>] [--json]
+  archik affected --run [--runner '<cmd>']
 
 FLAGS
   --since <ref>      git ref to diff the working tree against (default: HEAD)
   --files <list>     comma-separated file list — skips git entirely
+  --run              execute the affected tests with the project's runner
+  --runner <cmd>     override runner detection (e.g. 'npx vitest run');
+                     files are appended to the command
   --json             structured output for agents / CI
 
 DESCRIPTION
@@ -592,11 +716,19 @@ EXIT CODES
   1  git error / root file failed to load
   2  argument error
 
+RUNNING THE TESTS
+  --run executes the union of affected test files with the project's
+  test runner — vitest, @playwright/test, jest, or mocha, detected
+  from package.json (first match wins); --runner overrides. Runner
+  output streams through; its exit code becomes archik's. "Run what
+  my change touches" as a pre-push hook or CI step.
+
 EXAMPLES
   archik affected                       # working tree vs HEAD
   archik affected --since main          # everything this branch touches
   archik affected --since origin/main --json
   archik affected --files src/api/routes.ts,src/worker/run.ts
+  archik affected --since main --run    # …and run the covering tests
 `,
 
   trace: `archik trace — use case x slice x test x seq x node coverage matrix

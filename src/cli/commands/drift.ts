@@ -2,6 +2,11 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { detectDrift, detectMissingTestPaths, type DriftResult } from "../../drift/detector.ts";
+import {
+  buildImportGraph,
+  checkEdgeDrift,
+  type EdgeDriftResult,
+} from "../../drift/edge-drift.ts";
 import { parseDriftignore } from "../../drift/driftignore.ts";
 import { discoverDocs } from "../../io/discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
@@ -94,13 +99,71 @@ export async function driftCommand(
     },
   };
 
+  // Edge-level drift (opt-in): build the import graph across every
+  // node's sourcePath and compare against the declared edges. Needs
+  // the full merged doc INCLUDING edges, unlike the path checks.
+  let edgeResult: EdgeDriftResult | null = null;
+  if (getString(opts, "edges") !== undefined) {
+    const fullDoc: Document = {
+      version: "1.0",
+      name: "merged",
+      nodes: discovery.docs.flatMap((d) => d.doc.nodes),
+      edges: discovery.docs.flatMap((d) => d.doc.edges),
+    };
+    const graph = await buildImportGraph(fullDoc.nodes, root);
+    edgeResult = checkEdgeDrift(fullDoc, graph);
+  }
+  const edgeTotal =
+    edgeResult === null ? 0 : edgeResult.shadow.length + edgeResult.phantom.length;
+
   if (json) {
-    emitJson(toJsonShape(result));
+    emitJson({
+      ...toJsonShape(result),
+      ...(edgeResult !== null
+        ? {
+            shadowEdges: edgeResult.shadow.map(({ from, to, evidence }) => ({ from, to, evidence })),
+            phantomEdges: edgeResult.phantom.map(({ edgeId, from, to, relationship }) => ({ edgeId, from, to, relationship })),
+          }
+        : {}),
+      summary: {
+        ...result.summary,
+        ...(edgeResult !== null
+          ? {
+              shadowEdges: edgeResult.shadow.length,
+              phantomEdges: edgeResult.phantom.length,
+            }
+          : {}),
+        total: result.summary.total + edgeTotal,
+      },
+    });
   } else {
     formatHuman(result);
+    if (edgeResult !== null) formatEdgeHuman(edgeResult);
   }
 
-  return result.summary.total > 0 ? 1 : 0;
+  return result.summary.total + edgeTotal > 0 ? 1 : 0;
+}
+
+function formatEdgeHuman(result: EdgeDriftResult): void {
+  if (result.shadow.length > 0) {
+    console.log(
+      `\n${result.shadow.length} SHADOW EDGE${result.shadow.length !== 1 ? "S" : ""} — code imports with no declared edge`,
+    );
+    for (const s of result.shadow) {
+      console.log(`  ✗ ${`${s.from} → ${s.to}`.padEnd(36)} e.g. ${s.evidence[0]!.file} imports "${s.evidence[0]!.specifier}"`);
+    }
+  }
+  if (result.phantom.length > 0) {
+    console.log(
+      `\n${result.phantom.length} PHANTOM EDGE${result.phantom.length !== 1 ? "S" : ""} — declared, but no import in either direction`,
+    );
+    for (const p of result.phantom) {
+      console.log(`  ✗ ${p.edgeId.padEnd(24)} ${p.from} → ${p.to} (${p.relationship})`);
+    }
+  }
+  if (result.shadow.length === 0 && result.phantom.length === 0) {
+    console.log(`✓ Edges match the import graph.`);
+  }
 }
 
 /** Strip internal `type` discriminators for the public JSON API. */

@@ -10,7 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { affectedCommand } from "./affected.ts";
+import { affectedCommand, detectRunner } from "./affected.ts";
 
 /**
  * End-to-end coverage for `archik affected`. The pure mapping is
@@ -197,6 +197,68 @@ describe("affectedCommand", () => {
       expect(err).toContain("git");
     });
 
+    it("runs affected tests via --run with an explicit runner", async () => {
+      // Point the slice's test at a real node:test file so we can use
+      // `node --test` as the runner without any package dependency.
+      await writeFile(
+        path.join(cwd, "tests/happy.test.mjs"),
+        'import { test } from "node:test";\ntest("ok", () => {});\n',
+      );
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        ucYaml.replace("tests/happy.spec.ts", "tests/happy.test.mjs"),
+      );
+      const code = await affectedCommand({
+        _: [],
+        files: "src/api/routes.ts",
+        run: "true",
+        runner: "node --test",
+      });
+      expect(code).toBe(0);
+    });
+
+    it("propagates a failing runner exit code", async () => {
+      await writeFile(
+        path.join(cwd, "tests/happy.test.mjs"),
+        'import { test } from "node:test";\nimport assert from "node:assert";\ntest("fails", () => { assert.equal(1, 2); });\n',
+      );
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        ucYaml.replace("tests/happy.spec.ts", "tests/happy.test.mjs"),
+      );
+      const code = await affectedCommand({
+        _: [],
+        files: "src/api/routes.ts",
+        run: "true",
+        runner: "node --test",
+      });
+      expect(code).not.toBe(0);
+    });
+
+    it("--run with no affected tests is a no-op success", async () => {
+      const code = await affectedCommand({
+        _: [],
+        files: "docs/readme.md",
+        run: "true",
+        runner: "node --test",
+      });
+      expect(code).toBe(0);
+      expect(output()).toContain("no tests to run");
+    });
+
+    it("errors helpfully when no runner can be detected", async () => {
+      const code = await affectedCommand({
+        _: [],
+        files: "src/api/routes.ts",
+        run: "true",
+      });
+      expect(code).toBe(2);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("--runner");
+    });
+
+    // (placement note: these --run cases use --files, so no repo is
+    // initialised; they live here only to share the project fixture)
     it("resolves paths correctly when the project sits below the git toplevel", async () => {
       // Monorepo layout: git root one level up, archik project in app/.
       const top = await mkdtemp(path.join(tmpdir(), "archik-mono-"));
@@ -234,5 +296,29 @@ describe("affectedCommand", () => {
         await rm(top, { recursive: true, force: true });
       }
     });
+  });
+});
+
+describe("detectRunner", () => {
+  it("picks the first known runner from dependencies", () => {
+    expect(detectRunner({ devDependencies: { vitest: "^3" } })).toEqual([
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+    ]);
+    expect(
+      detectRunner({ dependencies: { jest: "^29" } })?.slice(-1),
+    ).toEqual(["jest"]);
+    expect(
+      detectRunner({ devDependencies: { "@playwright/test": "^1" } })?.includes(
+        "playwright",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns undefined when nothing matches", () => {
+    expect(detectRunner({})).toBeUndefined();
+    expect(detectRunner({ devDependencies: { typescript: "^6" } })).toBeUndefined();
   });
 });

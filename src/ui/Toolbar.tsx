@@ -7,6 +7,7 @@ import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
 import { Logo } from "./Logo.tsx";
+import { SearchBox } from "./SearchBox.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { UseCasesPanel } from "./UseCasesPanel.tsx";
 
@@ -169,6 +170,7 @@ export function Toolbar({
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">
+        <SearchBox document={document} />
         {onUndo !== undefined && (
           <button
             type="button"

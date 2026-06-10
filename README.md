@@ -41,9 +41,10 @@ Actor → Use case → Slice → Tests on disk → Seq diagram → Nodes → Sou
 - 🤖 **AI-native** — installable Claude Code skill + 12 slash commands, and an MCP server for Cursor, Windsurf, Copilot, Claude Desktop, Zed
 - ✅ **Validator, not convention** — schema, cross-file references, `sourcePath` existence, use-case/actor/seq integrity, ECB rules
 - 🔍 **Traceability** — `archik trace` proves which use case slices are tested and realized; `--fail-on` gates CI
-- 🌿 **Git-aware** — `archik diff origin/main` shows what a branch changes architecturally; `archik affected` maps changed files to nodes, slices, and tests
-- 🤝 **Team-ready** — semantic merge driver for YAML, node ownership, and governance constraints (architecture fitness rules)
-- 🚀 **Fast adoption** — `archik import compose` bootstraps a diagram from docker-compose; `/archik:spawn` mirrors an existing source tree
+- 🌿 **Git-aware** — `archik diff origin/main` shows what a branch changes architecturally; `archik affected` maps changed files to nodes, slices, and tests (`--run` executes them); `archik hooks install` gates every commit
+- 🤝 **Team-ready** — semantic merge driver for YAML, node ownership with CODEOWNERS sync, and governance constraints (architecture fitness rules)
+- 🔬 **Verified at every altitude** — `validate` proves the model is consistent, `drift --edges` proves it matches the code's import graph, `otel check` proves it matches production traffic
+- 🚀 **Fast adoption** — `archik import compose` / `import mermaid` bootstrap a diagram from what you already have; `/archik:spawn` mirrors an existing source tree
 - 📦 **Zero runtime dependencies** in the published package
 
 ## Installation
@@ -86,13 +87,14 @@ Day-to-day:
 | `/archik:usecase <name>` | A use case with flows, slices, and test paths |
 | `/archik:trace` | "Are we done?" — the coverage matrix |
 
-**Already containerised?** Skip the blank canvas:
+**Already have docker-compose or Mermaid diagrams?** Skip the blank canvas:
 
 ```bash
 npx archik import compose --out .archik/main.archik.yaml
+npx archik import mermaid docs/architecture.mmd --out .archik/main.archik.yaml
 ```
 
-Compose services become nodes (postgres → `database`, redis → `cache`, kafka → `stream`, …), build contexts become `sourcePath`s, and `depends_on` becomes edges.
+Compose services become nodes (postgres → `database`, redis → `cache`, kafka → `stream`, …), build contexts become `sourcePath`s, and `depends_on` becomes edges. The Mermaid importer parses the flowchart subset: shaped nodes map to kinds, subgraphs become module parents, arrows become labelled edges.
 
 ## The YAML
 
@@ -135,11 +137,17 @@ Full schema: `npx archik schema` (also `schema seq | uc | actors`).
 # What am I touching on this branch? Which tests cover it?
 npx archik affected --since main
 
+# …and run exactly those tests (vitest/jest/playwright/mocha auto-detected)
+npx archik affected --since main --run
+
 # What does this branch change architecturally?
 npx archik diff origin/main            # add --out diff.svg for the visual
 
 # Is the diagram still telling the truth?
 npx archik validate && npx archik drift
+
+# Do the EDGES match the code? (TS/JS import-graph verification)
+npx archik drift --edges               # shadow + phantom edge detection
 
 # Are we done?
 npx archik trace
@@ -147,11 +155,17 @@ npx archik trace
 
 `affected` walks the chain backwards: changed files → nodes (via `sourcePath`) → use case slices (via tests and sequence-diagram participants) → tests to run — and flags changed files no node or test claims.
 
+`drift --edges` scans the imports under every node's `sourcePath` and reports **shadow edges** (code imports across nodes with no declared edge) and **phantom edges** (structural edges with no import in either direction). Gate every commit locally with:
+
+```bash
+npx archik hooks install               # pre-commit: archik validate
+```
+
 ## AI integration
 
 **Claude Code** (deepest integration): `archik init` installs a skill that enforces one hard rule — *Claude talks to archik only through the CLI*, never by editing YAML directly. Reads go through `archik q`, writes through `archik suggest set`, and you approve every structural change on the canvas.
 
-**Everything else** (MCP): `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — 20 tools covering schema, queries, trace, validate, drift, affected, and the suggestion lifecycle:
+**Everything else** (MCP): `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — 20 tools covering schema, queries, trace, validate, drift, affected, and the suggestion lifecycle, plus **resources** (`archik://schema`, `archik://stats`, `archik://trace`, `archik://validate`, `archik://drift`) and **prompts** (`propose-change`, `review-architecture`) that encode the same working loop the Claude Code skill teaches:
 
 ```jsonc
 // .cursor/mcp.json, claude_desktop_config.json, etc.
@@ -172,7 +186,7 @@ npx archik merge-driver --install    # once per clone; .gitattributes line is co
 
 Both branches added nodes → keep both. One side changed a field → take it. Same field changed differently, or modify-vs-delete → a real conflict, reported precisely.
 
-**Ownership.** `owner: team-billing` on a node answers "who do I talk to": `archik q describe payments-db`, `archik q list --owner team-billing`.
+**Ownership.** `owner: team-billing` on a node answers "who do I talk to": `archik q describe payments-db`, `archik q list --owner team-billing`. And `archik owners sync` writes one CODEOWNERS rule per owned node into a managed block (hand-authored rules untouched), with `archik owners check` as the CI gate so review routing can't drift from the model.
 
 **Governance constraints.** Architecture fitness rules, enforced by `archik validate` on every run:
 
@@ -190,6 +204,17 @@ constraints:
 ```
 
 Intentional exceptions are grandfathered by id in an `except` list — visible in review, never silent.
+
+## Verified against production
+
+Map nodes to your tracing backend's service names (`metadata.otelService`, node id as the fallback), export the service-dependency graph, and let archik compare:
+
+```bash
+curl -s "http://jaeger:16686/api/dependencies?endTs=$(date +%s)000&lookback=86400000" > deps.json
+npx archik otel check --graph deps.json
+```
+
+Undeclared production calls — traffic the diagram doesn't admit to — fail the check; declared wire edges that saw no traffic are reported informationally. That completes the truth chain: `validate` proves the model is consistent, `drift --edges` proves it matches the code, `otel check` proves it matches production.
 
 ## CI
 
@@ -236,14 +261,17 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik watch` | Re-render SVG on every change |
 | `archik q <sub>` | Query: `describe` `deps` `dependents` `impact` `list` `edges` `stats` `usecases` `describe-usecase` `actors` `sequences` |
 | `archik diff <a> [b]` | Diff two files **or git refs**; one arg = that ref vs working tree |
-| `archik affected` | Changed files → nodes, slices, tests to run (`--since <ref>`, `--files`) |
+| `archik affected` | Changed files → nodes, slices, tests to run (`--since <ref>`, `--files`, `--run` to execute them) |
 | `archik trace` | Coverage matrix (`--fail-on partial\|none` for CI) |
-| `archik drift` | sourcePath / test-path gaps vs the source tree |
+| `archik drift` | sourcePath / test-path gaps vs the source tree (`--edges` verifies edges vs the TS/JS import graph) |
+| `archik otel check --graph <f>` | Verify edges against a production service-dependency graph |
 | `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` |
 | `archik alpha <sub>` | Essence alphas: `show`, `promote` (machine-checked), `demote` |
-| `archik import compose [file]` | Bootstrap a document from docker-compose |
+| `archik import compose\|mermaid [file]` | Bootstrap a document from docker-compose or a Mermaid flowchart |
 | `archik merge-driver --install` | Semantic git merge for `*.archik.yaml` |
-| `archik mcp` | MCP server over stdio for non-Claude-Code agents |
+| `archik hooks install` | Pre-commit hook running `archik validate` (`--with-drift` optional) |
+| `archik owners sync\|check` | Keep CODEOWNERS in step with node owners |
+| `archik mcp` | MCP server over stdio (tools + resources + prompts) for non-Claude-Code agents |
 | `archik schema [seq\|uc\|actors]` | Print the document schemas |
 | `archik upgrade` | Upgrade + refresh installed skill/commands |
 

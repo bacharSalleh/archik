@@ -16,6 +16,45 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.14.0] - 2026-06-10
+
+### Added
+- **`archik drift --edges`** — edge-level drift: scans the TS/JS
+  imports under every node's sourcePath and reports shadow edges
+  (code imports across nodes with no declared edge) and phantom
+  edges (structural edges with no import in either direction).
+- **`archik otel check --graph <file>`** — runtime verification:
+  compares the declared edges with a production service-dependency
+  graph (Jaeger /api/dependencies shape); service names bind via
+  `metadata.otelService` with node-id fallback. Undeclared calls
+  fail the check; unobserved wire edges are informational.
+- **`archik affected --run`** — executes the affected test files
+  with the project's runner (vitest / playwright / jest / mocha
+  auto-detected; `--runner '<cmd>'` overrides), propagating the
+  runner's exit code.
+- **New constraint rules** — `requireEdge` (matching nodes must
+  have an outgoing/incoming edge to/from a selector match) and
+  `maxDependencies` (outgoing-edge budget; the god-service
+  detector).
+- **`archik hooks install`** — pre-commit hook running
+  `archik validate` (+ `--with-drift`); honours core.hooksPath and
+  never clobbers a foreign hook without `--force`.
+- **`archik owners sync | check`** — CODEOWNERS managed block
+  generated from nodes with `owner` + `sourcePath`; `check` is the
+  CI gate against stale review routing.
+- **`archik import mermaid <file>`** — flowchart importer (raw .mmd
+  or fenced markdown): shaped nodes map to kinds, subgraphs become
+  module parents, arrows become labelled edges.
+- **MCP resources + prompts** — `archik://schema|stats|trace|
+  validate|drift` resources and `propose-change` /
+  `review-architecture` prompts alongside the existing tools.
+- **Canvas node search** — toolbar search with ranked matching
+  (id/name/owner/kind/description), keyboard navigation, and a `/`
+  shortcut; picking a result selects the node.
+- **Floating major tag automation** — the publish workflow now
+  force-updates `v0`/`v1` on every release so
+  `uses: bacharSalleh/archik@v0` stays current.
+
 ## [0.13.0] - 2026-06-10
 
 ### Added
@@ -775,7 +814,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `archik skill` finds the bundled source on installs from npm.
 - Edges between nodes inside containers are drawn at the correct coordinates.
 
-[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/bacharSalleh/archik/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/bacharSalleh/archik/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/bacharSalleh/archik/compare/v0.12.46...v0.13.0
 [0.7.5]: https://github.com/bacharSalleh/archik/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/bacharSalleh/archik/compare/v0.7.3...v0.7.4
