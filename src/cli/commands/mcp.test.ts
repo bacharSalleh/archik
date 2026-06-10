@@ -158,9 +158,80 @@ describe("createMcpHandler", () => {
     const unknownMethod = (await handle({
       jsonrpc: "2.0",
       id: 8,
-      method: "resources/list",
+      method: "sampling/createMessage",
     })) as { error: { code: number } };
     expect(unknownMethod.error.code).toBe(-32601);
+  });
+
+  it("lists and reads resources", async () => {
+    const list = (await handle({
+      jsonrpc: "2.0",
+      id: 10,
+      method: "resources/list",
+    })) as { result: { resources: Array<{ uri: string }> } };
+    const uris = list.result.resources.map((r) => r.uri);
+    expect(uris).toContain("archik://stats");
+    expect(uris).toContain("archik://trace");
+
+    const read = (await handle({
+      jsonrpc: "2.0",
+      id: 11,
+      method: "resources/read",
+      params: { uri: "archik://stats" },
+    })) as { result: { contents: Array<{ uri: string; text: string }> } };
+    const parsed = JSON.parse(read.result.contents[0]!.text);
+    expect(parsed.nodes).toBe(1);
+
+    const unknown = (await handle({
+      jsonrpc: "2.0",
+      id: 12,
+      method: "resources/read",
+      params: { uri: "archik://nope" },
+    })) as { error: { code: number } };
+    expect(unknown.error.code).toBe(-32602);
+  });
+
+  it("lists and renders prompts, enforcing required arguments", async () => {
+    const list = (await handle({
+      jsonrpc: "2.0",
+      id: 13,
+      method: "prompts/list",
+    })) as { result: { prompts: Array<{ name: string }> } };
+    expect(list.result.prompts.map((p) => p.name)).toEqual([
+      "propose-change",
+      "review-architecture",
+    ]);
+
+    const got = (await handle({
+      jsonrpc: "2.0",
+      id: 14,
+      method: "prompts/get",
+      params: { name: "propose-change", arguments: { feature: "add a payments worker" } },
+    })) as { result: { messages: Array<{ content: { text: string } }> } };
+    expect(got.result.messages[0]!.content.text).toContain("add a payments worker");
+    expect(got.result.messages[0]!.content.text).toContain("archik_suggest_set");
+
+    const missing = (await handle({
+      jsonrpc: "2.0",
+      id: 15,
+      method: "prompts/get",
+      params: { name: "propose-change", arguments: {} },
+    })) as { error: { code: number; message: string } };
+    expect(missing.error.message).toContain("feature");
+  });
+
+  it("declares resources and prompts capabilities", async () => {
+    const res = (await handle({
+      jsonrpc: "2.0",
+      id: 16,
+      method: "initialize",
+      params: {},
+    })) as { result: { capabilities: Record<string, unknown> } };
+    expect(Object.keys(res.result.capabilities).sort()).toEqual([
+      "prompts",
+      "resources",
+      "tools",
+    ]);
   });
 
   it("answers ping", async () => {

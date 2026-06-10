@@ -383,6 +383,110 @@ type JsonRpcMessage = {
   params?: Record<string, unknown>;
 };
 
+/**
+ * MCP resources — read-only project state an agent can pull (or a
+ * client can pin into context) without a tool round-trip. Each one
+ * delegates to the matching --json command, same single-implementation
+ * rule as the tools.
+ */
+type ResourceDef = {
+  uri: string;
+  name: string;
+  description: string;
+  run: () => Promise<CapturedRun>;
+};
+
+function buildResources(): ResourceDef[] {
+  return [
+    {
+      uri: "archik://schema",
+      name: "Document schema",
+      description: "Node kinds, relationships, fields, and validation rules — read before authoring.",
+      run: () => capture(async () => schemaCommand(opts([]))),
+    },
+    {
+      uri: "archik://stats",
+      name: "Diagram stats",
+      description: "Node + edge counts by kind and relationship across all archik files.",
+      run: () => capture(() => qCommand(opts(["stats"]))),
+    },
+    {
+      uri: "archik://trace",
+      name: "Trace matrix",
+      description: "Use case × slice × tests × seq realization coverage — the 'are we done?' view.",
+      run: () => capture(() => traceCommand(opts([]))),
+    },
+    {
+      uri: "archik://validate",
+      name: "Validation report",
+      description: "Schema + cross-file + sourcePath + governance constraint results for the project.",
+      run: () => capture(() => validateCommand(opts([]))),
+    },
+    {
+      uri: "archik://drift",
+      name: "Drift report",
+      description: "Diagram vs source tree: orphan nodes, unmapped code, missing slice tests.",
+      run: () => capture(() => driftCommand(opts([]))),
+    },
+  ];
+}
+
+/**
+ * MCP prompts — reusable workflows a client can surface as slash
+ * commands. They encode the same loop the Claude Code skill teaches,
+ * so non-Claude-Code agents inherit the working method, not just the
+ * verbs.
+ */
+type PromptDef = {
+  name: string;
+  description: string;
+  arguments: Array<{ name: string; description: string; required: boolean }>;
+  render: (args: Record<string, string>) => string;
+};
+
+function buildPrompts(): PromptDef[] {
+  return [
+    {
+      name: "propose-change",
+      description:
+        "Stage an architecture change for a feature as a reviewable suggestion sidecar (the archik DISCOVER → DESIGN loop).",
+      arguments: [
+        {
+          name: "feature",
+          description: "What you want to build or change, in one or two sentences.",
+          required: true,
+        },
+      ],
+      render: (args) =>
+        [
+          `You are proposing an architecture change with archik. Feature: ${args["feature"] ?? "(not specified)"}.`,
+          "",
+          "Follow this loop strictly:",
+          "1. DISCOVER — ground in what exists. Call archik_stats, archik_list_nodes, and archik_describe on the nodes the feature plausibly touches. Never design against an imagined diagram.",
+          "2. SCHEMA — call archik_schema before authoring anything.",
+          "3. DESIGN — draft the FULL proposed end-state (every node and edge, not a delta). Apply the heuristics: one responsibility per node; async (publishes/subscribes) at context boundaries; externals behind ports; public traffic through a gateway/auth; respect every governance constraint in the document.",
+          "4. STAGE — call archik_suggest_set with the draft YAML and a one-line note. If validation rejects it, fix the draft and re-stage; never bypass the contract by editing files directly.",
+          "5. STOP — the human reviews the diff on the canvas. Do not call archik_suggest_accept unless they explicitly approve.",
+        ].join("\n"),
+    },
+    {
+      name: "review-architecture",
+      description:
+        "Assess the current model for gaps and smells: coverage, drift, god nodes, missing boundaries.",
+      arguments: [],
+      render: () =>
+        [
+          "Review this project's architecture model with archik tools (read-only).",
+          "",
+          "1. Call archik_stats, archik_trace, archik_drift, and archik_validate.",
+          "2. For the 3 most-connected nodes (archik_impact / archik_dependents), judge: single responsibility? missing port/gateway? god node?",
+          "3. Report findings ordered by risk, each with: the evidence (tool output), why it matters, and the smallest next action (a specific archik command or /archik:* step).",
+          "4. Do NOT stage any change — this is an assessment. End with the one improvement you'd make first.",
+        ].join("\n"),
+    },
+  ];
+}
+
 export type McpHandler = (
   message: JsonRpcMessage,
 ) => Promise<Record<string, unknown> | undefined>;
@@ -395,8 +499,18 @@ export type McpHandler = (
 export function createMcpHandler(): McpHandler {
   const tools = buildTools();
   const byName = new Map(tools.map((t) => [t.name, t]));
-  // Serialise tool runs — the underlying commands own console + cwd.
+  const resources = buildResources();
+  const resourceByUri = new Map(resources.map((r) => [r.uri, r]));
+  const prompts = buildPrompts();
+  const promptByName = new Map(prompts.map((p) => [p.name, p]));
+  // Serialise tool/resource runs — the underlying commands own
+  // console + cwd.
   let queue: Promise<unknown> = Promise.resolve();
+  const enqueue = <T>(run: () => Promise<T>): Promise<T> => {
+    const result = queue.then(run);
+    queue = result.catch(() => {});
+    return result;
+  };
 
   const error = (
     id: JsonRpcMessage["id"],
@@ -426,7 +540,7 @@ export function createMcpHandler(): McpHandler {
           result: {
             protocolVersion:
               typeof requested === "string" ? requested : PROTOCOL_VERSION,
-            capabilities: { tools: {} },
+            capabilities: { tools: {}, resources: {}, prompts: {} },
             serverInfo: { name: "archik", version: pkgVersion() },
           },
         };
@@ -445,6 +559,85 @@ export function createMcpHandler(): McpHandler {
             })),
           },
         };
+      case "resources/list":
+        return {
+          jsonrpc: "2.0",
+          id: id ?? null,
+          result: {
+            resources: resources.map(({ uri, name, description }) => ({
+              uri,
+              name,
+              description,
+              mimeType: "application/json",
+            })),
+          },
+        };
+      case "resources/read": {
+        const uri = params?.["uri"];
+        const resource =
+          typeof uri === "string" ? resourceByUri.get(uri) : undefined;
+        if (resource === undefined) {
+          return error(id, -32602, `unknown resource: ${String(uri)}`);
+        }
+        const { stdout, stderr } = await enqueue(() => resource.run());
+        return {
+          jsonrpc: "2.0",
+          id: id ?? null,
+          result: {
+            contents: [
+              {
+                uri: resource.uri,
+                mimeType: "application/json",
+                text: stdout || stderr || "{}",
+              },
+            ],
+          },
+        };
+      }
+      case "prompts/list":
+        return {
+          jsonrpc: "2.0",
+          id: id ?? null,
+          result: {
+            prompts: prompts.map(({ name, description, arguments: args }) => ({
+              name,
+              description,
+              arguments: args,
+            })),
+          },
+        };
+      case "prompts/get": {
+        const name = params?.["name"];
+        const prompt =
+          typeof name === "string" ? promptByName.get(name) : undefined;
+        if (prompt === undefined) {
+          return error(id, -32602, `unknown prompt: ${String(name)}`);
+        }
+        const args = (params?.["arguments"] ?? {}) as Record<string, string>;
+        const missing = prompt.arguments.filter(
+          (a) => a.required && (args[a.name] === undefined || args[a.name] === ""),
+        );
+        if (missing.length > 0) {
+          return error(
+            id,
+            -32602,
+            `missing required argument(s): ${missing.map((a) => a.name).join(", ")}`,
+          );
+        }
+        return {
+          jsonrpc: "2.0",
+          id: id ?? null,
+          result: {
+            description: prompt.description,
+            messages: [
+              {
+                role: "user",
+                content: { type: "text", text: prompt.render(args) },
+              },
+            ],
+          },
+        };
+      }
       case "tools/call": {
         const name = params?.["name"];
         const tool = typeof name === "string" ? byName.get(name) : undefined;
@@ -452,9 +645,7 @@ export function createMcpHandler(): McpHandler {
           return error(id, -32602, `unknown tool: ${String(name)}`);
         }
         const args = (params?.["arguments"] ?? {}) as Record<string, unknown>;
-        const run = queue.then(() => tool.run(args));
-        queue = run.catch(() => {});
-        const { exit, stdout, stderr } = await run;
+        const { exit, stdout, stderr } = await enqueue(() => tool.run(args));
         const text =
           [stdout, stderr].filter((s) => s.length > 0).join("\n") ||
           `(exit ${exit}, no output)`;
