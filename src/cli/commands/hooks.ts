@@ -9,7 +9,6 @@
  * worktrees and submodules get the right hooks directory.
  */
 import { chmod, readFile, unlink, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { cross, dim, tick } from "../colors.ts";
 import { runGit } from "../git.ts";
@@ -61,12 +60,23 @@ export async function hooksCommand(opts: ParsedOptions): Promise<number> {
   }
   const hookPath = path.join(resolved.dir, "pre-commit");
 
+  // Read-first instead of exists-then-read: avoids the
+  // check-to-use race and gives one code path for "absent".
+  const readCurrent = async (): Promise<string | null> => {
+    try {
+      return await readFile(hookPath, "utf-8");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw err;
+    }
+  };
+
   if (sub === "uninstall") {
-    if (!existsSync(hookPath)) {
+    const current = await readCurrent();
+    if (current === null) {
       console.log(`${tick()} no pre-commit hook installed`);
       return 0;
     }
-    const current = await readFile(hookPath, "utf-8");
     if (!current.includes(MARKER)) {
       console.error(
         `${cross()} ${path.relative(cwd, hookPath)} was not installed by archik — leaving it alone`,
@@ -80,17 +90,15 @@ export async function hooksCommand(opts: ParsedOptions): Promise<number> {
 
   const withDrift = getString(opts, "with-drift") !== undefined;
   const force = getString(opts, "force") !== undefined;
-  if (existsSync(hookPath)) {
-    const current = await readFile(hookPath, "utf-8");
-    if (!current.includes(MARKER) && !force) {
-      console.error(
-        `${cross()} a pre-commit hook already exists at ${path.relative(cwd, hookPath)} and it isn't archik's.`,
-      );
-      console.error(
-        `  Add \`npx --no-install archik validate || exit 1\` to it yourself, or rerun with --force to overwrite.`,
-      );
-      return 1;
-    }
+  const current = await readCurrent();
+  if (current !== null && !current.includes(MARKER) && !force) {
+    console.error(
+      `${cross()} a pre-commit hook already exists at ${path.relative(cwd, hookPath)} and it isn't archik's.`,
+    );
+    console.error(
+      `  Add \`npx --no-install archik validate || exit 1\` to it yourself, or rerun with --force to overwrite.`,
+    );
+    return 1;
   }
 
   await writeFile(hookPath, hookScript(withDrift), "utf-8");
