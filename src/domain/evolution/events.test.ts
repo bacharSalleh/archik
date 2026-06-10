@@ -6,7 +6,7 @@ import {
   type EvolutionEvent,
 } from "./events.ts";
 
-const base = { v: 1, ts: "2026-06-10T12:00:00.000Z" };
+const base = { v: 1, ts: "2026-06-10T12:00:00.000Z" } as const;
 
 describe("EvolutionEventSchema", () => {
   it("accepts a command event", () => {

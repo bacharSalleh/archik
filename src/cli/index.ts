@@ -28,8 +28,10 @@ import { ownersCommand } from "./commands/owners.ts";
 import { otelCommand } from "./commands/otel.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
-import { parseOptions } from "./options.ts";
+import { evolutionCommand } from "./commands/evolution.ts";
+import { parseOptions, type ParsedOptions } from "./options.ts";
 import { pkgVersion } from "./paths.ts";
+import { UNOBSERVED, flagNames, recordRun } from "./observe.ts";
 
 function printHelp(): void {
   console.log(`archik — JSON-native architecture diagram tool
@@ -134,6 +136,16 @@ COMMANDS
                     promote <a> <s>  walk UP the ladder; runs machine check
                                      --note '<text>'  attach a note
                     demote <a> <s>   walk DOWN the ladder (no check)
+  evolution <sub>   Self-evolution loop: observe → reflect → propose →
+                                     validate → apply (gated) → measure
+                    status           counts + whether observation is on
+                    enable|disable   opt the local-only event log in / out
+                    reflect          turn events into pending proposals
+                    proposals        list proposals (show <id> for one)
+                    propose <f|->    store an agent-authored proposal
+                    approve <id>     apply: learned.md note or sidecar diff
+                    reject <id>      decline (recorded — the loop learns)
+                    report           7-day trends vs the week before
   mcp               Run a Model Context Protocol server over stdio so any
                                      MCP client (Cursor, Windsurf, Copilot, Claude
                                      Desktop, Zed) can query + propose via archik tools
@@ -181,6 +193,27 @@ async function main(): Promise<number> {
 
   const opts = parseOptions(rest);
 
+  // Evolution loop, observe stage: time the run and append its events
+  // afterwards. Opt-in and fail-silent — see ./observe.ts.
+  const startedAt = Date.now();
+  const exitCode = await dispatch(command, opts);
+  if (command !== undefined && !UNOBSERVED.has(command)) {
+    await recordRun(process.cwd(), {
+      command,
+      sub: rest.find((a) => !a.startsWith("-")),
+      flags: flagNames(rest),
+      exitCode,
+      durationMs: Date.now() - startedAt,
+      ts: new Date().toISOString(),
+    });
+  }
+  return exitCode;
+}
+
+async function dispatch(
+  command: string | undefined,
+  opts: ParsedOptions,
+): Promise<number> {
   switch (command) {
     case "init":
       return initCommand(opts);
@@ -236,6 +269,8 @@ async function main(): Promise<number> {
       return otelCommand(opts);
     case "alpha":
       return alphaCommand(opts);
+    case "evolution":
+      return evolutionCommand(opts);
     case "upgrade":
       return upgradeCommand(opts);
     case "--version":
