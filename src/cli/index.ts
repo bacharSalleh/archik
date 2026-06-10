@@ -22,6 +22,7 @@ import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
 import { traceCommand } from "./commands/trace.ts";
 import { affectedCommand } from "./commands/affected.ts";
+import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -97,6 +98,8 @@ COMMANDS
                                      --json                 structured output for agents
                     accept           apply the sidecar over the main file
                     reject           discard the sidecar
+  merge-driver      Semantic three-way merge for archik YAML (git merge driver)
+                    --install        wire git config + .gitattributes for this clone
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
@@ -203,6 +206,8 @@ async function main(): Promise<number> {
       return traceCommand(opts);
     case "affected":
       return affectedCommand(opts);
+    case "merge-driver":
+      return mergeDriverCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":

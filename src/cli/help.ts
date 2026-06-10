@@ -425,6 +425,43 @@ NOTES
   isn't detected under ~/.claude/plugins.
 `,
 
+  "merge-driver": `archik merge-driver — semantic three-way merge for archik YAML
+
+USAGE
+  archik merge-driver --install         one-time setup for this clone
+  archik merge-driver <base> <ours> <theirs>   (invoked by git, not by hand)
+
+DESCRIPTION
+  Plain \`git merge\` treats archik YAML as text and conflicts whenever
+  two branches touch adjacent lines. Nodes and edges are id-keyed, so
+  most of those conflicts are mechanical:
+
+    both sides added different entities     → keep both
+    one side changed, the other didn't      → take the change
+    both changed different fields of an id  → merge field-wise
+    one side deleted, the other untouched   → delete
+
+  Real conflicts remain conflicts: the same field changed differently,
+  modify-vs-delete, or a merge that yields an invalid document (e.g.
+  theirs added an edge to a node ours deleted). The driver writes the
+  merged result with "ours" preferred on conflicting fields, prints
+  each conflict to stderr, and exits 1 so git marks the path
+  conflicted for manual resolution.
+
+INSTALL
+  \`archik merge-driver --install\` runs:
+    git config merge.archik.name "archik semantic merge"
+    git config merge.archik.driver "npx archik merge-driver %O %A %B"
+  and adds \`*.archik.yaml merge=archik\` to the toplevel .gitattributes.
+  The .gitattributes line is committed and shared; the git config is
+  per-clone — each teammate runs --install once.
+
+EXIT CODES
+  0  clean merge
+  1  conflicts (merged result written, user resolves)
+  2  hard error (unparseable side; nothing written)
+`,
+
   drift: `archik drift — detect when the diagram diverges from source code
 
 USAGE
