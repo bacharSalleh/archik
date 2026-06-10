@@ -425,6 +425,40 @@ NOTES
   isn't detected under ~/.claude/plugins.
 `,
 
+  mcp: `archik mcp — Model Context Protocol server over stdio
+
+USAGE
+  archik mcp                 (launched by an MCP client, not by hand)
+
+DESCRIPTION
+  Exposes the archik contract to ANY MCP-capable agent — Cursor,
+  Windsurf, Copilot agent mode, Claude Desktop, Zed — not just
+  Claude Code. Every tool delegates to the matching CLI command
+  with --json, so the MCP surface and the CLI surface cannot drift.
+
+TOOLS
+  archik_schema            document/seq/uc/actors schema reference
+  archik_describe          one node + its edges
+  archik_deps / archik_dependents / archik_impact
+  archik_list_nodes        filters: kind/parent/file/status/search/owner
+  archik_list_edges        filters: from/to/rel/status
+  archik_stats             counts by kind and relationship
+  archik_usecases / archik_describe_usecase / archik_actors / archik_sequences
+  archik_trace             the coverage matrix ("are we done?")
+  archik_validate          full validation incl. governance constraints
+  archik_drift             diagram vs source tree
+  archik_affected          changed files → nodes/slices/tests
+  archik_suggest_show / set / accept / reject
+                           the sidecar lifecycle (set takes the full
+                           draft YAML; accept only after human approval)
+
+CLIENT CONFIGURATION (typical mcpServers entry)
+  { "archik": { "command": "npx", "args": ["archik", "mcp"] } }
+
+  Launch from the project root — tools resolve the archik document
+  relative to the server's working directory.
+`,
+
   "merge-driver": `archik merge-driver — semantic three-way merge for archik YAML
 
 USAGE

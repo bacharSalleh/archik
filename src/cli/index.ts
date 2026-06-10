@@ -23,6 +23,7 @@ import { driftCommand } from "./commands/drift.ts";
 import { traceCommand } from "./commands/trace.ts";
 import { affectedCommand } from "./commands/affected.ts";
 import { mergeDriverCommand } from "./commands/mergeDriver.ts";
+import { mcpCommand } from "./commands/mcp.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -121,6 +122,9 @@ COMMANDS
                     promote <a> <s>  walk UP the ladder; runs machine check
                                      --note '<text>'  attach a note
                     demote <a> <s>   walk DOWN the ladder (no check)
+  mcp               Run a Model Context Protocol server over stdio so any
+                                     MCP client (Cursor, Windsurf, Copilot, Claude
+                                     Desktop, Zed) can query + propose via archik tools
   skill             Install the Archik skill for Claude
                     --user           install to ~/.claude/skills (all projects)
                     --force          overwrite if it already exists
@@ -208,6 +212,8 @@ async function main(): Promise<number> {
       return affectedCommand(opts);
     case "merge-driver":
       return mergeDriverCommand(opts);
+    case "mcp":
+      return mcpCommand();
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":
