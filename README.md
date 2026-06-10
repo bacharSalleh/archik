@@ -44,6 +44,7 @@ Actor → Use case → Slice → Tests on disk → Seq diagram → Nodes → Sou
 - 🌿 **Git-aware** — `archik diff origin/main` shows what a branch changes architecturally; `archik affected` maps changed files to nodes, slices, and tests (`--run` executes them); `archik hooks install` gates every commit
 - 🤝 **Team-ready** — semantic merge driver for YAML, node ownership with CODEOWNERS sync, and governance constraints (architecture fitness rules)
 - 🔬 **Verified at every altitude** — `validate` proves the model is consistent, `drift --edges` proves it matches the code's import graph, `otel check` proves it matches production traffic
+- 🧬 **Self-evolving** — opt-in `archik evolution` loop (observe → reflect → propose → validate → apply → measure) learns from your accepts, rejects, and failures and proposes its own upgrades behind a human approval gate; `archik patterns` ships the same design patterns for your systems
 - 🚀 **Fast adoption** — `archik import compose` / `import mermaid` bootstrap a diagram from what you already have; `/archik:spawn` mirrors an existing source tree
 - 📦 **Zero runtime dependencies** in the published package
 
@@ -216,6 +217,31 @@ npx archik otel check --graph deps.json
 
 Undeclared production calls — traffic the diagram doesn't admit to — fail the check; declared wire edges that saw no traffic are reported informationally. That completes the truth chain: `validate` proves the model is consistent, `drift --edges` proves it matches the code, `otel check` proves it matches production.
 
+## Self-evolution
+
+Archik can learn from how you use it. Everything is opt-in, local-only, and human-gated:
+
+```bash
+archik evolution enable      # start observing (events stay on your machine)
+# ... normal work: suggestions accepted/rejected, validate/drift runs ...
+archik evolution reflect     # recurring friction → pending proposals with evidence
+archik evolution proposals   # read them
+archik evolution approve <id># apply: a learned.md note, or a sidecar diff you still review
+archik evolution report      # did it help? last 7 days vs the 7 before
+```
+
+Approved lessons land in `.archik/evolution/learned.md` — the Claude skill reads it at session start (and MCP agents via `archik://learned`), so the AI gets smarter across sessions without anyone editing prompts. Rejecting a proposal is recorded too; the loop learns from "no".
+
+Building a self-evolving system of your own? The same patterns ship as a library:
+
+```bash
+archik patterns list                  # evolution-loop, sidecar-approval-gate,
+archik patterns show evolution-loop   # learned-overlay, truth-chain, feedback-pipeline
+archik patterns apply evolution-loop  # stage the blueprint into YOUR diagram (gated)
+```
+
+Deep dives in [docs/advanced-topics](./docs/advanced-topics/README.md). In Claude Code: `/archik:self-evolving <your idea>`.
+
 ## CI
 
 Plain commands:
@@ -267,6 +293,8 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik otel check --graph <f>` | Verify edges against a production service-dependency graph |
 | `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` |
 | `archik alpha <sub>` | Essence alphas: `show`, `promote` (machine-checked), `demote` |
+| `archik evolution <sub>` | Self-evolution loop: `enable` `status` `reflect` `proposals` `propose` `approve` `reject` `report` |
+| `archik patterns <sub>` | Self-evolution pattern library: `list` `show <id>` `apply <id>` |
 | `archik import compose\|mermaid [file]` | Bootstrap a document from docker-compose or a Mermaid flowchart |
 | `archik merge-driver --install` | Semantic git merge for `*.archik.yaml` |
 | `archik hooks install` | Pre-commit hook running `archik validate` (`--with-drift` optional) |

@@ -866,4 +866,85 @@ EXAMPLES
   archik alpha promote stakeholders involved --note 'kickoff with finance'
   archik alpha demote softwareSystem demonstrable
 `,
+  evolution: `archik evolution — the self-evolution loop
+
+USAGE
+  archik evolution status                 counts + whether observation is on
+  archik evolution enable|disable         opt observation in / out
+  archik evolution reflect                heuristics over the log → proposals
+  archik evolution proposals [show <id>]  list / inspect proposals
+  archik evolution propose <file|->       store an agent-authored proposal
+  archik evolution approve <id>           apply (gated)
+  archik evolution reject <id>            decline (recorded)
+  archik evolution report                 7-day trends vs the week before
+
+DESCRIPTION
+  The loop: observe → reflect → propose → validate → apply → measure.
+
+  observe   Every finished CLI command appends events (command name,
+            flag names, outcome, duration — never values or file
+            contents) to .archik/evolution/events.jsonl. Local-only
+            and OPT-IN via 'archik evolution enable'.
+  reflect   Deterministic heuristics turn events into insights:
+            rejection streaks, recurring validation failures,
+            recurring drift, repeatedly failing commands.
+  propose   Each new insight becomes a pending YAML proposal in
+            .archik/evolution/proposals/ with auditable evidence.
+            Agents can file richer proposals via 'evolution propose'.
+  apply     'approve' is the gate. skill-note proposals append to
+            .archik/evolution/learned.md (read by the Claude skill
+            and the archik://learned MCP resource). Diagram changes
+            are staged as a suggestion sidecar — reviewed on the
+            canvas, applied via 'archik suggest accept'.
+  measure   'report' compares the last 7 days with the 7 before:
+            error rate, suggestion acceptance rate, drift failures.
+
+  Nothing is ever applied silently. Rejecting a proposal is itself
+  recorded — the loop learns from "no".
+
+EXIT CODES
+  0  success
+  1  apply/validation failure (e.g. pending sidecar, invalid result)
+  2  argument error or unknown id
+
+EXAMPLES
+  archik evolution enable
+  archik evolution reflect
+  archik evolution approve p-2026-06-10-a1b2
+  archik evolution report --json
+`,
+  patterns: `archik patterns — self-evolution pattern library
+
+USAGE
+  archik patterns list          all patterns with one-line intents
+  archik patterns show <id>     print the full pattern document
+  archik patterns apply <id>    stage the blueprint into your diagram
+
+DESCRIPTION
+  A library of named, documented architecture patterns for building
+  self-evolving systems — each with intent, structure, safety rules,
+  trade-offs, and where archik itself uses it.
+
+  'apply' never edits your diagram directly: the blueprint is merged,
+  validated, and staged as a suggestion sidecar (status: proposed
+  nodes), which you review on the canvas and accept or reject.
+
+PATTERNS
+  evolution-loop          observe → reflect → propose → validate →
+                          apply → measure, as components (has blueprint)
+  sidecar-approval-gate   machines propose via a sidecar; humans accept
+  learned-overlay         approved lessons layered over a fixed prompt
+  truth-chain             model verified vs itself, code, and production
+  feedback-pipeline       every user correction becomes a signal
+
+EXIT CODES
+  0  success
+  1  apply failed (pending sidecar, id collision, validation, doc-only)
+  2  argument error or unknown pattern
+
+EXAMPLES
+  archik patterns list
+  archik patterns show evolution-loop
+  archik patterns apply evolution-loop
+`,
 };

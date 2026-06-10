@@ -11,6 +11,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
 - **Actors first, one use case to ship.** When a user hands you a brief on a fresh project, the right opening move is *model the actors, then propose the first use case to ship* — never "let me sketch your whole system." Actors-first because you can't validate a use case without knowing who initiates it. Pick exactly one because forcing priorities into the open before any code lands is the entire point of the loop. "To ship" because the use case names its test paths from message one — slices start `status: proposed` (the tests don't exist on disk yet) and flip to `status: active` automatically when the tests land in BUILD. The project's commitments live in the YAML, not in the chat log.
+- **Read the learned overlay at session start.** If `.archik/evolution/learned.md` exists, read it (with the Read tool — it is docs, not an archik YAML) before your first archik action and treat every note as binding guidance. Each note is a lesson this project's evolution loop gathered from real usage and a human approved. After a suggestion of yours is rejected, run `npx archik evolution reflect` — repeated rejections become proposals the user can review.
 
 ## Command surfaces
 
@@ -32,6 +33,7 @@ These are the user's entry points. They're triggered by the user typing `/archik
 | `/archik:usecase <name>`          | Author a use case — flows + slices + tests (direct-write)         |
 | `/archik:trace`                   | Coverage matrix + concrete next action                            |
 | `/archik:alpha [show \| promote]` | Read or move project alphas with a machine-checked criteria       |
+| `/archik:self-evolving <idea>`    | Design a self-evolving architecture for the user's idea, using the pattern library |
 
 The full protocol for each lives at `commands/<name>.md` in the repo (or `.claude/commands/archik/<name>.md` once installed in a project). Follow it when invoked.
 
@@ -62,6 +64,10 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Detect drift vs source tree       | `npx archik drift`                            |
 | Open the live canvas (foreground) | `npx archik dev`                              |
 | Open the canvas (detached)        | `npx archik start` / `stop` / `status`        |
+| Evolution loop state              | `npx archik evolution status [--json]`        |
+| Turn usage history into proposals | `npx archik evolution reflect`                |
+| File a proposal yourself          | `npx archik evolution propose - <<'YAML' … YAML` |
+| Self-evolution pattern library    | `npx archik patterns list \| show <id> \| apply <id>` |
 | Per-command help                  | `npx archik <cmd> --help`                     |
 
 ## Hard rule: the CLI is the only interface to archik files

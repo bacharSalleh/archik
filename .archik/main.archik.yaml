@@ -30,17 +30,17 @@ nodes:
     name: render
     description: Headless ELK + React server-side render to a self-contained SVG file.
     parentId: cli
-    sourcePath: src/cli/commands/render.ts
     seqFiles:
       - .archik/archik-render.archik.seq.yaml
+    sourcePath: src/cli/commands/render.ts
   - id: cli-dev
     kind: function
     name: dev / start / stop / status
     description: Lifecycle of the canvas server. Single-instance per YAML enforced by the daemon lock.
     parentId: cli
-    sourcePath: src/cli/commands/dev.ts
     seqFiles:
       - .archik/archik-dev-startup.archik.seq.yaml
+    sourcePath: src/cli/commands/dev.ts
   - id: cli-skill
     kind: function
     name: skill
@@ -67,10 +67,10 @@ nodes:
     kind: module
     name: HTTP Handlers
     description: Single source of truth for every dev-surface endpoint — handleYaml, handleSidecar, handleAccept, handleDiffSvg, handleArchikFile, handleArchikAccept, handleListFiles. Atomic tmp+rename on every write so a partial write never truncates the source of truth. Mounted by both `archik dev` (node:http) and the Vite dogfood plugin so the suggest workflow behaves identically in published mode and in-repo `npm run dev`.
-    sourcePath: src/server/handlers.ts
-    stereotype: control
     seqFiles:
       - .archik/archik-suggest-accept.archik.seq.yaml
+    sourcePath: src/server/handlers.ts
+    stereotype: control
   - id: vite-plugin
     kind: adapter
     name: Vite Plugin
@@ -81,12 +81,16 @@ nodes:
     name: YAML Watcher
     description: chokidar tail of the canonical YAML, its sidecar, and the project's .archik/ folder. Pushes archik:doc-changed / archik:suggestion-changed events to all SSE subscribers; sub-file edits flow through too.
     stack: chokidar
+    seqFiles:
+      - .archik/archik-suggest-accept.archik.seq.yaml
     sourcePath: src/server/devServer.ts
   - id: canvas
     kind: page
     name: Canvas
     description: React app. Stateless projection of the YAML — every edit round-trips through PUT, so the file is always the truth. Holds a navigation stack (drill-down via a node's `archikFile`, breadcrumbs to walk back) and toggles an in-canvas diff overlay for pending suggestions instead of opening a separate tab.
     stack: React + Vite (build-time only)
+    seqFiles:
+      - .archik/archik-suggest-accept.archik.seq.yaml
     sourcePath: src/render/Canvas.tsx
     stereotype: boundary
   - id: inspector
@@ -164,6 +168,8 @@ nodes:
     kind: agent
     name: Claude Code
     description: AI editor. Reads the skill at session start, edits the YAML alongside code changes, runs `archik validate` after every save.
+    seqFiles:
+      - .archik/archik-suggest-accept.archik.seq.yaml
   - id: elk
     kind: external
     name: ELK
@@ -176,6 +182,48 @@ nodes:
     kind: external
     name: GitHub Actions
     description: Builds + publishes on every v*.*.* tag push. Configured as a Trusted Publisher on npmjs.com/package/archik.
+  - id: drift-detector
+    kind: module
+    name: Drift Detector
+    description: sourcePath/test-path gap detection plus edge drift — parses the TS/JS import graph under every node's sourcePath and reports shadow edges (imports with no declared edge) and phantom edges (declared edges with no import). Honors .driftignore.
+    sourcePath: src/drift
+  - id: evo-domain
+    kind: module
+    name: Evolution Domain
+    description: Pure core of the self-evolution loop — event schema + semantic derivation, reflection heuristics (events → insights), proposal schema + apply routing + status machine, and 7-day trend metrics. No I/O, fully unit-tested.
+    sourcePath: src/domain/evolution
+  - id: evo-store
+    kind: module
+    name: Evolution Store
+    description: Disk layout of the loop under .archik/evolution/ — config.yaml (opt-in flag), events.jsonl (append-only log, corrupt lines counted not fatal), learned.md (the Learned Overlay), proposals/*.yaml. Atomic tmp+rename writes.
+    sourcePath: src/io/evolution-log.ts
+  - id: observe-hook
+    kind: function
+    name: Observe Hook
+    description: Wraps every finished CLI run in the dispatcher and appends sanitized events (command name, flag names, outcome, duration — never values). Opt-in and fail-silent — observation can never break the command it observes.
+    parentId: cli
+    sourcePath: src/cli/observe.ts
+  - id: cli-evolution
+    kind: function
+    name: evolution
+    description: Control surface of the loop — status / enable / disable / reflect / proposals / propose / approve / reject / report. Approve routes skill-notes to the Learned Overlay and diagram changes to a suggestion sidecar; nothing applies silently.
+    parentId: cli
+    sourcePath: src/cli/commands/evolution.ts
+  - id: cli-patterns
+    kind: function
+    name: patterns
+    description: Self-evolution pattern library CLI — list / show / apply. Apply merges a blueprint into the diagram as status:proposed nodes, staged through the suggestion sidecar like any other change.
+    parentId: cli
+    sourcePath: src/cli/commands/patterns.ts
+  - id: patterns-lib
+    kind: module
+    name: Pattern Library
+    description: Five named self-evolution patterns shipped with the package — evolution-loop (with blueprint), sidecar-approval-gate, learned-overlay, truth-chain, feedback-pipeline. Each documents intent, structure, safety rules, and trade-offs.
+    sourcePath: patterns
+  - id: learned-overlay
+    kind: prompt
+    name: Learned Overlay
+    description: .archik/evolution/learned.md — approved lessons the loop gathered from real usage. Written only by `archik evolution approve`; read by the Claude skill at session start and exposed as the MCP resource archik://learned. Created at runtime, per project.
 edges:
   - id: bin-cli
     from: bin
@@ -307,3 +355,47 @@ edges:
     to: npm
     relationship: publishes
     label: OIDC, on tag
+  - id: observe-writes-store
+    from: observe-hook
+    to: evo-store
+    relationship: writes
+    label: events.jsonl
+  - id: observe-uses-domain
+    from: observe-hook
+    to: evo-domain
+    relationship: uses
+    label: deriveEvents
+  - id: evolution-uses-domain
+    from: cli-evolution
+    to: evo-domain
+    relationship: uses
+    label: reflect / metrics
+  - id: evolution-uses-store
+    from: cli-evolution
+    to: evo-store
+    relationship: uses
+    label: proposals + log
+  - id: evolution-writes-overlay
+    from: cli-evolution
+    to: learned-overlay
+    relationship: writes
+    label: on approve
+  - id: evolution-uses-schema
+    from: cli-evolution
+    to: schema
+    relationship: uses
+    label: validate before sidecar
+  - id: patterns-uses-lib
+    from: cli-patterns
+    to: patterns-lib
+    relationship: reads
+  - id: patterns-uses-schema
+    from: cli-patterns
+    to: schema
+    relationship: uses
+    label: validate blueprint merge
+  - id: claude-reads-overlay
+    from: claude-code
+    to: learned-overlay
+    relationship: reads
+    label: at session start
