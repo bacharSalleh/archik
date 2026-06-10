@@ -505,6 +505,42 @@ CLIENT CONFIGURATION (typical mcpServers entry)
   relative to the server's working directory.
 `,
 
+  otel: `archik otel — verify the diagram against production telemetry
+
+USAGE
+  archik otel check --graph <dependencies.json> [--json]
+
+FLAGS
+  --graph <file>     a service-dependency graph export: Jaeger's
+                     GET /api/dependencies JSON (raw array or
+                     {data: …} wrapper) — entries of
+                     {parent, child, callCount}
+  --json             structured output
+
+DESCRIPTION
+  Maps graph service names onto nodes (metadata.otelService wins,
+  node id is the fallback) and compares production reality with the
+  declared edges:
+
+    UNDECLARED CALL   runtime traffic between two nodes with no edge
+                      in the diagram. Fails the check (exit 1).
+    UNOBSERVED EDGE   a wire edge (http_call, grpc, websocket,
+                      webhook, invokes, routes_to) between two
+                      observed services saw no traffic — reported
+                      informationally; rare paths go quiet.
+    UNMAPPED SERVICE  a graph name no node claims — bind it with
+                      metadata.otelService rather than guessing.
+
+  This is the runtime end of the truth chain: validate proves the
+  model is internally consistent, drift --edges proves it matches
+  the code, otel check proves it matches production.
+
+EXAMPLES
+  curl -s http://jaeger:16686/api/dependencies?endTs=...&lookback=86400000 > deps.json
+  archik otel check --graph deps.json
+  archik otel check --graph deps.json --json    # CI / dashboards
+`,
+
   owners: `archik owners — keep CODEOWNERS in step with node owners
 
 USAGE

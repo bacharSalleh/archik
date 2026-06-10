@@ -25,6 +25,7 @@ import { mcpCommand } from "./commands/mcp.ts";
 import { importCommand } from "./commands/import.ts";
 import { hooksCommand } from "./commands/hooks.ts";
 import { ownersCommand } from "./commands/owners.ts";
+import { otelCommand } from "./commands/otel.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -101,6 +102,9 @@ COMMANDS
                     install          write the hook (--with-drift adds the drift gate,
                                      --force overwrites a foreign hook)
                     uninstall        remove the hook (only if archik installed it)
+  otel check        Verify the diagram against a production service graph
+                    --graph <file>   Jaeger /api/dependencies JSON export
+                    --json           structured output
   owners <sub>      Keep CODEOWNERS in step with node owners
                     sync             write/refresh the managed block
                     check            exit 1 when missing or stale (CI gate)
@@ -228,6 +232,8 @@ async function main(): Promise<number> {
       return hooksCommand(opts);
     case "owners":
       return ownersCommand(opts);
+    case "otel":
+      return otelCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":
