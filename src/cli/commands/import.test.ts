@@ -88,4 +88,44 @@ describe("importCommand", () => {
     const code = await importCommand({ _: ["terraform"] });
     expect(code).toBe(2);
   });
+
+  describe("mermaid", () => {
+    it("imports a flowchart file as valid archik YAML", async () => {
+      await writeFile(
+        path.join(cwd, "arch.mmd"),
+        [
+          "flowchart TD",
+          "  api[Orders API] -->|writes| db[(Postgres)]",
+          "  subgraph billing [Billing]",
+          "    charge",
+          "  end",
+          "  api --> charge",
+          "",
+        ].join("\n"),
+      );
+      const code = await importCommand({ _: ["mermaid", "arch.mmd"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const doc = YAML.parse(out);
+      expect(doc.nodes.map((n: { id: string }) => n.id).sort()).toEqual([
+        "api",
+        "billing",
+        "charge",
+        "db",
+      ]);
+      expect(doc.edges[0]).toMatchObject({ from: "api", to: "db", label: "writes" });
+    });
+
+    it("requires a file argument", async () => {
+      expect(await importCommand({ _: ["mermaid"] })).toBe(2);
+    });
+
+    it("fails with warnings on a non-flowchart file", async () => {
+      await writeFile(path.join(cwd, "seq.mmd"), "sequenceDiagram\n  A->>B: hi\n");
+      const code = await importCommand({ _: ["mermaid", "seq.mmd"] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toContain("flowchart");
+    });
+  });
 });

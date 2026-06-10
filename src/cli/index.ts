@@ -48,8 +48,9 @@ COMMANDS
                     --superpowers    wire superpowers skills into the loop
                     --no-superpowers keep the loop self-contained
                     --claude-md <m>  when CLAUDE.md exists: append | overwrite
-  import compose    Bootstrap an archik document from docker-compose
-                    [file]           compose file (default: docker-compose.yml)
+  import <sub>      Bootstrap an archik document from existing config
+                    compose [file]   docker-compose (default: docker-compose.yml)
+                    mermaid <file>   flowchart .mmd / fenced markdown block
                     --out <file>     write instead of printing to stdout
                     --force          overwrite an existing --out file
                     --name <n>       document name (default: directory name)

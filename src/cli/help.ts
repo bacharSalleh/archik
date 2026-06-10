@@ -429,10 +429,13 @@ NOTES
 
 USAGE
   archik import compose [file] [--out <file>] [--force] [--name <n>]
+  archik import mermaid <file> [--out <file>] [--force] [--name <n>]
 
 SUBCOMMANDS
   compose            import from docker-compose (default file:
                      docker-compose.yml / .yaml, compose.yml / .yaml)
+  mermaid            import a flowchart/graph diagram — a raw .mmd
+                     file or markdown containing a \`\`\`mermaid block
 
 FLAGS
   --out <file>       write the generated YAML (refuses to overwrite
@@ -441,13 +444,21 @@ FLAGS
   --name <n>         document name (default: current directory name)
 
 DESCRIPTION
-  Turns compose services into a first-pass diagram: well-known images
-  map to kinds (postgres → database, redis → cache, kafka → stream,
-  nginx → gateway, qdrant → vectordb, …); services with a build
-  context that exists on disk become \`service\` nodes with a
+  compose: turns services into a first-pass diagram — well-known
+  images map to kinds (postgres → database, redis → cache, kafka →
+  stream, nginx → gateway, qdrant → vectordb, …); services with a
+  build context that exists on disk become \`service\` nodes with a
   sourcePath; everything else imports as \`external\` until you
   reclassify it. depends_on (list or map form) becomes depends_on
-  edges. The output is schema-validated before it is emitted.
+  edges.
+
+  mermaid: parses the flowchart subset — node shapes map to kinds
+  ([(…)] cylinder → database, ((…)) circle → external, label
+  keywords for queue/cache/gateway), subgraphs become module parents,
+  arrows become depends_on edges with |labels| preserved. Unsupported
+  syntax is skipped with a warning, never a hard failure.
+
+  Output is schema-validated before it is emitted.
 
   Imported descriptions state their provenance — refining them into
   real responsibility statements is the natural next step (or hand
@@ -457,6 +468,7 @@ EXAMPLES
   archik import compose
   archik import compose --out .archik/main.archik.yaml
   archik import compose infra/docker-compose.yml --name "Shop"
+  archik import mermaid docs/architecture.mmd --out .archik/main.archik.yaml
 `,
 
   mcp: `archik mcp — Model Context Protocol server over stdio
