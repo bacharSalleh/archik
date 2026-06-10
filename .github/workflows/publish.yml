@@ -85,3 +85,15 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
+
+      # Keep the floating major tag (v1, v2, …) pointing at the latest
+      # release so `uses: bacharSalleh/archik@v1` resolves the way
+      # Marketplace consumers expect for the composite action shipped
+      # in action.yml. Standard GitHub Actions versioning convention.
+      - name: Update floating major tag
+        run: |
+          major="${GITHUB_REF_NAME%%.*}"   # v0.13.0 → v0
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa "$major" -m "Floating major tag for ${GITHUB_REF_NAME}" "${GITHUB_SHA}"
+          git push origin "$major" --force

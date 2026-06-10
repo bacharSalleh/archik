@@ -493,6 +493,28 @@ CLIENT CONFIGURATION (typical mcpServers entry)
   relative to the server's working directory.
 `,
 
+  hooks: `archik hooks — git pre-commit hook for model validation
+
+USAGE
+  archik hooks install [--with-drift] [--force]
+  archik hooks uninstall
+
+FLAGS
+  --with-drift       also run \`archik drift\` in the hook
+  --force            overwrite a pre-commit hook archik didn't write
+
+DESCRIPTION
+  Installs a pre-commit hook that runs \`archik validate\` before every
+  commit, so a broken model never reaches CI. Honours core.hooksPath
+  (husky-style setups) and refuses to clobber a hook it didn't write.
+  Uninstall removes the hook only when archik installed it.
+
+EXAMPLES
+  archik hooks install
+  archik hooks install --with-drift
+  archik hooks uninstall
+`,
+
   "merge-driver": `archik merge-driver — semantic three-way merge for archik YAML
 
 USAGE

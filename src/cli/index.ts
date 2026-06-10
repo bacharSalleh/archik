@@ -23,6 +23,7 @@ import { affectedCommand } from "./commands/affected.ts";
 import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { importCommand } from "./commands/import.ts";
+import { hooksCommand } from "./commands/hooks.ts";
 import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { parseOptions } from "./options.ts";
@@ -94,6 +95,10 @@ COMMANDS
                     reject           discard the sidecar
   merge-driver      Semantic three-way merge for archik YAML (git merge driver)
                     --install        wire git config + .gitattributes for this clone
+  hooks <sub>       Git pre-commit hook running archik validate
+                    install          write the hook (--with-drift adds the drift gate,
+                                     --force overwrites a foreign hook)
+                    uninstall        remove the hook (only if archik installed it)
   drift [path]      Detect when the diagram diverges from source code
                     --json           structured output for agents
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
@@ -209,6 +214,8 @@ async function main(): Promise<number> {
       return mcpCommand();
     case "import":
       return importCommand(opts);
+    case "hooks":
+      return hooksCommand(opts);
     case "alpha":
       return alphaCommand(opts);
     case "upgrade":
