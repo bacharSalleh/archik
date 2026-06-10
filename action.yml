@@ -1,0 +1,258 @@
+name: "archik"
+description: >-
+  Architecture-as-code gate: validate the archik model, detect drift
+  against the source tree, enforce trace coverage, and post the
+  architecture diff vs the base branch as a sticky PR comment.
+author: "Bashar"
+branding:
+  icon: "git-merge"
+  color: "purple"
+
+inputs:
+  working-directory:
+    description: "Directory containing the archik project (the parent of .archik/)."
+    default: "."
+  path:
+    description: "Explicit archik document path. Default: auto-resolve (.archik/main.archik.yaml or architecture.archik.yaml)."
+    default: ""
+  validate:
+    description: "Run `archik validate` (schema, cross-file refs, governance constraints)."
+    default: "true"
+  drift:
+    description: "Run `archik drift` (diagram vs source tree)."
+    default: "true"
+  trace-fail-on:
+    description: "Run `archik trace` and fail at this coverage level: partial | none. Empty = report only."
+    default: ""
+  compare-ref:
+    description: "Git ref to diff the architecture against. Default: the PR base branch (pull_request events only)."
+    default: ""
+  comment:
+    description: "Post/update a sticky PR comment with the report (pull_request events only)."
+    default: "true"
+  github-token:
+    description: "Token used to post the PR comment."
+    default: ${{ github.token }}
+  version:
+    description: "archik version to run via npx."
+    default: "latest"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run archik checks
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        ARCHIK_VERSION: ${{ inputs.version }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_VALIDATE: ${{ inputs.validate }}
+        INPUT_DRIFT: ${{ inputs.drift }}
+        INPUT_TRACE_FAIL_ON: ${{ inputs.trace-fail-on }}
+        INPUT_COMPARE_REF: ${{ inputs.compare-ref }}
+      run: |
+        set -uo pipefail
+        report="$RUNNER_TEMP/archik-report"
+        mkdir -p "$report"
+        : > "$report/failures"
+
+        archik() {
+          npx -y "archik@${ARCHIK_VERSION}" "$@"
+        }
+        doc_args=()
+        [ -n "$INPUT_PATH" ] && doc_args=("$INPUT_PATH")
+
+        if [ "$INPUT_VALIDATE" = "true" ]; then
+          if archik validate "${doc_args[@]}" --json \
+              > "$report/validate.json" 2> "$report/validate.err"; then
+            echo "validate: ok"
+          else
+            # validate emits its JSON error shape on stdout in --json
+            # mode; stderr only carries pre-parse failures.
+            cat "$report/validate.err" >&2 || true
+            echo "validate" >> "$report/failures"
+          fi
+        fi
+
+        if [ "$INPUT_DRIFT" = "true" ]; then
+          if archik drift "${doc_args[@]}" --json \
+              > "$report/drift.json" 2> "$report/drift.err"; then
+            echo "drift: clean"
+          else
+            cat "$report/drift.err" >&2 || true
+            echo "drift" >> "$report/failures"
+          fi
+        fi
+
+        trace_args=()
+        [ -n "$INPUT_TRACE_FAIL_ON" ] && trace_args=(--fail-on "$INPUT_TRACE_FAIL_ON")
+        if archik trace "${trace_args[@]}" --json \
+            > "$report/trace.json" 2> "$report/trace.err"; then
+          echo "trace: ok"
+        else
+          cat "$report/trace.err" >&2 || true
+          echo "trace" >> "$report/failures"
+        fi
+
+        # Architecture diff vs the base branch — report-only; a branch
+        # that predates archik (no doc at the base) must not fail CI.
+        base_ref="$INPUT_COMPARE_REF"
+        if [ -z "$base_ref" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+          base_ref="$GITHUB_BASE_REF"
+        fi
+        if [ -n "$base_ref" ]; then
+          echo "$base_ref" > "$report/base-ref"
+          git fetch --no-tags --depth=50 origin "$base_ref" 2>/dev/null || true
+          if archik diff "origin/$base_ref" --json \
+              > "$report/diff.json" 2> "$report/diff.err"; then
+            echo "diff vs origin/$base_ref: ok"
+          else
+            echo "diff vs origin/$base_ref: skipped ($(head -c 200 "$report/diff.err" 2>/dev/null || true))"
+            rm -f "$report/diff.json"
+          fi
+        fi
+
+    - name: Build report, write job summary, post PR comment
+      uses: actions/github-script@v7
+      env:
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_TRACE_FAIL_ON: ${{ inputs.trace-fail-on }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require("fs");
+          const path = require("path");
+          const report = path.join(process.env.RUNNER_TEMP, "archik-report");
+          const read = (name) => {
+            try {
+              return JSON.parse(fs.readFileSync(path.join(report, name), "utf8"));
+            } catch {
+              return undefined;
+            }
+          };
+          const readText = (name) => {
+            try {
+              return fs.readFileSync(path.join(report, name), "utf8").trim();
+            } catch {
+              return "";
+            }
+          };
+
+          const failures = readText("failures").split("\n").filter(Boolean);
+          const validate = read("validate.json");
+          const drift = read("drift.json");
+          const trace = read("trace.json");
+          const diff = read("diff.json");
+          const baseRef = readText("base-ref");
+
+          const lines = ["<!-- archik-report -->", "## archik report", ""];
+
+          if (validate !== undefined) {
+            if (validate.ok) {
+              lines.push(`✅ **validate** — ${validate.nodes} nodes, ${validate.edges} edges` +
+                (validate.useCases ? `, ${validate.useCases} use cases` : ""));
+            } else {
+              lines.push(`❌ **validate** failed:`);
+              for (const e of (validate.errors ?? []).slice(0, 20)) {
+                lines.push(`- \`${e.path}\`: ${e.message.split("\n")[0]}`);
+              }
+            }
+            lines.push("");
+          }
+
+          if (drift !== undefined) {
+            const total = drift.summary?.total ?? 0;
+            if (total === 0) {
+              lines.push("✅ **drift** — diagram matches the source tree");
+            } else {
+              lines.push(`❌ **drift** — ${total} issue(s):`);
+              for (const o of (drift.orphan ?? []).slice(0, 10)) {
+                lines.push(`- orphan node \`${o.id}\` — sourcePath \`${o.sourcePath}\` not found`);
+              }
+              for (const u of (drift.unmapped ?? []).slice(0, 10)) {
+                lines.push(`- unmapped code: \`${u.path}\``);
+              }
+              for (const m of (drift.missingTests ?? []).slice(0, 10)) {
+                lines.push(`- missing test \`${m.testPath}\` (slice \`${m.ucId}/${m.sliceId}\`)`);
+              }
+            }
+            lines.push("");
+          }
+
+          if (trace !== undefined && trace.summary !== undefined) {
+            const s = trace.summary;
+            const gate = process.env.INPUT_TRACE_FAIL_ON;
+            const failed = failures.includes("trace");
+            const badge = failed ? "❌" : "✅";
+            lines.push(`${badge} **trace** — ${s.slices} slices across ${s.useCases} use cases: ` +
+              `${s.fullyTraced} full, ${s.partial} partial, ${s.untraced} untraced` +
+              (gate ? ` (gate: fail on ${gate})` : " (report only)"));
+            lines.push("");
+          }
+
+          if (diff !== undefined && diff.ok) {
+            const t = diff.totals ?? { added: 0, removed: 0, changed: 0 };
+            const changed = t.added + t.removed + t.changed;
+            lines.push(`### Architecture diff vs \`${baseRef}\``);
+            if (changed === 0) {
+              lines.push("No architectural changes.");
+            } else {
+              lines.push(`**${t.added} added, ${t.removed} removed, ${t.changed} changed**`, "");
+              for (const n of (diff.nodes?.added ?? [])) {
+                lines.push(`- ➕ node \`${n.id}\` (${n.kind})${n.name ? ` — ${n.name}` : ""}`);
+              }
+              for (const e of (diff.edges?.added ?? [])) {
+                lines.push(`- ➕ edge \`${e.from} → ${e.to}\` (${e.relationship})`);
+              }
+              for (const n of (diff.nodes?.removed ?? [])) {
+                lines.push(`- ➖ node \`${n.id}\` (${n.kind})`);
+              }
+              for (const e of (diff.edges?.removed ?? [])) {
+                lines.push(`- ➖ edge \`${e.from} → ${e.to}\` (${e.relationship})`);
+              }
+              for (const c of (diff.nodes?.changed ?? [])) {
+                const fields = (c.changes ?? []).map((ch) => ch.field).join(", ");
+                lines.push(`- ✏️ node \`${c.node.id}\` (${fields})`);
+              }
+              for (const c of (diff.edges?.changed ?? [])) {
+                const fields = (c.changes ?? []).map((ch) => ch.field).join(", ");
+                lines.push(`- ✏️ edge \`${c.edge.id}\` (${fields})`);
+              }
+            }
+            lines.push("");
+          }
+
+          const body = lines.join("\n");
+          await core.summary.addRaw(body).write();
+
+          const isPr = context.eventName === "pull_request" &&
+            context.payload.pull_request !== undefined;
+          if (process.env.INPUT_COMMENT === "true" && isPr) {
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = "<!-- archik-report -->";
+            const existing = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const mine = existing.find((c) => c.body && c.body.includes(marker));
+            if (mine !== undefined) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: mine.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+            }
+          }
+
+    - name: Gate
+      shell: bash
+      run: |
+        failures="$RUNNER_TEMP/archik-report/failures"
+        if [ -s "$failures" ]; then
+          echo "archik checks failed: $(tr '\n' ' ' < "$failures")" >&2
+          exit 1
+        fi
+        echo "archik checks passed"
