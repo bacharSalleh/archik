@@ -111,6 +111,8 @@ COMMANDS
                                      use case slices, tests to run, stale seq diagrams
                     --since <ref>    git ref to diff against (default: HEAD)
                     --files <list>   comma-separated file list (skips git)
+                    --run            execute the affected tests (runner auto-detected)
+                    --runner <cmd>   override the test runner command
                     --json           structured output for agents
   trace             Use case x slice x test x seq x node coverage matrix
                     --use-case <id>  filter to one use case

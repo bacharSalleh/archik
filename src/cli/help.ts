@@ -619,10 +619,14 @@ EXAMPLES
 
 USAGE
   archik affected [--since <ref>] [--files <list>] [--json]
+  archik affected --run [--runner '<cmd>']
 
 FLAGS
   --since <ref>      git ref to diff the working tree against (default: HEAD)
   --files <list>     comma-separated file list — skips git entirely
+  --run              execute the affected tests with the project's runner
+  --runner <cmd>     override runner detection (e.g. 'npx vitest run');
+                     files are appended to the command
   --json             structured output for agents / CI
 
 DESCRIPTION
@@ -645,11 +649,19 @@ EXIT CODES
   1  git error / root file failed to load
   2  argument error
 
+RUNNING THE TESTS
+  --run executes the union of affected test files with the project's
+  test runner — vitest, @playwright/test, jest, or mocha, detected
+  from package.json (first match wins); --runner overrides. Runner
+  output streams through; its exit code becomes archik's. "Run what
+  my change touches" as a pre-push hook or CI step.
+
 EXAMPLES
   archik affected                       # working tree vs HEAD
   archik affected --since main          # everything this branch touches
   archik affected --since origin/main --json
   archik affected --files src/api/routes.ts,src/worker/run.ts
+  archik affected --since main --run    # …and run the covering tests
 `,
 
   trace: `archik trace — use case x slice x test x seq x node coverage matrix
