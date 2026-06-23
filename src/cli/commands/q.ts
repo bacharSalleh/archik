@@ -319,6 +319,7 @@ async function qNeighbors(opts: ParsedOptions): Promise<number> {
   const depthRaw = getString(opts, "depth");
   const depth = depthRaw !== undefined ? Math.max(0, Number.parseInt(depthRaw, 10) || 0) : 1;
   const { nodes, edges } = subgraph(load.docs, id, depth);
+  const others = nodes.filter((nn) => nn.node.id !== id);
 
   if (isJson(opts)) {
     printJson({
@@ -328,10 +329,8 @@ async function qNeighbors(opts: ParsedOptions): Promise<number> {
       nodes: nodes.map((nn) => ({ node: nn.node, file: nn.relPath })),
       edges: edges.map((ee) => ({ edge: ee.edge, file: ee.relPath })),
     });
-    return nodes.length <= 1 ? 1 : 0;
+    return others.length === 0 ? 1 : 0;
   }
-
-  const others = nodes.filter((nn) => nn.node.id !== id);
   console.log(`${bold(id)}  ${dim(`depth ${depth}`)}`);
   console.log(`${bold("neighbors")} (${others.length})${others.length === 0 ? "  " + dim("none") : ""}`);
   for (const nn of others) console.log(`  ${fmtNodeRow(nn)}`);
