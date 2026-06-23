@@ -17,6 +17,7 @@ import {
   listNodes,
   stats,
 } from "../../domain/query.ts";
+import { subgraph } from "../../domain/focus.ts";
 import type {
   EdgeFilters,
   FoundEdge,
@@ -93,6 +94,8 @@ SUBCOMMANDS
   describe <id>            Node + its incoming and outgoing edges
   deps <id>                Outgoing edges (what this node uses)
   dependents <id>          Incoming edges (what uses this node)
+  neighbors <id>           Node + everything within --depth hops (default 1)
+                  --depth <n>     hop radius (default 1)
   list                     All nodes
                   --kind <k>      filter by kind (service, function, …)
                   --parent <id>   filter by container
@@ -297,6 +300,44 @@ async function qDependents(opts: ParsedOptions): Promise<number> {
   }
   for (const e of result) console.log(fmtEdge(e));
   return exit;
+}
+
+async function qNeighbors(opts: ParsedOptions): Promise<number> {
+  const id = opts._[1];
+  if (!id) {
+    console.error(`${cross()} usage: archik q neighbors <id> [--depth N]`);
+    return 2;
+  }
+  const load = await loadAll(opts);
+  if (!load.ok) return load.exit;
+  const found = findNode(load.docs, id);
+  if (!found.ok) {
+    if (isJson(opts)) printJson({ ok: false, error: found.error });
+    else console.error(`${cross()} ${found.error}`);
+    return 1;
+  }
+  const depthRaw = getString(opts, "depth");
+  const depth = depthRaw !== undefined ? Math.max(0, Number.parseInt(depthRaw, 10) || 0) : 1;
+  const { nodes, edges } = subgraph(load.docs, id, depth);
+
+  if (isJson(opts)) {
+    printJson({
+      ok: true,
+      id,
+      depth,
+      nodes: nodes.map((nn) => ({ node: nn.node, file: nn.relPath })),
+      edges: edges.map((ee) => ({ edge: ee.edge, file: ee.relPath })),
+    });
+    return nodes.length <= 1 ? 1 : 0;
+  }
+
+  const others = nodes.filter((nn) => nn.node.id !== id);
+  console.log(`${bold(id)}  ${dim(`depth ${depth}`)}`);
+  console.log(`${bold("neighbors")} (${others.length})${others.length === 0 ? "  " + dim("none") : ""}`);
+  for (const nn of others) console.log(`  ${fmtNodeRow(nn)}`);
+  console.log(`${bold("edges")} (${edges.length})`);
+  for (const ee of edges) console.log(`  ${fmtEdge(ee)}`);
+  return others.length === 0 ? 1 : 0;
 }
 
 async function qList(opts: ParsedOptions): Promise<number> {
@@ -671,6 +712,8 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
       return qDeps(opts);
     case "dependents":
       return qDependents(opts);
+    case "neighbors":
+      return qNeighbors(opts);
     case "list":
       return qList(opts);
     case "edges":
