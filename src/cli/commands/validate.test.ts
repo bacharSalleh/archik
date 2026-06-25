@@ -571,6 +571,74 @@ describe("validateCommand cross-file existence", () => {
     });
   });
 
+  describe("advisory complexity hint", () => {
+    // Build a valid doc with 40 external nodes — external is exempt from
+    // sourcePath, so no on-disk dirs needed. 40 > DEFAULT_LIMITS.maxNodes (15)
+    // so it triggers a file-nodes finding, but the doc is still schema-valid.
+    const largeValidBody = (): string => {
+      const lines: string[] = ['version: "1.0"', "name: LargeDemo", "nodes:"];
+      for (let i = 1; i <= 40; i++) {
+        lines.push(`  - id: node${i}`);
+        lines.push(`    kind: external`);
+        lines.push(`    name: Node ${i}`);
+        lines.push(`    description: External service number ${i}.`);
+      }
+      lines.push("edges: []");
+      lines.push("");
+      return lines.join("\n");
+    };
+
+    it("prints an advisory complexity hint but still exits 0", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        largeValidBody(),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("complexity hint");
+    });
+
+    it("includes complexityHints count in --json and exits 0", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        largeValidBody(),
+      );
+      const code = await validateCommand({ _: [], json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      expect(typeof parsed.complexityHints).toBe("number");
+      expect(parsed.complexityHints).toBeGreaterThan(0);
+    });
+
+    it("omits the hint line for a small valid doc", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).not.toContain("complexity hint");
+    });
+
+    it("omits complexityHints or emits 0 for small doc in --json", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        validBody(),
+      );
+      const code = await validateCommand({ _: [], json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      // complexityHints field must exist (always present after impl) and be 0
+      expect(parsed.complexityHints).toBe(0);
+    });
+  });
+
   describe("governance constraints", () => {
     it("exits 1 when a forbidEdge constraint is violated", async () => {
       await writeFile(
