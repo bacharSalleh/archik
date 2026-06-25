@@ -4,6 +4,7 @@ import {
   collapseContainers,
   neighborIds,
   projectCanvasView,
+  shouldClearFocus,
   subgraphDoc,
 } from "./focus.ts";
 import type { Document, Node, Edge } from "./types.ts";
@@ -64,6 +65,19 @@ describe("subgraphDoc", () => {
     const sub = subgraphDoc(doc, "p", 1);
     const child = sub.nodes.find((x) => x.id === "child")!;
     expect(child.parentId).toBe("p");
+  });
+});
+
+describe("shouldClearFocus", () => {
+  const doc = d([n("a"), n("b")], []);
+  it("is false when nothing is focused", () => {
+    expect(shouldClearFocus(null, doc)).toBe(false);
+  });
+  it("is false when the focused node is present in the doc", () => {
+    expect(shouldClearFocus({ id: "a" }, doc)).toBe(false);
+  });
+  it("is true when the focused node is absent (deleted / different file)", () => {
+    expect(shouldClearFocus({ id: "gone" }, doc)).toBe(true);
   });
 });
 
