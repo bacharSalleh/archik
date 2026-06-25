@@ -745,6 +745,113 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q neighbors subcommand", () => {
+    // Fixture: a -> b -> c  (chain of 3 nodes)
+    // depth-1 from "a" => {a, b}  (one hop outward)
+    // depth-2 from "a" => {a, b, c}  (two hops outward)
+    const neighborsDoc = (): string =>
+      [
+        'version: "1.0"',
+        "name: NeighborTest",
+        "nodes:",
+        "  - id: a",
+        "    kind: external",
+        "    name: A",
+        "    description: start node",
+        "  - id: b",
+        "    kind: external",
+        "    name: B",
+        "    description: middle node",
+        "  - id: c",
+        "    kind: external",
+        "    name: C",
+        "    description: end node",
+        "edges:",
+        "  - id: a-b",
+        "    from: a",
+        "    to: b",
+        "    relationship: http_call",
+        "  - id: b-c",
+        "    from: b",
+        "    to: c",
+        "    relationship: http_call",
+        "",
+      ].join("\n");
+
+    beforeEach(async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        neighborsDoc(),
+      );
+    });
+
+    it("q neighbors returns the node and its depth-1 neighbors (JSON)", async () => {
+      const code = await qCommand({ _: ["neighbors", "a"], json: "true" });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.depth).toBe(1);
+      expect(new Set(parsed.nodes.map((x: { node: { id: string } }) => x.node.id))).toEqual(
+        new Set(["a", "b"]),
+      );
+    });
+
+    it("q neighbors --depth 2 reaches two hops (JSON)", async () => {
+      const code = await qCommand({
+        _: ["neighbors", "a"],
+        depth: "2",
+        json: "true",
+      });
+      expect(code).toBe(0);
+      const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(stdout);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.depth).toBe(2);
+      expect(new Set(parsed.nodes.map((x: { node: { id: string } }) => x.node.id))).toEqual(
+        new Set(["a", "b", "c"]),
+      );
+    });
+
+    it("q neighbors exits 1 for an unknown id", async () => {
+      const code = await qCommand({ _: ["neighbors", "nope"] });
+      expect(code).toBe(1);
+    });
+
+    it("q neighbors exits 1 when node has no neighbors (depth-0 only)", async () => {
+      // a lone node with no edges returns exit 1 in human mode
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Lone",
+          "nodes:",
+          "  - id: lone",
+          "    kind: external",
+          "    name: Lone",
+          "    description: isolated",
+          "edges: []",
+          "",
+        ].join("\n"),
+      );
+      const code = await qCommand({ _: ["neighbors", "lone"] });
+      expect(code).toBe(1);
+    });
+
+    it("q neighbors human mode prints the center node id", async () => {
+      const code = await qCommand({ _: ["neighbors", "a"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("a");
+      expect(out).toContain("b");
+    });
+
+    it("q neighbors exits 2 with no id arg", async () => {
+      const code = await qCommand({ _: ["neighbors"] });
+      expect(code).toBe(2);
+    });
+  });
+
   describe("root file failures are fatal", () => {
     it("returns exit 2 when the root file fails to parse, even if sub-files are fine", async () => {
       await writeFile(

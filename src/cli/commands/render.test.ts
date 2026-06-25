@@ -108,6 +108,175 @@ describe("renderCommand", () => {
     expect(err).toMatch(/--theme/);
   });
 
+  describe("view filters", () => {
+    it("--focus renders only the neighborhood (node count drops)", async () => {
+      // fixture: nodes a (focus), b (connected to a), z (no path to a)
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Focus Test",
+          "nodes:",
+          "  - id: a",
+          "    kind: external",
+          "    name: A Node",
+          "    description: focus target",
+          "  - id: b",
+          "    kind: external",
+          "    name: B Node",
+          "    description: neighbor of a",
+          "  - id: z",
+          "    kind: external",
+          "    name: Z Node",
+          "    description: isolated node with no path to a",
+          "edges:",
+          "  - id: e-a-b",
+          "    from: a",
+          "    to: b",
+          "    relationship: http_call",
+          "",
+        ].join("\n"),
+      );
+      const out = path.join(cwd, "focus.svg");
+      const code = await renderCommand({ _: [], focus: "a", out });
+      expect(code).toBe(0);
+      const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      // focus depth=1 keeps a and b (2 nodes), not z
+      expect(logged).toMatch(/2 nodes/);
+      expect(logged).not.toMatch(/3 nodes/);
+    });
+
+    it("--hide-structural drops structural edges from the summary", async () => {
+      // fixture: one runtime edge (http_call) + one structural edge (uses)
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Edge Filter Test",
+          "nodes:",
+          "  - id: svc",
+          "    kind: external",
+          "    name: Service",
+          "    description: the main service",
+          "  - id: db",
+          "    kind: external",
+          "    name: Database",
+          "    description: the database",
+          "  - id: lib",
+          "    kind: external",
+          "    name: Library",
+          "    description: a library",
+          "edges:",
+          "  - id: e-svc-db",
+          "    from: svc",
+          "    to: db",
+          "    relationship: http_call",
+          "  - id: e-svc-lib",
+          "    from: svc",
+          "    to: lib",
+          "    relationship: uses",
+          "",
+        ].join("\n"),
+      );
+      const out = path.join(cwd, "hide.svg");
+      const code = await renderCommand({ _: [], "hide-structural": "true", out });
+      expect(code).toBe(0);
+      const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      // 2 edges total; structural (uses) removed => 1 edge remains
+      expect(logged).toMatch(/1 edges/);
+      expect(logged).not.toMatch(/2 edges/);
+    });
+
+    it("--only-rel keeps only matching edges", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Only Rel Test",
+          "nodes:",
+          "  - id: x",
+          "    kind: external",
+          "    name: X",
+          "    description: node x",
+          "  - id: y",
+          "    kind: external",
+          "    name: Y",
+          "    description: node y",
+          "  - id: w",
+          "    kind: external",
+          "    name: W",
+          "    description: node w",
+          "edges:",
+          "  - id: e-x-y",
+          "    from: x",
+          "    to: y",
+          "    relationship: http_call",
+          "  - id: e-x-w",
+          "    from: x",
+          "    to: w",
+          "    relationship: grpc",
+          "",
+        ].join("\n"),
+      );
+      const out = path.join(cwd, "onlyrel.svg");
+      const code = await renderCommand({ _: [], "only-rel": "http_call", out });
+      expect(code).toBe(0);
+      const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      // only http_call edge kept => 1 edge
+      expect(logged).toMatch(/1 edges/);
+    });
+
+    it("--focus and --hide-structural compose", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        [
+          'version: "1.0"',
+          "name: Compose Test",
+          "nodes:",
+          "  - id: center",
+          "    kind: external",
+          "    name: Center",
+          "    description: focus node",
+          "  - id: peer",
+          "    kind: external",
+          "    name: Peer",
+          "    description: connected peer",
+          "  - id: dep",
+          "    kind: external",
+          "    name: Dep",
+          "    description: structural dep",
+          "  - id: far",
+          "    kind: external",
+          "    name: Far",
+          "    description: unreachable node",
+          "edges:",
+          "  - id: e-center-peer",
+          "    from: center",
+          "    to: peer",
+          "    relationship: http_call",
+          "  - id: e-center-dep",
+          "    from: center",
+          "    to: dep",
+          "    relationship: uses",
+          "",
+        ].join("\n"),
+      );
+      const out = path.join(cwd, "compose.svg");
+      const code = await renderCommand({
+        _: [],
+        focus: "center",
+        "hide-structural": "true",
+        out,
+      });
+      expect(code).toBe(0);
+      const logged = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      // focus keeps center+peer+dep (3 nodes), hide-structural removes uses => 1 edge
+      // far is excluded by focus
+      expect(logged).toMatch(/3 nodes/);
+      expect(logged).toMatch(/1 edges/);
+    });
+  });
+
   describe("--seq flag", () => {
     const minimalSeqDoc = (): string =>
       [

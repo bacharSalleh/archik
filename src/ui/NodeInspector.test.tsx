@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
 import { NodeInspector } from "./NodeInspector.tsx";
+import { useUIStore } from "./store.ts";
 import type { Node } from "../domain/types.ts";
 
 const apiNode: Node = {
@@ -12,6 +13,10 @@ const apiNode: Node = {
 };
 
 describe("NodeInspector", () => {
+  beforeEach(() => {
+    // Reset view state so collapse tests start clean.
+    useUIStore.setState({ collapsed: new Set<string>(), focus: null });
+  });
   it("shows an empty state when no node is selected", () => {
     render(<NodeInspector node={undefined} dispatch={vi.fn()} />);
     expect(screen.getByText(/select a node/i)).toBeInTheDocument();
@@ -321,5 +326,92 @@ describe("NodeInspector", () => {
     };
     render(<NodeInspector node={node} dispatch={() => {}} />);
     expect(screen.queryByText("Sequence Diagrams")).toBeNull();
+  });
+
+  describe("collapse toggle", () => {
+    const containerNode: Node = {
+      id: "platform",
+      kind: "custom",
+      name: "Platform",
+      description: "Container node",
+    };
+    const childNode: Node = {
+      id: "api",
+      kind: "service",
+      name: "Orders API",
+      description: "Child",
+      parentId: "platform",
+    };
+    const leafNode: Node = {
+      id: "leaf",
+      kind: "service",
+      name: "Leaf Service",
+      description: "No children",
+    };
+
+    it("shows Collapse children button for a container node", () => {
+      render(
+        <NodeInspector
+          node={containerNode}
+          dispatch={vi.fn()}
+          allNodes={[containerNode, childNode]}
+        />,
+      );
+      expect(
+        screen.getByRole("button", { name: /collapse children/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("does not show collapse toggle for a leaf node", () => {
+      render(
+        <NodeInspector
+          node={leafNode}
+          dispatch={vi.fn()}
+          allNodes={[containerNode, childNode, leafNode]}
+        />,
+      );
+      expect(
+        screen.queryByRole("button", { name: /collapse children|expand children/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("calls toggleCollapse when Collapse children is clicked", () => {
+      render(
+        <NodeInspector
+          node={containerNode}
+          dispatch={vi.fn()}
+          allNodes={[containerNode, childNode]}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: /collapse children/i }));
+      expect(useUIStore.getState().collapsed.has("platform")).toBe(true);
+    });
+
+    it("shows Expand children when the node is already collapsed", () => {
+      useUIStore.setState({ collapsed: new Set(["platform"]) });
+      render(
+        <NodeInspector
+          node={containerNode}
+          dispatch={vi.fn()}
+          allNodes={[containerNode, childNode]}
+        />,
+      );
+      expect(
+        screen.getByRole("button", { name: /expand children/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("calls toggleCollapse (expand) when Expand children is clicked", () => {
+      useUIStore.setState({ collapsed: new Set(["platform"]) });
+      render(
+        <NodeInspector
+          node={containerNode}
+          dispatch={vi.fn()}
+          allNodes={[containerNode, childNode]}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: /expand children/i }));
+      expect(useUIStore.getState().collapsed.has("platform")).toBe(false);
+    });
   });
 });

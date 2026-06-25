@@ -1,6 +1,40 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useUIStore, focusedSelection } from "./store.ts";
 
+// --- canvas view state ---
+
+beforeEach(() => {
+  useUIStore.setState({ collapsed: new Set(), hideStructural: false, focus: null });
+});
+
+it("toggleCollapse adds then removes a container id", () => {
+  useUIStore.getState().toggleCollapse("p");
+  expect(useUIStore.getState().collapsed.has("p")).toBe(true);
+  useUIStore.getState().toggleCollapse("p");
+  expect(useUIStore.getState().collapsed.has("p")).toBe(false);
+});
+
+it("collapseAll / expandAll set and clear the set", () => {
+  useUIStore.getState().collapseAll(["p", "q"]);
+  expect(useUIStore.getState().collapsed.size).toBe(2);
+  useUIStore.getState().expandAll();
+  expect(useUIStore.getState().collapsed.size).toBe(0);
+});
+
+it("setFocus / setFocusDepth / clearFocus manage focus", () => {
+  useUIStore.getState().setFocus("a", 1);
+  expect(useUIStore.getState().focus).toEqual({ id: "a", depth: 1 });
+  useUIStore.getState().setFocusDepth(2);
+  expect(useUIStore.getState().focus).toEqual({ id: "a", depth: 2 });
+  useUIStore.getState().clearFocus();
+  expect(useUIStore.getState().focus).toBeNull();
+});
+
+it("setHideStructural toggles the flag", () => {
+  useUIStore.getState().setHideStructural(true);
+  expect(useUIStore.getState().hideStructural).toBe(true);
+});
+
 describe("useUIStore (selection)", () => {
   beforeEach(() => {
     useUIStore.getState().clearSelection();

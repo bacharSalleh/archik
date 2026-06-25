@@ -26,3 +26,35 @@ export const RELATIONSHIPS = [
 
 export const RelationshipSchema = z.enum(RELATIONSHIPS);
 export type Relationship = z.infer<typeof RelationshipSchema>;
+
+/**
+ * Coarse category for each relationship. `runtime` = something that
+ * happens when the system runs (calls, reads/writes, messaging).
+ * `structural` = static / lightweight coupling. The canvas "hide weak
+ * edges" toggle and `render --hide-structural` drop the structural set;
+ * complexity reporting uses it informationally.
+ */
+export type RelationshipCategory = "runtime" | "structural";
+
+export const RELATIONSHIP_CATEGORY: Record<Relationship, RelationshipCategory> = {
+  http_call: "runtime",
+  grpc: "runtime",
+  invokes: "runtime",
+  routes_to: "runtime",
+  websocket: "runtime",
+  webhook: "runtime",
+  reads: "runtime",
+  writes: "runtime",
+  publishes: "runtime",
+  subscribes: "runtime",
+  streams_to: "runtime",
+  implements: "structural",
+  extends: "structural",
+  depends_on: "structural",
+  has_a: "structural",
+  uses: "structural",
+};
+
+export function relationshipCategory(rel: Relationship): RelationshipCategory {
+  return RELATIONSHIP_CATEGORY[rel];
+}

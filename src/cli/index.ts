@@ -30,6 +30,7 @@ import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { evolutionCommand } from "./commands/evolution.ts";
 import { patternsCommand } from "./commands/patterns.ts";
+import { complexityCommand } from "./commands/complexity.ts";
 import { parseOptions, type ParsedOptions } from "./options.ts";
 import { pkgVersion } from "./paths.ts";
 import { UNOBSERVED, flagNames, recordRun } from "./observe.ts";
@@ -279,6 +280,8 @@ async function dispatch(
       return evolutionCommand(opts);
     case "patterns":
       return patternsCommand(opts);
+    case "complexity":
+      return complexityCommand(opts);
     case "upgrade":
       return upgradeCommand(opts);
     case "--version":

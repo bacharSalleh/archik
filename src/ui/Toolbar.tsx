@@ -1,4 +1,14 @@
-import { GitBranch, LayoutGrid, Redo2, Rows3, Stamp, Undo2 } from "lucide-react";
+import {
+  EyeOff,
+  GitBranch,
+  LayoutGrid,
+  Maximize2,
+  Minimize2,
+  Redo2,
+  Rows3,
+  Stamp,
+  Undo2,
+} from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
@@ -47,6 +57,18 @@ type Props = {
   seqHighlight?: boolean;
   onToggleSeqHighlight?: () => void;
   seqNodeCount?: number;
+  /** Canvas view: hide structural (weak) edges. When the toggle handler
+   *  is undefined the button is hidden. */
+  hideStructural?: boolean;
+  onToggleHideStructural?: () => void;
+  /** Collapse / expand every container node on the canvas (view-only). */
+  onCollapseAll?: () => void;
+  onExpandAll?: () => void;
+  /** Focus depth stepper — only rendered while focus mode is active
+   *  (focusDepth + its handlers all provided). */
+  focusDepth?: number;
+  onFocusDepthChange?: (depth: number) => void;
+  onClearFocus?: () => void;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -89,6 +111,13 @@ export function Toolbar({
   seqHighlight,
   onToggleSeqHighlight,
   seqNodeCount,
+  hideStructural,
+  onToggleHideStructural,
+  onCollapseAll,
+  onExpandAll,
+  focusDepth,
+  onFocusDepthChange,
+  onClearFocus,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
@@ -246,6 +275,89 @@ export function Toolbar({
             >
               <Stamp size={14} strokeWidth={1.8} />
             </button>
+          )}
+        {onToggleHideStructural !== undefined && (
+          <button
+            type="button"
+            onClick={onToggleHideStructural}
+            title={
+              hideStructural
+                ? "Show weak edges"
+                : "Hide weak edges (uses / depends_on / has_a / implements / extends)"
+            }
+            aria-label="Hide weak edges"
+            aria-pressed={hideStructural}
+            className="archik-btn"
+            style={{
+              padding: "5px 8px",
+              ...(hideStructural
+                ? {
+                    background: "var(--archik-accent)",
+                    borderColor: "var(--archik-accent)",
+                    color: "white",
+                  }
+                : {}),
+            }}
+          >
+            <EyeOff size={14} strokeWidth={1.8} />
+          </button>
+        )}
+        {onCollapseAll !== undefined && (
+          <button
+            type="button"
+            onClick={onCollapseAll}
+            title="Collapse all containers"
+            aria-label="Collapse all"
+            className="archik-btn"
+            style={{ padding: "5px 8px" }}
+          >
+            <Minimize2 size={14} strokeWidth={1.8} />
+          </button>
+        )}
+        {onExpandAll !== undefined && (
+          <button
+            type="button"
+            onClick={onExpandAll}
+            title="Expand all containers"
+            aria-label="Expand all"
+            className="archik-btn"
+            style={{ padding: "5px 8px" }}
+          >
+            <Maximize2 size={14} strokeWidth={1.8} />
+          </button>
+        )}
+        {focusDepth !== undefined &&
+          onFocusDepthChange !== undefined &&
+          onClearFocus !== undefined && (
+            <span
+              className="archik-pill archik-pill--info"
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
+              focus depth
+              <button
+                type="button"
+                aria-label="Decrease focus depth"
+                onClick={() => onFocusDepthChange(Math.max(0, focusDepth - 1))}
+              >
+                −
+              </button>
+              <strong>{focusDepth}</strong>
+              <button
+                type="button"
+                aria-label="Increase focus depth"
+                onClick={() => onFocusDepthChange(focusDepth + 1)}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={onClearFocus}
+                className="underline"
+                style={{ color: "var(--archik-accent)" }}
+              >
+                clear (Esc)
+              </button>
+            </span>
           )}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />

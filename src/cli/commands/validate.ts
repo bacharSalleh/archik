@@ -29,6 +29,7 @@ import {
 } from "../../domain/usecase-validate.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { checkConstraints } from "../../domain/constraints.ts";
+import { analyzeComplexity, DEFAULT_LIMITS } from "../../domain/complexity.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
 
@@ -255,6 +256,7 @@ export async function validateCommand(
     0,
   );
   const totalUseCases = ucDiscovery.docs.length;
+  const complexityHints = analyzeComplexity(discovery.docs, DEFAULT_LIMITS).length;
   if (json) {
     emitJson({
       ok: true,
@@ -263,6 +265,7 @@ export async function validateCommand(
       edges: validated.value.edges.length,
       useCases: totalUseCases,
       actors: totalActors,
+      complexityHints,
     });
   } else {
     const totalNodes = discovery.docs.reduce(
@@ -280,6 +283,11 @@ export async function validateCommand(
     console.log(
       `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges${uc}${actors}`,
     );
+    if (complexityHints > 0) {
+      console.log(
+        `ⓘ ${complexityHints} complexity hint${complexityHints === 1 ? "" : "s"} — run \`archik complexity\` to see them`,
+      );
+    }
   }
   return 0;
 }

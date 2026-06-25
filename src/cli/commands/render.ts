@@ -7,6 +7,8 @@ import { discoverDocs } from "../../io/discovery.ts";
 import { parseYaml } from "../../io/yaml.ts";
 import { layout } from "../../layout/index.ts";
 import type { Document, NodeKind } from "../../domain/types.ts";
+import { applyEdgeView, subgraphDoc } from "../../domain/focus.ts";
+import type { Relationship } from "../../domain/types.ts";
 import { SeqDocumentSchema } from "../../domain/seq-schema.ts";
 import { layoutSeqDocument } from "../../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../../render/seq/SeqDiagramSvg.tsx";
@@ -122,7 +124,30 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
     edges: discovery.docs.flatMap((d) => d.doc.edges),
   };
 
-  const positioned = await layout(merged);
+  // Optional view filters — same engine the canvas uses.
+  let view = merged;
+  const focusId = getString(opts, "focus");
+  if (focusId !== undefined) {
+    const depthRaw = getString(opts, "depth");
+    const depth = depthRaw !== undefined ? Math.max(0, Number.parseInt(depthRaw, 10) || 0) : 1;
+    view = subgraphDoc(view, focusId, depth);
+  }
+  const hideRel = getString(opts, "hide-rel");
+  const onlyRel = getString(opts, "only-rel");
+  const hideStructural = getString(opts, "hide-structural") === "true";
+  if (hideRel !== undefined || onlyRel !== undefined || hideStructural) {
+    view = applyEdgeView(view, {
+      ...(hideRel !== undefined
+        ? { hideRel: hideRel.split(",").map((s) => s.trim()) as Relationship[] }
+        : {}),
+      ...(onlyRel !== undefined
+        ? { onlyRel: onlyRel.split(",").map((s) => s.trim()) as Relationship[] }
+        : {}),
+      ...(hideStructural ? { hideStructural: true } : {}),
+    });
+  }
+
+  const positioned = await layout(view);
   const inner = renderToStaticMarkup(
     createElement(DiagramSvg, { positioned }),
   );
@@ -135,7 +160,7 @@ export async function renderCommand(opts: ParsedOptions): Promise<number> {
   await mkdir(path.dirname(outAbs), { recursive: true });
   await writeFile(outAbs, finalSvg, "utf-8");
   console.log(
-    `✓ Rendered ${merged.nodes.length} nodes / ${merged.edges.length} edges → ${out}`,
+    `✓ Rendered ${view.nodes.length} nodes / ${view.edges.length} edges → ${out}`,
   );
   return 0;
 }
