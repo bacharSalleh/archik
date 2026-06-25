@@ -22,6 +22,21 @@ export type UIState = {
 
   startConnect: (from: string) => void;
   cancelConnect: () => void;
+
+  /** Container ids the user collapsed on the canvas (view-only). */
+  collapsed: Set<string>;
+  /** Hide structural (weak) edges. */
+  hideStructural: boolean;
+  /** Focus mode: show only this node + neighbors within depth. */
+  focus: { id: string; depth: number } | null;
+
+  toggleCollapse: (id: string) => void;
+  collapseAll: (ids: string[]) => void;
+  expandAll: () => void;
+  setHideStructural: (v: boolean) => void;
+  setFocus: (id: string, depth: number) => void;
+  setFocusDepth: (depth: number) => void;
+  clearFocus: () => void;
 };
 
 function sameItem(a: SelectionItem, b: SelectionItem): boolean {
@@ -56,6 +71,24 @@ export const useUIStore = create<UIState>((set) => ({
   clearSelection: () => set({ selection: [] }),
   startConnect: (from) => set({ connectFrom: from, selection: [] }),
   cancelConnect: () => set({ connectFrom: null }),
+
+  collapsed: new Set<string>(),
+  hideStructural: false,
+  focus: null,
+  toggleCollapse: (id) =>
+    set((s) => {
+      const next = new Set(s.collapsed);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { collapsed: next };
+    }),
+  collapseAll: (ids) => set({ collapsed: new Set(ids) }),
+  expandAll: () => set({ collapsed: new Set<string>() }),
+  setHideStructural: (v) => set({ hideStructural: v }),
+  setFocus: (id, depth) => set({ focus: { id, depth } }),
+  setFocusDepth: (depth) =>
+    set((s) => (s.focus ? { focus: { id: s.focus.id, depth } } : {})),
+  clearFocus: () => set({ focus: null }),
 }));
 
 /** Convenience: the focused item (last added). null when empty. */
