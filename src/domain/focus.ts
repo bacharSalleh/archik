@@ -67,12 +67,24 @@ export function subgraph(
   return { nodes, edges };
 }
 
-/** Single-doc neighborhood (canvas). */
+/** Single-doc neighborhood (canvas + `render --focus`). */
 export function subgraphDoc(doc: Document, id: string, depth: number): Document {
   const kept = neighborIds(doc.edges, id, depth);
   return {
     ...doc,
-    nodes: doc.nodes.filter((n) => kept.has(n.id)),
+    // Orphan any parentId that points OUTSIDE the kept set. A focused
+    // node like `cli-validate` may keep `parentId: cli` while `cli` is
+    // not a neighbour — leaving a child that references a container not
+    // present in the document. That dangling reference breaks
+    // hierarchical layout (ELK throws) and the SVG renderer, so the
+    // focus view must flatten such nodes to the top level.
+    nodes: doc.nodes
+      .filter((n) => kept.has(n.id))
+      .map((n) =>
+        n.parentId !== undefined && !kept.has(n.parentId)
+          ? (({ parentId: _drop, ...rest }) => rest)(n)
+          : n,
+      ),
     edges: doc.edges.filter((e) => kept.has(e.from) && kept.has(e.to)),
   };
 }

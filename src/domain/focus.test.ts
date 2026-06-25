@@ -42,6 +42,29 @@ describe("subgraphDoc", () => {
     expect(new Set(sub.nodes.map((x) => x.id))).toEqual(new Set(["a", "b"]));
     expect(sub.edges.map((x) => x.id)).toEqual(["e1"]);
   });
+
+  it("orphans parentId pointing outside the kept set (avoids dangling container)", () => {
+    // 'child' lives in container 'p'; focus on 'ext' (a neighbour of
+    // 'child') keeps 'child' but NOT 'p'. The kept child must lose its
+    // parentId so layout doesn't reference a missing container.
+    const doc = d(
+      [n("p"), n("child", "p"), n("ext")],
+      [e("e1", "ext", "child")],
+    );
+    const sub = subgraphDoc(doc, "ext", 1);
+    expect(new Set(sub.nodes.map((x) => x.id))).toEqual(new Set(["ext", "child"]));
+    const child = sub.nodes.find((x) => x.id === "child")!;
+    expect(child.parentId).toBeUndefined();
+  });
+
+  it("keeps parentId when the parent is also in the kept set", () => {
+    // focus on 'p' depth 1 keeps both 'p' and its child 'child'
+    // (connected by an edge), so the parent link stays intact.
+    const doc = d([n("p"), n("child", "p")], [e("e1", "p", "child")]);
+    const sub = subgraphDoc(doc, "p", 1);
+    const child = sub.nodes.find((x) => x.id === "child")!;
+    expect(child.parentId).toBe("p");
+  });
 });
 
 describe("applyEdgeView", () => {
