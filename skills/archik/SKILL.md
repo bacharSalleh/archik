@@ -47,6 +47,7 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Inspect the current diagram       | `npx archik q list \| edges \| stats`         |
 | Look up one node                  | `npx archik q describe <id>`                  |
 | Find dependencies / impact        | `npx archik q deps \| dependents \| impact <id>` |
+| See one node + its neighbors      | `npx archik q neighbors <id> [--depth N]`     |
 | List use cases (filter by actor)  | `npx archik q usecases [--actor <id>]`        |
 | Describe one use case             | `npx archik q describe-usecase <id>`          |
 | List actors                       | `npx archik q actors`                         |
@@ -57,9 +58,11 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Alpha state snapshot              | `npx archik alpha show [--json]`              |
 | Promote / demote an alpha state   | `npx archik alpha promote\|demote <alpha> <state>` |
 | Validate a file                   | `npx archik validate <path>`                  |
+| Spot over-complex files / hubs    | `npx archik complexity [--fail-on-warn]`      |
 | Stage a proposed change           | `npx archik suggest set --note '…' - <<'YAML' … YAML` |
 | Show / accept / reject pending    | `npx archik suggest show \| accept \| reject` |
 | Render an SVG                     | `npx archik render --out diagram.svg`         |
+| Render a slice / drop weak edges  | `npx archik render --focus <id>` / `--hide-structural` |
 | Diff two files or git refs        | `npx archik diff a.yaml b.yaml` / `npx archik diff origin/main` |
 | Detect drift vs source tree       | `npx archik drift`                            |
 | Open the live canvas (foreground) | `npx archik dev`                              |
@@ -139,6 +142,7 @@ Other common queries:
 ```bash
 npx archik q describe orders-api           # node detail + edges
 npx archik q deps orders-api               # what does this node depend on?
+npx archik q neighbors orders-api          # this node + its immediate neighbors (depth 1)
 npx archik q impact payments-db            # what would break if this is removed?
 npx archik q list --kind service           # all services
 npx archik q list --kind queue             # all queues
@@ -399,12 +403,21 @@ Run a candidate through this checklist before staging a sidecar. Each item is a 
 - **One reason to change.** Each new node has a single responsibility expressible in one sentence. If `description` rambles, decompose.
 - **Bounded contexts.** Name the context this change belongs to. A change spanning two contexts usually means a missing third (orchestrator, port, gateway).
 - **Async at context boundaries.** Default cross-context coupling to `publishes` / `subscribes` over a stream/queue. `http_call` across contexts is allowed but should be justified (sync-required RPC, query for read-side data).
-- **Composition over sprawl.** Group related nodes under a `module` parent via `parentId`. Flat top-level lists past ~8 nodes are a smell.
+- **Composition over sprawl.** Group related nodes under a `module` parent via `parentId`. Flat top-level lists past ~8 nodes are a smell. Run `npx archik complexity` to catch this objectively — it flags over-large files, over-stuffed containers, hub nodes, and deep nesting, each with a concrete fix.
 - **Ports & adapters at the edge.** External integrations sit behind an `external` node, never inline in a service. Port (interface) + adapter (concrete) is preferred when the integration could swap.
 - **Public traffic → gateway/auth upstream.** Anything user-facing routes through a `gateway`/`auth` node, not directly to a service.
 - **Failure modes.** Async producers imply DLQ/retry on the consumer; `http_call` implies timeout + circuit. Don't draw the happy path alone.
 - **Use case participation → ECB classification.** If a node appears in any active use case slice (check `npx archik q usecases` or trace output), it needs a `stereotype: boundary | control | entity` before the seq diagram is authored. An unclassified node in a `realizes`-linked seq passes structurally but defeats ECB rule enforcement. Classify now; the validator will catch violations at seq-authoring time, not at code-review time.
 - **Lifecycle honesty.** Code-bearing node without code on disk → `status: proposed`. About to be removed → `status: deprecated`.
+
+## Keep views small
+
+A big model isn't read by staring at one giant map — it's read one question at a time. Many small views beat one wall of nodes.
+
+- **Answer questions with a query, not the whole diagram.** "What does X talk to?" → `npx archik q neighbors X` (or `q describe X`). Don't render the full map to answer a local question.
+- **Let `complexity` tell you when to split.** Run `npx archik complexity` (advisory; `--fail-on-warn` for CI/hooks). When it flags a file or container, decompose: move a subsystem into its own `archikFile`, or group nodes under a `module` parent via `parentId`. Strict default limits — 15 nodes/file, 20 edges/file, 6 children/container, degree 6, nesting depth 3. These are hints, not blockers.
+- **Slice when rendering.** `npx archik render --focus <id> [--depth N]` renders only a node's neighborhood; `--hide-structural` (or `--hide-rel`/`--only-rel`) drops weak edges (`uses`, `depends_on`, `has_a`, `implements`, `extends`) so the runtime shape stands out.
+- **For humans on the canvas:** the live canvas has matching controls — collapse/expand containers, hide weak edges, and focus mode (select a node → "Focus on this node", with a depth stepper, Esc to exit). These are view-only and never change the YAML.
 
 ## When to propose, when to defer
 
@@ -653,6 +666,7 @@ npx archik schema                       # the document shape (start here when au
 
 npx archik q describe <id> | deps <id> | dependents <id>
                   list | edges | impact <id> | stats
+                  neighbors <id> [--depth <n>]   # node + everything within N hops (default 1)
                   sequences [--node <id>]   # list seq diagrams; --node filters to flows involving a node
                   usecases [--actor <id>]   # list use cases; filter by actor
                   describe-usecase <id>     # one use case in detail
@@ -671,8 +685,15 @@ npx archik alpha show [--json]          # alpha state snapshot with verification
               alpha demote <alpha> <state>
 
 npx archik validate <path> [--json]     # schema + cross-file + governance constraints
+                                        #   prints an advisory complexity-hint count (never fails on it)
+npx archik complexity [path] [--json]   # advisory report: over-large files, hub nodes, deep nesting
+                  [--fail-on-warn]      #   exit 1 if any finding (CI / pre-commit gate)
+                  [--max-nodes N] [--max-edges N] [--max-children N]
+                  [--max-degree N] [--max-depth N]   # override the strict defaults
 npx archik render --out diagram.svg --theme light|dark
               render --seq <path> --out seq.svg --theme light|dark
+              render --focus <id> [--depth N]        # render only a node's neighborhood
+              render --hide-structural | --hide-rel <a,b> | --only-rel <a,b>   # filter edges
 npx archik diff <a> [b] [--out diff.svg] [--json]
                                         # each side: YAML file OR git ref;
                                         # one arg = that ref vs working tree
