@@ -13,6 +13,7 @@ import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
 import type { StatusMap } from "../domain/diff.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
+import { projectCanvasView, type CanvasView } from "../domain/focus.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
@@ -236,6 +237,16 @@ export function App(): React.ReactElement {
   const clearSelection = useUIStore((s) => s.clearSelection);
   const startConnect = useUIStore((s) => s.startConnect);
   const cancelConnect = useUIStore((s) => s.cancelConnect);
+
+  // Canvas view state (Task 8). View-only — never round-trips to YAML.
+  const collapsed = useUIStore((s) => s.collapsed);
+  const hideStructural = useUIStore((s) => s.hideStructural);
+  const focus = useUIStore((s) => s.focus);
+  const collapseAll = useUIStore((s) => s.collapseAll);
+  const expandAll = useUIStore((s) => s.expandAll);
+  const setHideStructural = useUIStore((s) => s.setHideStructural);
+  const setFocusDepth = useUIStore((s) => s.setFocusDepth);
+  const clearFocus = useUIStore((s) => s.clearFocus);
 
   const focused: SelectionItem | null =
     selection.length > 0 ? (selection.at(-1) ?? null) : null;
@@ -865,6 +876,7 @@ export function App(): React.ReactElement {
       }
       if (e.key === "Escape") {
         if (connectFrom) cancelConnect();
+        else if (focus) clearFocus();
         return;
       }
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -891,6 +903,8 @@ export function App(): React.ReactElement {
     deleteSelected,
     undo,
     redo,
+    focus,
+    clearFocus,
   ]);
 
   if (state.status === "loading") {
@@ -922,6 +936,13 @@ export function App(): React.ReactElement {
       ? statusMap(diffDocuments(doc, suggestion.doc))
       : null;
   const renderDoc = reviewMerged ?? doc;
+  // Apply the canvas view (collapse containers → focus subgraph → hide
+  // weak edges) on top of whatever document is being rendered. This is
+  // a pure projection — it never writes back to YAML. Layout / diagram
+  // consume `docForLayout`; the inspector still reads `renderDoc` so a
+  // node hidden by focus stays editable when selected from elsewhere.
+  const view: CanvasView = { collapsed, hideStructural, focus };
+  const docForLayout = projectCanvasView(renderDoc, view);
   // Look up the focused entity in renderDoc (not doc) so that nodes /
   // edges that only exist in the suggestion sidecar still resolve when
   // reviewing — otherwise the inspector shows the empty state for any
@@ -970,6 +991,23 @@ export function App(): React.ReactElement {
         seqHighlight={seqHighlight}
         onToggleSeqHighlight={() => setSeqHighlight((h) => !h)}
         seqNodeCount={seqNodeIds.size}
+        hideStructural={hideStructural}
+        onToggleHideStructural={() => setHideStructural(!hideStructural)}
+        onCollapseAll={() =>
+          collapseAll(
+            doc.nodes
+              .filter((n) => doc.nodes.some((c) => c.parentId === n.id))
+              .map((n) => n.id),
+          )
+        }
+        onExpandAll={expandAll}
+        {...(focus
+          ? {
+              focusDepth: focus.depth,
+              onFocusDepthChange: setFocusDepth,
+              onClearFocus: clearFocus,
+            }
+          : {})}
         {...(reloadError !== undefined ? { reloadError } : {})}
         {...(connectFromNode !== undefined
           ? {
@@ -1112,7 +1150,7 @@ export function App(): React.ReactElement {
               </div>
             )}
             <Canvas
-              document={renderDoc}
+              document={docForLayout}
               className="flex-1 archik-grid"
               layoutOptions={layoutOptions}
               viewMode={viewMode}

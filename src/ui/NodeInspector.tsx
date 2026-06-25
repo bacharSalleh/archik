@@ -1,7 +1,8 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Crosshair } from "lucide-react";
 import type { Command } from "../domain/commands.ts";
 import type { Interface, Node, NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
+import { useUIStore } from "./store.ts";
 
 type Props = {
   node: Node | undefined;
@@ -236,8 +237,27 @@ export function NodeInspector({
         </div>
       )}
 
+      <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().setFocus(node.id, 1)}
+          className="archik-btn"
+          style={{
+            justifyContent: "center",
+            padding: "8px 12px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+          title="Show only this node and its direct neighbors"
+        >
+          <Crosshair size={14} strokeWidth={1.8} />
+          Focus on this node
+        </button>
+      </div>
+
       {!readOnly && (
-        <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
+        <div className="flex flex-col gap-2 pt-2">
           {onStartConnect !== undefined && (
             <button
               type="button"
