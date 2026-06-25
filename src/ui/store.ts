@@ -75,17 +75,22 @@ export const useUIStore = create<UIState>((set) => ({
   collapsed: new Set<string>(),
   hideStructural: false,
   focus: null,
+  // Focus and collapse are mutually exclusive view modes: activating one
+  // clears the other. Stacking them lets a collapse hide the focused node
+  // while the focus pill still claims focus is active (a confusing,
+  // dishonest state), so collapsing always exits focus and vice versa.
   toggleCollapse: (id) =>
     set((s) => {
       const next = new Set(s.collapsed);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      return { collapsed: next };
+      return { collapsed: next, focus: null };
     }),
-  collapseAll: (ids) => set({ collapsed: new Set(ids) }),
+  collapseAll: (ids) => set({ collapsed: new Set(ids), focus: null }),
   expandAll: () => set({ collapsed: new Set<string>() }),
   setHideStructural: (v) => set({ hideStructural: v }),
-  setFocus: (id, depth) => set({ focus: { id, depth } }),
+  setFocus: (id, depth) =>
+    set({ focus: { id, depth }, collapsed: new Set<string>() }),
   setFocusDepth: (depth) =>
     set((s) => (s.focus ? { focus: { id: s.focus.id, depth } } : {})),
   clearFocus: () => set({ focus: null }),
