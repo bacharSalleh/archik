@@ -1,13 +1,17 @@
 import {
+  Crosshair,
   EyeOff,
   GitBranch,
   LayoutGrid,
   Maximize2,
   Minimize2,
+  Minus,
+  Plus,
   Redo2,
   Rows3,
   Stamp,
   Undo2,
+  X,
 } from "lucide-react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
@@ -329,35 +333,90 @@ export function Toolbar({
         {focusDepth !== undefined &&
           onFocusDepthChange !== undefined &&
           onClearFocus !== undefined && (
-            <span
-              className="archik-pill archik-pill--info"
-              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            <div
+              role="group"
+              aria-label="Focus mode"
+              className="archik-focus-control"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                height: 28,
+                padding: "0 4px",
+                borderRadius: 7,
+                border: "1px solid var(--archik-accent)",
+                background:
+                  "color-mix(in srgb, var(--archik-accent) 12%, var(--archik-panel))",
+              }}
             >
-              focus depth
+              <Crosshair
+                size={13}
+                strokeWidth={2}
+                style={{ color: "var(--archik-accent)" }}
+                aria-hidden="true"
+              />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.02em",
+                  color: "var(--archik-accent)",
+                  marginRight: 2,
+                }}
+              >
+                Focus
+              </span>
               <button
                 type="button"
                 aria-label="Decrease focus depth"
+                title="Show fewer hops"
+                disabled={focusDepth <= 0}
                 onClick={() => onFocusDepthChange(Math.max(0, focusDepth - 1))}
+                className="archik-focus-step"
               >
-                −
+                <Minus size={13} strokeWidth={2} />
               </button>
-              <strong>{focusDepth}</strong>
+              <span
+                className="archik-mono"
+                aria-label={`Focus depth ${focusDepth}`}
+                style={{
+                  minWidth: 16,
+                  textAlign: "center",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--archik-fg)",
+                }}
+              >
+                {focusDepth}
+              </span>
               <button
                 type="button"
                 aria-label="Increase focus depth"
+                title="Show more hops"
                 onClick={() => onFocusDepthChange(focusDepth + 1)}
+                className="archik-focus-step"
               >
-                +
+                <Plus size={13} strokeWidth={2} />
               </button>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 1,
+                  height: 16,
+                  margin: "0 2px",
+                  background: "var(--archik-border)",
+                }}
+              />
               <button
                 type="button"
+                aria-label="Clear focus"
+                title="Clear focus (Esc)"
                 onClick={onClearFocus}
-                className="underline"
-                style={{ color: "var(--archik-accent)" }}
+                className="archik-focus-step"
               >
-                clear (Esc)
+                <X size={13} strokeWidth={2} />
               </button>
-            </span>
+            </div>
           )}
         {density !== undefined && onDensityChange !== undefined && (
           <LayoutControls density={density} onChange={onDensityChange} />

@@ -81,10 +81,14 @@ describe("Toolbar view controls", () => {
     );
     fireEvent.click(screen.getByLabelText(/increase focus depth/i));
     expect(onFocusDepthChange).toHaveBeenLastCalledWith(1);
-    // depth 0 cannot go below 0
-    fireEvent.click(screen.getByLabelText(/decrease focus depth/i));
-    expect(onFocusDepthChange).toHaveBeenLastCalledWith(0);
-    fireEvent.click(screen.getByRole("button", { name: /clear/i }));
+    // depth 0 cannot go below 0 — the decrease control is disabled, so a
+    // click does nothing rather than firing a clamped-to-0 change.
+    const decrease = screen.getByLabelText(/decrease focus depth/i);
+    expect(decrease).toBeDisabled();
+    onFocusDepthChange.mockClear();
+    fireEvent.click(decrease);
+    expect(onFocusDepthChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /clear focus/i }));
     expect(onClearFocus).toHaveBeenCalledTimes(1);
   });
 });

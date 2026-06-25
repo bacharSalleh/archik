@@ -185,6 +185,36 @@ body,
   cursor: not-allowed;
 }
 
+/* Small square icon buttons inside the focus-mode control. Transparent
+   by default so they sit quietly on the accent-tinted segment; the icon
+   picks up the accent on hover. */
+.archik-focus-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--archik-fg-dim);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.archik-focus-step:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--archik-accent) 22%, transparent);
+  color: var(--archik-accent);
+}
+.archik-focus-step:focus-visible {
+  outline: 2px solid var(--archik-accent);
+  outline-offset: 1px;
+}
+.archik-focus-step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .archik-btn-primary {
   background: var(--archik-accent);
   border-color: var(--archik-accent);
