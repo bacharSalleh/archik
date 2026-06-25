@@ -13,7 +13,7 @@ import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
 import type { StatusMap } from "../domain/diff.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
-import { projectCanvasView, type CanvasView } from "../domain/focus.ts";
+import { collapseContainers, projectCanvasView, type CanvasView } from "../domain/focus.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
@@ -941,8 +941,22 @@ export function App(): React.ReactElement {
   // a pure projection — it never writes back to YAML. Layout / diagram
   // consume `docForLayout`; the inspector still reads `renderDoc` so a
   // node hidden by focus stays editable when selected from elsewhere.
-  const view: CanvasView = { collapsed, hideStructural, focus };
-  const docForLayout = projectCanvasView(renderDoc, view);
+  //
+  // Guard: if a focus id is set but that node is no longer visible after
+  // collapsing (e.g. it lives inside a collapsed container), applying the
+  // focus subgraph would return an empty document and blank the canvas.
+  // Drop focus from this render only — never mutate store state here.
+  const collapsedDoc =
+    collapsed.size > 0 ? collapseContainers(renderDoc, collapsed) : renderDoc;
+  const safeView: CanvasView = {
+    collapsed,
+    hideStructural,
+    focus:
+      focus !== null && collapsedDoc.nodes.some((n) => n.id === focus.id)
+        ? focus
+        : null,
+  };
+  const docForLayout = projectCanvasView(renderDoc, safeView);
   // Look up the focused entity in renderDoc (not doc) so that nodes /
   // edges that only exist in the suggestion sidecar still resolve when
   // reviewing — otherwise the inspector shows the empty state for any

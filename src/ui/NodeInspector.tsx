@@ -1,4 +1,4 @@
-import { ArrowRight, Crosshair } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, Crosshair } from "lucide-react";
 import type { Command } from "../domain/commands.ts";
 import type { Interface, Node, NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
@@ -237,6 +237,8 @@ export function NodeInspector({
         </div>
       )}
 
+      <CollapseToggle nodeId={node.id} allNodes={allNodes} />
+
       <div className="mt-auto flex flex-col gap-2 pt-4 archik-divider">
         <button
           type="button"
@@ -278,6 +280,44 @@ export function NodeInspector({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function CollapseToggle({
+  nodeId,
+  allNodes,
+}: {
+  nodeId: string;
+  allNodes: ReadonlyArray<Node>;
+}): React.ReactElement | null {
+  const isContainer = allNodes.some((n) => n.parentId === nodeId);
+  const collapsed = useUIStore((s) => s.collapsed);
+  const toggleCollapse = useUIStore((s) => s.toggleCollapse);
+  if (!isContainer) return null;
+  const isCollapsed = collapsed.has(nodeId);
+  return (
+    <div className="flex flex-col gap-2 pt-2">
+      <button
+        type="button"
+        onClick={() => toggleCollapse(nodeId)}
+        className="archik-btn"
+        style={{
+          justifyContent: "center",
+          padding: "8px 12px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+        title={isCollapsed ? "Show child nodes on the canvas" : "Hide child nodes on the canvas"}
+      >
+        {isCollapsed ? (
+          <ChevronRight size={14} strokeWidth={1.8} />
+        ) : (
+          <ChevronDown size={14} strokeWidth={1.8} />
+        )}
+        {isCollapsed ? "Expand children" : "Collapse children"}
+      </button>
     </div>
   );
 }
