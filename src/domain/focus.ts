@@ -89,6 +89,20 @@ export function subgraphDoc(doc: Document, id: string, depth: number): Document 
   };
 }
 
+/**
+ * True when a focus is set but its target node is no longer in the
+ * document — e.g. it was deleted, undone, or the canvas navigated to a
+ * different file. Focus mode is meaningless then, so the caller should
+ * exit it (clear the store focus) rather than leaving a stale "focus
+ * pill" showing while the canvas renders the full graph.
+ */
+export function shouldClearFocus(
+  focus: { id: string } | null,
+  doc: Document,
+): boolean {
+  return focus !== null && !doc.nodes.some((n) => n.id === focus.id);
+}
+
 export type EdgeView = {
   hideRel?: Relationship[];
   onlyRel?: Relationship[];

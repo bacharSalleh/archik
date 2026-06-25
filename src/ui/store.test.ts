@@ -35,6 +35,32 @@ it("setHideStructural toggles the flag", () => {
   expect(useUIStore.getState().hideStructural).toBe(true);
 });
 
+// Focus and collapse are mutually exclusive view modes — activating one
+// clears the other, so the two "show less" mechanisms never stack (which
+// otherwise lets a collapse silently hide the focused node while the
+// focus pill keeps claiming focus is active).
+it("setFocus clears any active collapse", () => {
+  useUIStore.getState().collapseAll(["p", "q"]);
+  expect(useUIStore.getState().collapsed.size).toBe(2);
+  useUIStore.getState().setFocus("a", 1);
+  expect(useUIStore.getState().focus).toEqual({ id: "a", depth: 1 });
+  expect(useUIStore.getState().collapsed.size).toBe(0);
+});
+
+it("collapseAll clears active focus", () => {
+  useUIStore.getState().setFocus("a", 1);
+  useUIStore.getState().collapseAll(["p", "q"]);
+  expect(useUIStore.getState().collapsed.size).toBe(2);
+  expect(useUIStore.getState().focus).toBeNull();
+});
+
+it("toggleCollapse clears active focus", () => {
+  useUIStore.getState().setFocus("a", 1);
+  useUIStore.getState().toggleCollapse("p");
+  expect(useUIStore.getState().collapsed.has("p")).toBe(true);
+  expect(useUIStore.getState().focus).toBeNull();
+});
+
 describe("useUIStore (selection)", () => {
   beforeEach(() => {
     useUIStore.getState().clearSelection();

@@ -13,7 +13,12 @@ import { diffDocuments, mergeForDiff, statusMap } from "../domain/diff.ts";
 import type { StatusMap } from "../domain/diff.ts";
 import { applyCommand } from "../domain/commands.ts";
 import type { Command } from "../domain/commands.ts";
-import { collapseContainers, projectCanvasView, type CanvasView } from "../domain/focus.ts";
+import {
+  collapseContainers,
+  projectCanvasView,
+  shouldClearFocus,
+  type CanvasView,
+} from "../domain/focus.ts";
 import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
@@ -906,6 +911,19 @@ export function App(): React.ReactElement {
     focus,
     clearFocus,
   ]);
+
+  // Exit focus when its target node leaves the document — deleted, undone,
+  // or navigated to a different file. Otherwise the focus pill keeps
+  // claiming focus is active while the canvas shows the full graph (the
+  // docForLayout guard suppresses focus for that frame but can't clear the
+  // store). Mutual exclusivity already covers the collapse trigger; this
+  // covers every other one. Placed before the early returns so the hook
+  // order stays stable; checked against the base ready document.
+  useEffect(() => {
+    if (state.status === "ready" && shouldClearFocus(focus, state.document)) {
+      clearFocus();
+    }
+  }, [state, focus, clearFocus]);
 
   if (state.status === "loading") {
     return <Splash>Loading {currentFile.docUrl}…</Splash>;
