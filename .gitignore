@@ -31,3 +31,4 @@ docs/superpowers
 *.sln
 *.sw?
 .superpowers/
+.claude/launch.json
