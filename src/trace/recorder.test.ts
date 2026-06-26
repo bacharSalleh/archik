@@ -66,4 +66,12 @@ describe("trace recorder", () => {
     const doc = await readTrace("uc", "s");
     expect(doc.steps).toHaveLength(1);
   });
+
+  it("removes its exit listener on flush (no listener accumulation)", () => {
+    const before = process.listenerCount("exit");
+    for (let i = 0; i < 15; i++) {
+      trace({ useCase: "uc", slice: `s${i}` }).step({ from: "a", to: "b", label: "x" }).flush();
+    }
+    expect(process.listenerCount("exit")).toBe(before);
+  });
 });

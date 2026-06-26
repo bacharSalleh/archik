@@ -44,6 +44,8 @@ export function trace(opts: {
   const steps: TraceStep[] = [];
   let flushed = false;
 
+  const onExit = (): void => recorder.flush();
+
   const recorder: TraceRecorder = {
     step(s: TraceStepInput): TraceRecorder {
       const data =
@@ -79,11 +81,12 @@ export function trace(opts: {
       };
       const file = path.join(dir, `${opts.useCase}.${opts.slice}.archik.trace.json`);
       writeFileSync(file, JSON.stringify(doc, null, 2) + "\n", "utf-8");
+      process.removeListener("exit", onExit);
     },
   };
 
   // Write once when the test process exits, so a forgotten flush() still
   // produces a trace and partial state is never written mid-run.
-  process.on("exit", () => recorder.flush());
+  process.on("exit", onExit);
   return recorder;
 }
