@@ -10,6 +10,7 @@
  * What does NOT ship: src/, vite/, configs, tests, the dev plugin.
  */
 import { spawnSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,15 @@ import { build as esbuild } from "esbuild";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+
+function findFile(dir, name) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) { const hit = findFile(full, name); if (hit) return hit; }
+    else if (e.name === name) return full;
+  }
+  return null;
+}
 
 function run(cmd, args) {
   const result = spawnSync(cmd, args, { stdio: "inherit", cwd: root });
@@ -107,16 +117,11 @@ run(process.platform === "win32" ? "npx.cmd" : "npx", [
 ]);
 await rm(tempTsconfig, { force: true });
 // tsc path depends on rootDir inference — find wherever recorder.d.ts landed
-const { execSync } = await import("node:child_process");
-const foundRaw = execSync(`find "${tracetypesDir}" -name "recorder.d.ts"`, { cwd: root })
-  .toString()
-  .trim();
-if (!foundRaw) {
+const foundPath = findFile(tracetypesDir, "recorder.d.ts");
+if (!foundPath) {
   console.error("[build] ERROR: tsc did not emit recorder.d.ts");
   process.exit(1);
 }
-// use first match (there should be exactly one)
-const foundPath = foundRaw.split("\n")[0].trim();
 console.log(`[build] found recorder.d.ts at: ${foundPath}`);
 await rm(path.join(root, "dist", "trace.d.ts"), { force: true });
 const { rename } = await import("node:fs/promises");
