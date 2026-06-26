@@ -224,6 +224,11 @@ nodes:
     kind: prompt
     name: Learned Overlay
     description: .archik/evolution/learned.md — approved lessons the loop gathered from real usage. Written only by `archik evolution approve`; read by the Claude skill at session start and exposed as the MCP resource archik://learned. Created at runtime, per project.
+  - id: trace-recorder
+    kind: module
+    name: Trace recorder
+    description: Zero-dep recorder shipped as the `archik/trace` import. Slice tests call trace().step() to capture the real data at each step into .archik/traces/*.archik.trace.json — the concrete instance of a slice flow.
+    sourcePath: src/trace
 edges:
   - id: bin-cli
     from: bin
@@ -399,3 +404,13 @@ edges:
     to: learned-overlay
     relationship: reads
     label: at session start
+  - id: claude-uses-trace
+    from: claude-code
+    to: trace-recorder
+    relationship: uses
+    label: instrument slice tests
+  - id: canvas-reads-traces
+    from: canvas
+    to: trace-recorder
+    relationship: reads
+    label: render concrete run
