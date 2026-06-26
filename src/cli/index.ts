@@ -172,6 +172,9 @@ COMMANDS
                     --user           refresh skill/commands user-wide (~/.claude/)
                     --skip-install   skip the npm upgrade; only re-copy artifacts
                     --no-claude-md   don't touch CLAUDE.md (skip the @-reference wiring)
+                    --migrate        run schema migrations after the refresh
+                    --dry-run        preview what would migrate (nothing written)
+                    --json           emit the MigrationRun as JSON; exit 1 if invalid
 
 Default file resolution (when no [path] is given):
   1. .archik/main.archik.yaml      (preferred new convention)

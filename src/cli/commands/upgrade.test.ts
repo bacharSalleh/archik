@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -183,5 +184,130 @@ describe("upgradeCommand — refresh + setup", () => {
     await expect(read(".archik/PRINCIPLES.md")).rejects.toThrow();
     await expect(read(".archik/SUPERPOWERS.md")).rejects.toThrow();
     await expect(read("CLAUDE.md")).rejects.toThrow();
+  });
+});
+
+// ── Migration tests ──────────────────────────────────────────────────────────
+
+/** Minimal VALID legacy document: one external node with description, no edges. */
+const VALID_LEGACY_DOC = [
+  'version: "1.0"',
+  "name: Demo",
+  "nodes:",
+  "  - id: svc",
+  "    kind: external",
+  "    name: Service",
+  "    description: A demo external service.",
+  "edges: []",
+  "",
+].join("\n");
+
+describe("upgradeCommand --migrate", () => {
+  let pkgRoot: string;
+  let project: string;
+  let originalCwd: string;
+  let originalPkgRoot: string | undefined;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    pkgRoot = await mkdtemp(path.join(tmpdir(), "archik-pkg-"));
+    project = await mkdtemp(path.join(tmpdir(), "archik-migrate-"));
+
+    // Minimal package source so refreshArtifacts doesn't crash.
+    await writeFile(
+      path.join(pkgRoot, "package.json"),
+      JSON.stringify({ version: "9.9.9" }),
+    );
+    await mkdir(path.join(pkgRoot, "skills/archik"), { recursive: true });
+    await writeFile(path.join(pkgRoot, "skills/archik/SKILL.md"), "skill\n");
+    await mkdir(path.join(pkgRoot, "commands"), { recursive: true });
+    await writeFile(path.join(pkgRoot, "commands/suggest.md"), "cmd\n");
+    await mkdir(path.join(pkgRoot, "docs/templates/principles"), { recursive: true });
+    await writeFile(path.join(pkgRoot, "docs/templates/CLAUDE.md"), "loop\n");
+    await writeFile(path.join(pkgRoot, "docs/templates/principles/oop.md"), "<!-- archik:principles:oop -->\n");
+    await writeFile(path.join(pkgRoot, "docs/templates/principles/functional.md"), "<!-- archik:principles:functional -->\n");
+    await writeFile(path.join(pkgRoot, "docs/templates/superpowers.md"), "overlay\n");
+
+    // Project starts with LEGACY root file and no .archik/ dir.
+    await writeFile(path.join(project, "architecture.archik.yaml"), VALID_LEGACY_DOC);
+
+    originalCwd = process.cwd();
+    process.chdir(project);
+    originalPkgRoot = process.env["ARCHIK_PKG_ROOT"];
+    process.env["ARCHIK_PKG_ROOT"] = pkgRoot;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    if (originalPkgRoot === undefined) delete process.env["ARCHIK_PKG_ROOT"];
+    else process.env["ARCHIK_PKG_ROOT"] = originalPkgRoot;
+    logSpy.mockRestore();
+    errSpy.mockRestore();
+    await rm(pkgRoot, { recursive: true, force: true });
+    await rm(project, { recursive: true, force: true });
+  });
+
+  it("moves the legacy file into .archik and writes the stamp", async () => {
+    const code = await upgradeCommand({
+      _: [],
+      "skip-install": "true",
+      "no-claude-md": "true",
+      migrate: "true",
+    });
+    expect(code).toBe(0);
+    expect(existsSync(path.join(project, ".archik/main.archik.yaml"))).toBe(true);
+    expect(existsSync(path.join(project, "architecture.archik.yaml"))).toBe(false);
+    const stamp = JSON.parse(
+      await readFile(path.join(project, ".archik/.version"), "utf-8"),
+    ) as { migrationLevel: number };
+    expect(stamp.migrationLevel).toBeGreaterThan(0);
+    expect(existsSync(path.join(project, ".archik.archive"))).toBe(true);
+  });
+
+  it("--dry-run changes nothing", async () => {
+    const code = await upgradeCommand({
+      _: [],
+      "skip-install": "true",
+      "no-claude-md": "true",
+      migrate: "true",
+      "dry-run": "true",
+    });
+    expect(code).toBe(0);
+    // Legacy file still in place; no migration happened.
+    expect(existsSync(path.join(project, "architecture.archik.yaml"))).toBe(true);
+    expect(existsSync(path.join(project, ".archik/main.archik.yaml"))).toBe(false);
+  });
+
+  it("--json emits the MigrationRun object", async () => {
+    const code = await upgradeCommand({
+      _: [],
+      "skip-install": "true",
+      "no-claude-md": "true",
+      migrate: "true",
+      json: "true",
+    });
+    // Collect all JSON output printed via console.log
+    const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    // Find the MigrationRun JSON (may be among other log lines)
+    type MigRunShape = { toLevel: number; fromLevel: number; applied: unknown[] };
+    let parsed: MigRunShape | null = null;
+    for (const line of logSpy.mock.calls) {
+      const text = line.join(" ");
+      try {
+        const obj = JSON.parse(text) as MigRunShape | null;
+        if (obj !== null && typeof obj === "object" && "toLevel" in obj && "applied" in obj) {
+          parsed = obj;
+          break;
+        }
+      } catch { /* not JSON */ }
+    }
+    expect(parsed).not.toBeNull();
+    expect(parsed!.toLevel).toBeGreaterThanOrEqual(parsed!.fromLevel);
+    expect(Array.isArray(parsed!.applied)).toBe(true);
+    expect(code).toBe(0);
+    void stdout; // used indirectly above
   });
 });
