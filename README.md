@@ -5,8 +5,7 @@
 <h1 align="center">archik</h1>
 
 <p align="center">
-  <em>Architecture-as-code your AI editor actually reads —<br/>
-  with use cases, sequence diagrams, and tests wired end-to-end.</em>
+  <em>Architecture-as-code in plain YAML — validated in CI, rendered in the browser, and read directly by your AI editor.</em>
 </p>
 
 <p align="center">
@@ -19,85 +18,71 @@
 </p>
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg?v=2" alt="Sample Archik diagram" width="780">
+  <img src="https://cdn.jsdelivr.net/npm/archik/docs/hero.svg?v=2" alt="Sample archik diagram" width="780">
 </p>
 
 ---
 
 ## What is archik?
 
-Your architecture lives in **plain YAML**. A **CLI** is the only way to edit it, a **validator** rejects every drift before merge, and a **live canvas** renders it in the browser. AI agents (Claude Code, or anything that speaks MCP) read the same YAML as their map of your system — so they reason about structure instead of guessing from filenames.
+Your architecture lives in **plain YAML**. You edit it through a **CLI**, a **validator** rejects drift before it merges, and a **live canvas** renders it in the browser. AI agents — Claude Code, or anything that speaks MCP — read the same YAML as the map of your system, so they reason about structure instead of guessing from filenames.
 
-One chain runs from a stakeholder request all the way to a passing test, and every link is mechanically checked:
+One chain runs from a stakeholder request to a passing test, and every link is checked mechanically:
 
 ```
-Actor → Use case → Slice → Tests on disk → Seq diagram → Nodes → Source code on disk
+Actor → Use case → Slice → Tests → Sequence diagram → Nodes → Source
 ```
 
-## Features
+Nothing in that chain can quietly fall out of sync with the code.
 
-- 📐 **Plain-YAML diagrams** — no DSL, no coordinates; layout is computed by [ELK](https://eclipse.dev/elk/) on every render, so diffs stay meaningful
-- 🖥️ **Live canvas** — `archik dev` opens a browser canvas that reloads on every file change; headless SVG render for docs and CI
-- 🤖 **AI-native** — installable Claude Code skill + 12 slash commands, and an MCP server for Cursor, Windsurf, Copilot, Claude Desktop, Zed
-- ✅ **Validator, not convention** — schema, cross-file references, `sourcePath` existence, use-case/actor/seq integrity, ECB rules
-- 🔍 **Traceability** — `archik trace` proves which use case slices are tested and realized; `--fail-on` gates CI
-- 🌿 **Git-aware** — `archik diff origin/main` shows what a branch changes architecturally; `archik affected` maps changed files to nodes, slices, and tests (`--run` executes them); `archik hooks install` gates every commit
-- 🤝 **Team-ready** — semantic merge driver for YAML, node ownership with CODEOWNERS sync, and governance constraints (architecture fitness rules)
-- 🔬 **Verified at every altitude** — `validate` proves the model is consistent, `drift --edges` proves it matches the code's import graph, `otel check` proves it matches production traffic
-- 🧬 **Self-evolving** — opt-in `archik evolution` loop (observe → reflect → propose → validate → apply → measure) learns from your accepts, rejects, and failures and proposes its own upgrades behind a human approval gate; `archik patterns` ships the same design patterns for your systems
-- 🚀 **Fast adoption** — `archik import compose` / `import mermaid` bootstrap a diagram from what you already have; `/archik:spawn` mirrors an existing source tree
-- 📦 **Zero runtime dependencies** in the published package
-
-## Installation
+## Install
 
 Requires **Node.js ≥ 20**.
 
 ```bash
-npx archik@latest init       # scaffolds .archik/main.archik.yaml
-                             # + installs the Claude skill and /archik:* commands
+npx archik@latest init
 ```
 
-Or as a Claude Code plugin:
+`init` scaffolds `.archik/main.archik.yaml` and installs the Claude Code skill and `/archik:*` slash commands. As a Claude Code plugin instead:
 
 ```
 /plugin marketplace add bacharSalleh/archik
 /plugin install archik@archik
 ```
 
-Both paths install the same skill and slash commands. The plugin still uses the `archik` npm binary, so Node is needed either way.
+Both paths install the same skill and commands and use the `archik` npm binary, so Node is required either way.
 
 ## Quick start
 
 ```bash
-npx archik init              # 1. scaffold
-npx archik start             # 2. open the live canvas (http://localhost:5173)
+npx archik init     # scaffold
+npx archik start    # live canvas at http://localhost:5173
 ```
 
-Then, in Claude Code:
+Then, in Claude Code, start every project with:
 
 ```
-/archik:bootstrap            # 3. always your first message — detects project
-                             #    state and routes to the right next step
+/archik:bootstrap   # detects project state, routes to the next step
 ```
 
-Day-to-day:
+Day to day:
 
 | You type | You get |
 | --- | --- |
-| `/archik:suggest <feature>` | A staged diagram change, shown as a green/red diff overlay on the canvas — accept or reject |
+| `/archik:suggest <feature>` | A staged diagram change, shown as a green/red diff on the canvas — accept or reject |
 | `/archik:usecase <name>` | A use case with flows, slices, and test paths |
-| `/archik:trace` | "Are we done?" — the coverage matrix |
+| `/archik:trace` | The coverage matrix — "are we done?" |
 
-**Already have docker-compose or Mermaid diagrams?** Skip the blank canvas:
+Already have docker-compose or Mermaid? Bootstrap from it instead of a blank canvas:
 
 ```bash
 npx archik import compose --out .archik/main.archik.yaml
 npx archik import mermaid docs/architecture.mmd --out .archik/main.archik.yaml
 ```
 
-Compose services become nodes (postgres → `database`, redis → `cache`, kafka → `stream`, …), build contexts become `sourcePath`s, and `depends_on` becomes edges. The Mermaid importer parses the flowchart subset: shaped nodes map to kinds, subgraphs become module parents, arrows become labelled edges.
+Compose services become nodes (`postgres` → `database`, `kafka` → `stream`, …), build contexts become `sourcePath`s, and `depends_on` becomes edges.
 
-## The YAML
+## The model
 
 ```yaml
 version: "1.0"
@@ -120,53 +105,44 @@ edges:
     relationship: invokes
 ```
 
-One file per layer, every link cross-checked by the validator:
+There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk/) on every render, so diffs stay meaningful. Each concern is a separate file, cross-checked by the validator:
 
 | Layer | File | Captures |
 | --- | --- | --- |
 | Structure | `.archik/main.archik.yaml` | Services, databases, queues, agents, LLMs, edges |
 | Actors | `*.archik.actors.yaml` | Who initiates use cases |
-| Requirements | `.archik/usecases/*.archik.uc.yaml` | Flows + slices that name **test paths** |
+| Requirements | `.archik/usecases/*.archik.uc.yaml` | Flows and slices that name **test paths** |
 | Behaviour | `*.archik.seq.yaml` | UML-subset sequence diagrams |
 | Progress | `*.archik.alphas.yaml` | Essence/SEMAT alphas, machine-verified |
 
 Full schema: `npx archik schema` (also `schema seq | uc | actors`).
 
-## Everyday workflow
+## Keeping the model honest
+
+A set of commands prove the diagram still matches reality, at every altitude:
 
 ```bash
-# What am I touching on this branch? Which tests cover it?
-npx archik affected --since main
-
-# …and run exactly those tests (vitest/jest/playwright/mocha auto-detected)
-npx archik affected --since main --run
-
-# What does this branch change architecturally?
-npx archik diff origin/main            # add --out diff.svg for the visual
-
-# Is the diagram still telling the truth?
-npx archik validate && npx archik drift
-
-# Do the EDGES match the code? (TS/JS import-graph verification)
-npx archik drift --edges               # shadow + phantom edge detection
-
-# Are we done?
-npx archik trace
+npx archik validate            # schema + cross-file integrity + governance constraints
+npx archik drift               # nodes/tests vs the source tree
+npx archik drift --edges       # edges vs the TS/JS import graph (shadow + phantom edges)
+npx archik affected --since main --run   # changed files → nodes → slices → run their tests
+npx archik trace --fail-on partial       # coverage matrix; gate CI on incomplete traceability
+npx archik otel check --graph deps.json  # edges vs a production service-dependency graph
 ```
 
-`affected` walks the chain backwards: changed files → nodes (via `sourcePath`) → use case slices (via tests and sequence-diagram participants) → tests to run — and flags changed files no node or test claims.
-
-`drift --edges` scans the imports under every node's `sourcePath` and reports **shadow edges** (code imports across nodes with no declared edge) and **phantom edges** (structural edges with no import in either direction). Gate every commit locally with:
+`validate` proves the model is internally consistent, `drift` that it matches the code, and `otel check` that it matches production traffic. Gate every commit locally:
 
 ```bash
-npx archik hooks install               # pre-commit: archik validate
+npx archik hooks install       # pre-commit: archik validate
 ```
+
+Large models stay readable: `archik complexity` flags over-large files, hub nodes, and deep nesting with a concrete fix for each, and `archik q neighbors <id>` / `archik render --focus <id>` show one node's neighbourhood instead of the whole map.
 
 ## AI integration
 
-**Claude Code** (deepest integration): `archik init` installs a skill that enforces one hard rule — *Claude talks to archik only through the CLI*, never by editing YAML directly. Reads go through `archik q`, writes through `archik suggest set`, and you approve every structural change on the canvas.
+**Claude Code.** `archik init` installs a skill that enforces one rule — *Claude talks to archik only through the CLI*, never by editing YAML directly. Reads go through `archik q`, writes through `archik suggest set`, and you approve every structural change on the canvas.
 
-**Everything else** (MCP): `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — 20 tools covering schema, queries, trace, validate, drift, affected, and the suggestion lifecycle, plus **resources** (`archik://schema`, `archik://stats`, `archik://trace`, `archik://validate`, `archik://drift`) and **prompts** (`propose-change`, `review-architecture`) that encode the same working loop the Claude Code skill teaches:
+**Everything else (MCP).** `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — tools for schema, queries, trace, validate, drift, and the suggestion lifecycle, plus resources (`archik://schema`, `archik://stats`, `archik://trace`) and prompts that encode the same loop:
 
 ```jsonc
 // .cursor/mcp.json, claude_desktop_config.json, etc.
@@ -177,19 +153,11 @@ npx archik hooks install               # pre-commit: archik validate
 }
 ```
 
-## Team workflow
+## Teams and governance
 
-**Semantic merges.** Stop resolving line-based YAML conflicts — nodes and edges are id-keyed, so most merges are mechanical:
-
-```bash
-npx archik merge-driver --install    # once per clone; .gitattributes line is committed
-```
-
-Both branches added nodes → keep both. One side changed a field → take it. Same field changed differently, or modify-vs-delete → a real conflict, reported precisely.
-
-**Ownership.** `owner: team-billing` on a node answers "who do I talk to": `archik q describe payments-db`, `archik q list --owner team-billing`. And `archik owners sync` writes one CODEOWNERS rule per owned node into a managed block (hand-authored rules untouched), with `archik owners check` as the CI gate so review routing can't drift from the model.
-
-**Governance constraints.** Architecture fitness rules, enforced by `archik validate` on every run:
+- **Semantic merges.** Nodes and edges are id-keyed, so most YAML merges are mechanical instead of line-based conflicts: `archik merge-driver --install`.
+- **Ownership.** `owner:` on a node answers "who do I talk to" (`archik q list --owner team-billing`), and `archik owners sync` writes one CODEOWNERS rule per owned node into a managed block.
+- **Governance constraints.** Architecture fitness rules enforced by `archik validate`:
 
 ```yaml
 constraints:
@@ -206,54 +174,9 @@ constraints:
 
 Intentional exceptions are grandfathered by id in an `except` list — visible in review, never silent.
 
-## Verified against production
-
-Map nodes to your tracing backend's service names (`metadata.otelService`, node id as the fallback), export the service-dependency graph, and let archik compare:
-
-```bash
-curl -s "http://jaeger:16686/api/dependencies?endTs=$(date +%s)000&lookback=86400000" > deps.json
-npx archik otel check --graph deps.json
-```
-
-Undeclared production calls — traffic the diagram doesn't admit to — fail the check; declared wire edges that saw no traffic are reported informationally. That completes the truth chain: `validate` proves the model is consistent, `drift --edges` proves it matches the code, `otel check` proves it matches production.
-
-## Self-evolution
-
-Archik can learn from how you use it. Everything is opt-in, local-only, and human-gated:
-
-```bash
-archik evolution enable      # start observing (events stay on your machine)
-# ... normal work: suggestions accepted/rejected, validate/drift runs ...
-archik evolution reflect     # recurring friction → pending proposals with evidence
-archik evolution proposals   # read them
-archik evolution approve <id># apply: a learned.md note, or a sidecar diff you still review
-archik evolution report      # did it help? last 7 days vs the 7 before
-```
-
-Approved lessons land in `.archik/evolution/learned.md` — the Claude skill reads it at session start (and MCP agents via `archik://learned`), so the AI gets smarter across sessions without anyone editing prompts. Rejecting a proposal is recorded too; the loop learns from "no".
-
-Building a self-evolving system of your own? The same patterns ship as a library:
-
-```bash
-archik patterns list                  # evolution-loop, sidecar-approval-gate,
-archik patterns show evolution-loop   # learned-overlay, truth-chain, feedback-pipeline
-archik patterns apply evolution-loop  # stage the blueprint into YOUR diagram (gated)
-```
-
-Deep dives in [docs/advanced-topics](./docs/advanced-topics/README.md). In Claude Code: `/archik:self-evolving <your idea>`.
-
 ## CI
 
-Plain commands:
-
-```bash
-archik validate                        # schema + cross-file integrity + constraints
-archik drift                           # diagram vs source tree
-archik trace --fail-on partial         # block merge on incomplete traceability
-archik render --theme light --out docs/architecture.svg
-```
-
-Or the GitHub Action, which runs all three and posts a sticky PR comment with the architecture diff vs the base branch:
+Run the commands directly, or use the GitHub Action, which validates, checks drift and traceability, and posts a sticky PR comment with the architecture diff against the base branch:
 
 ```yaml
 # .github/workflows/archik.yml
@@ -269,10 +192,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: bacharSalleh/archik@main
         with:
-          trace-fail-on: partial       # optional gate; omit for report-only
+          trace-fail-on: partial   # optional gate; omit for report-only
 ```
 
 Inputs: `path`, `working-directory`, `validate`, `drift`, `trace-fail-on`, `compare-ref`, `comment`, `github-token`, `version`.
+
+## Self-evolution
+
+Opt-in, local-only, and human-gated: `archik evolution` observes how you use it (accepts, rejects, validate/drift runs), turns recurring friction into proposals you review, and records approved lessons in `.archik/evolution/learned.md` — which the Claude skill reads at session start, so the AI improves across sessions without anyone editing prompts. The same designs ship as a reusable library via `archik patterns`. See [docs/advanced-topics](./docs/advanced-topics/README.md).
 
 ## CLI reference
 
@@ -283,33 +210,32 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik init` | Scaffold + install the Claude skill and slash commands |
 | `archik dev` / `start` / `stop` / `status` | Live canvas lifecycle (foreground / detached) |
 | `archik validate [path]` | Schema + cross-file + constraints (exit 1 on error) |
-| `archik render --out <svg>` | Headless SVG render (`--seq <path>` for sequence diagrams) |
+| `archik complexity [path]` | Flag over-large files, hub nodes, deep nesting (`--fail-on-warn` to gate) |
+| `archik render --out <svg>` | Headless SVG render (`--seq <path>`, `--focus <id>`, `--hide-structural`) |
 | `archik watch` | Re-render SVG on every change |
-| `archik q <sub>` | Query: `describe` `deps` `dependents` `impact` `list` `edges` `stats` `usecases` `describe-usecase` `actors` `sequences` |
+| `archik q <sub>` | Query: `describe` `deps` `dependents` `neighbors` `impact` `list` `edges` `stats` `usecases` `describe-usecase` `actors` `sequences` |
 | `archik diff <a> [b]` | Diff two files **or git refs**; one arg = that ref vs working tree |
-| `archik affected` | Changed files → nodes, slices, tests to run (`--since <ref>`, `--files`, `--run` to execute them) |
+| `archik affected` | Changed files → nodes, slices, tests (`--since <ref>`, `--files`, `--run`) |
 | `archik trace` | Coverage matrix (`--fail-on partial\|none` for CI) |
-| `archik drift` | sourcePath / test-path gaps vs the source tree (`--edges` verifies edges vs the TS/JS import graph) |
+| `archik drift` | sourcePath / test-path gaps (`--edges` verifies edges vs the import graph) |
 | `archik otel check --graph <f>` | Verify edges against a production service-dependency graph |
 | `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` |
-| `archik alpha <sub>` | Essence alphas: `show`, `promote` (machine-checked), `demote` |
-| `archik evolution <sub>` | Self-evolution loop: `enable` `status` `reflect` `proposals` `propose` `approve` `reject` `report` |
-| `archik patterns <sub>` | Self-evolution pattern library: `list` `show <id>` `apply <id>` |
-| `archik import compose\|mermaid [file]` | Bootstrap a document from docker-compose or a Mermaid flowchart |
+| `archik alpha <sub>` | Essence alphas: `show`, `promote`, `demote` |
+| `archik evolution <sub>` | Self-evolution loop: `enable` `reflect` `proposals` `approve` `reject` `report` |
+| `archik patterns <sub>` | Pattern library: `list` `show <id>` `apply <id>` |
+| `archik import compose\|mermaid [file]` | Bootstrap from docker-compose or a Mermaid flowchart |
 | `archik merge-driver --install` | Semantic git merge for `*.archik.yaml` |
 | `archik hooks install` | Pre-commit hook running `archik validate` (`--with-drift` optional) |
 | `archik owners sync\|check` | Keep CODEOWNERS in step with node owners |
-| `archik mcp` | MCP server over stdio (tools + resources + prompts) for non-Claude-Code agents |
+| `archik mcp` | MCP server over stdio for non-Claude-Code agents |
 | `archik schema [seq\|uc\|actors]` | Print the document schemas |
 | `archik upgrade` | Upgrade + refresh installed skill/commands |
 
-Default file resolution: `.archik/main.archik.yaml`, falling back to the legacy `architecture.archik.yaml` (both present = error).
+Default file resolution: `.archik/main.archik.yaml`, falling back to the legacy `architecture.archik.yaml` (both present is an error).
 
-## When to use it (and when not to)
+## When to use it
 
-**Use archik when** your project has more than ~5 components, you ship with an AI agent and want it to reason about structure, you want "are we done?" to be mechanically answerable, or you want CI to fail on architectural drift.
-
-**Skip it when** it's a one-file script, the diagram is for a slide deck (use Mermaid), or you have no build step or CI.
+Reach for archik when a project has more than a handful of components, ships with an AI agent you want reasoning about structure, needs "are we done?" to be mechanically answerable, or wants CI to fail on architectural drift. Skip it for one-file scripts, slide-deck diagrams (use Mermaid), or projects with no build or CI.
 
 |  | archik | Mermaid / PlantUML | Structurizr |
 | --- | --- | --- | --- |
@@ -322,7 +248,7 @@ Default file resolution: `.archik/main.archik.yaml`, falling back to the legacy 
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Development:
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ```bash
 npm install
