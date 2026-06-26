@@ -1,0 +1,33 @@
+version: "1.0"
+name: archik complexity — flag the busy spots
+description: How `archik complexity` measures the model against strict default limits and returns one finding per over-large file, hub node, or deep-nesting spot — each with a concrete decomposition fix.
+realizes:
+  useCase: keep-views-small
+  slice: complexity-report
+participants:
+  - id: cli
+    nodeId: cli
+    label: CLI
+  - id: domain
+    nodeId: domain
+    label: Domain (complexity metrics)
+steps:
+  - type: message
+    id: run-complexity
+    from: cli
+    to: domain
+    label: analyzeComplexity(docs, limits)
+    arrow: sync
+    activate: true
+  - type: message
+    id: measure
+    from: domain
+    to: domain
+    label: per-file nodes/edges, container children, node degree, nesting depth
+    arrow: sync
+  - type: message
+    id: findings
+    from: domain
+    to: cli
+    label: findings (worst-first) + concrete fix each — advisory, exit 0
+    arrow: return

@@ -12,6 +12,9 @@ nodes:
     kind: module
     name: CLI
     description: Command dispatcher. Parses options, routes to the right handler.
+    seqFiles:
+      - .archik/drift.archik.seq.yaml
+      - .archik/keep-views-small.archik.seq.yaml
     sourcePath: src/cli
   - id: cli-init
     kind: function
@@ -52,6 +55,8 @@ nodes:
     name: resolveDocPath
     description: Helper shared by every read-side CLI command. Finds the canonical archik file — prefers the legacy architecture.archik.yaml at root, falls back to the new .archik/main.archik.yaml. Throws when both exist so the user picks one.
     parentId: cli
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
     sourcePath: src/cli/resolveDocPath.ts
   - id: daemon
     kind: port
@@ -120,12 +125,16 @@ nodes:
     kind: module
     name: Domain
     description: Pure schema, validation, taxonomy, command operations. No React, no ELK, no I/O — safe to import from anywhere.
+    seqFiles:
+      - .archik/keep-views-small.archik.seq.yaml
     sourcePath: src/domain
   - id: schema
     kind: interface
     name: Schema
     description: Zod schemas + TypeScript types. The single source of truth for what counts as a valid Archik document. superRefine enforces cross-references — unique ids, edges land on real nodes, no self-loops, no parentId cycles, and the multi-file constraints (archikFile must be a relative .archik.yaml path with no ..; cross-file edges have at most one of fromFile / toFile and the local endpoint resolves locally).
     parentId: domain
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
   - id: commands
     kind: function
     name: Commands
@@ -143,11 +152,15 @@ nodes:
     name: Layout Engine
     description: ELK adapter behind a LayoutEngine interface. Computes positions, edge routes, container padding, and offsets edges by their LCA so coords are absolute.
     stack: ELK.js
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
     sourcePath: src/layout
   - id: renderer
     kind: service
     name: SVG Renderer
     description: Per-shape components (Service, Cache, Queue, Frontend, Container, etc). Theme-aware. Same code path used by the canvas and headless `archik render`.
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
     sourcePath: src/render
   - id: diff-overlay
     kind: module
@@ -159,6 +172,9 @@ nodes:
     kind: module
     name: I/O
     description: YAML/JSON parsers (Zod-backed), exporters (markdown, json, yaml), browser fetch/save adapters.
+    seqFiles:
+      - .archik/drift.archik.seq.yaml
+      - .archik/archik-render.archik.seq.yaml
     sourcePath: src/io
   - id: skill
     kind: prompt
@@ -174,6 +190,8 @@ nodes:
     kind: external
     name: ELK
     description: Eclipse Layout Kernel. Hierarchical / layered placement and orthogonal edge routing.
+    seqFiles:
+      - .archik/archik-render.archik.seq.yaml
   - id: npm
     kind: external
     name: npm registry
@@ -186,16 +204,22 @@ nodes:
     kind: module
     name: Drift Detector
     description: sourcePath/test-path gap detection plus edge drift — parses the TS/JS import graph under every node's sourcePath and reports shadow edges (imports with no declared edge) and phantom edges (declared edges with no import). Honors .driftignore.
+    seqFiles:
+      - .archik/drift.archik.seq.yaml
     sourcePath: src/drift
   - id: evo-domain
     kind: module
     name: Evolution Domain
     description: Pure core of the self-evolution loop — event schema + semantic derivation, reflection heuristics (events → insights), proposal schema + apply routing + status machine, and 7-day trend metrics. No I/O, fully unit-tested.
+    seqFiles:
+      - .archik/evolution-loop.archik.seq.yaml
     sourcePath: src/domain/evolution
   - id: evo-store
     kind: module
     name: Evolution Store
     description: Disk layout of the loop under .archik/evolution/ — config.yaml (opt-in flag), events.jsonl (append-only log, corrupt lines counted not fatal), learned.md (the Learned Overlay), proposals/*.yaml. Atomic tmp+rename writes.
+    seqFiles:
+      - .archik/evolution-loop.archik.seq.yaml
     sourcePath: src/io/evolution-log.ts
   - id: observe-hook
     kind: function
@@ -208,6 +232,8 @@ nodes:
     name: evolution
     description: Control surface of the loop — status / enable / disable / reflect / proposals / propose / approve / reject / report. Approve routes skill-notes to the Learned Overlay and diagram changes to a suggestion sidecar; nothing applies silently.
     parentId: cli
+    seqFiles:
+      - .archik/evolution-loop.archik.seq.yaml
     sourcePath: src/cli/commands/evolution.ts
   - id: cli-patterns
     kind: function

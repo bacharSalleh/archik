@@ -13,50 +13,72 @@ status: active
 primaryActor: developer
 secondaryActors:
   - claude
-goal: A developer keeps a growing model comprehensible by spotting over-complex spots and viewing one small slice at a time, rather than scanning the entire diagram.
+goal: A developer keeps a growing model comprehensible by spotting over-complex
+  spots and viewing one small slice at a time, rather than scanning the entire
+  diagram.
 preconditions:
   - At least one `*.archik.yaml` exists in the project.
 postconditions:
-  - The developer knows which files / containers / nodes are over the readability limits, and has a concrete decomposition suggestion for each.
-  - The developer can view any node's immediate neighbourhood without rendering or scanning the whole diagram.
+  - The developer knows which files / containers / nodes are over the
+    readability limits, and has a concrete decomposition suggestion for each.
+  - The developer can view any node's immediate neighbourhood without rendering
+    or scanning the whole diagram.
 flows:
   basic:
     steps:
       - Developer runs `npx archik complexity` to find the busiest spots.
-      - The tool measures per-file node and edge counts, per-container child counts, node degree, and nesting depth against strict default limits.
-      - For each over-limit spot it prints one finding plus a concrete fix (split via `archikFile`, give a container its own file, name a bounded context), and exits 0 — advisory unless `--fail-on-warn` is passed.
-      - To answer "what does X talk to?", the developer runs `npx archik q neighbors X` (the node plus everything within `--depth` hops) instead of reading the whole map.
-      - To view a slice visually, the developer runs `npx archik render --focus X` (or focus mode on the canvas), optionally dropping weak edges with `--hide-structural`.
-      - The developer decomposes a flagged file or container; re-running `npx archik complexity` comes back clean.
+      - The tool measures per-file node and edge counts, per-container child
+        counts, node degree, and nesting depth against strict default limits.
+      - For each over-limit spot it prints one finding plus a concrete fix
+        (split via `archikFile`, give a container its own file, name a bounded
+        context), and exits 0 — advisory unless `--fail-on-warn` is passed.
+      - To answer "what does X talk to?", the developer runs `npx archik q
+        neighbors X` (the node plus everything within `--depth` hops) instead of
+        reading the whole map.
+      - To view a slice visually, the developer runs `npx archik render --focus
+        X` (or focus mode on the canvas), optionally dropping weak edges with
+        `--hide-structural`.
+      - The developer decomposes a flagged file or container; re-running `npx
+        archik complexity` comes back clean.
   alternates:
     - id: ci-gate
       branchFrom: basic.3
       steps:
         - CI runs `npx archik complexity --fail-on-warn`.
-        - At least one finding exists, so the command exits 1 and the pipeline blocks until the model is decomposed (or limits are tuned with the `--max-*` flags).
+        - At least one finding exists, so the command exits 1 and the pipeline
+          blocks until the model is decomposed (or limits are tuned with the
+          `--max-*` flags).
 slices:
   - id: complexity-report
-    description: archik complexity reports over-large files, hub nodes, and deep nesting, each with a concrete fix; advisory by default, exit 1 under --fail-on-warn.
+    description: archik complexity reports over-large files, hub nodes, and deep
+      nesting, each with a concrete fix; advisory by default, exit 1 under
+      --fail-on-warn.
     flows:
       - basic
     tests:
       - src/domain/complexity.test.ts
       - src/cli/commands/complexity.test.ts
+    realization:
+      seqFile: .archik/keep-views-small.archik.seq.yaml
   - id: neighbourhood-query
-    description: q neighbors returns a node plus everything within --depth hops, so a local question is answered without the whole map.
+    description: q neighbors returns a node plus everything within --depth hops, so
+      a local question is answered without the whole map.
     flows:
       - basic
     tests:
       - src/domain/focus.test.ts
       - src/cli/commands/q.test.ts
   - id: focus-render
-    description: render --focus draws only a node's neighbourhood, and --hide-structural / --only-rel / --hide-rel filter weak edges out of the picture.
+    description: render --focus draws only a node's neighbourhood, and
+      --hide-structural / --only-rel / --hide-rel filter weak edges out of the
+      picture.
     flows:
       - basic
     tests:
       - src/cli/commands/render.test.ts
   - id: ci-gate
-    description: complexity --fail-on-warn turns the advisory report into a blocking CI/pre-commit gate.
+    description: complexity --fail-on-warn turns the advisory report into a blocking
+      CI/pre-commit gate.
     flows:
       - basic
       - ci-gate

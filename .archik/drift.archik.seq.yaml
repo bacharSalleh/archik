@@ -1,0 +1,42 @@
+version: "1.0"
+name: archik drift — diagram vs source tree
+description: How `archik drift` proves the structural diagram still matches the code — walking every code-bearing node's sourcePath and every active slice's test paths against the file system.
+realizes:
+  useCase: drift
+  slice: clean
+participants:
+  - id: cli
+    nodeId: cli
+    label: CLI
+  - id: detector
+    nodeId: drift-detector
+    label: Drift detector
+  - id: fs
+    nodeId: io
+    label: I/O
+steps:
+  - type: message
+    id: run-drift
+    from: cli
+    to: detector
+    label: drift (load merged diagram)
+    arrow: sync
+    activate: true
+  - type: message
+    id: stat-sources
+    from: detector
+    to: fs
+    label: stat every node sourcePath + active slice test path
+    arrow: sync
+  - type: message
+    id: paths-exist
+    from: fs
+    to: detector
+    label: all paths resolve on disk
+    arrow: return
+  - type: message
+    id: report-clean
+    from: detector
+    to: cli
+    label: "✓ <n> nodes / <m> tests on disk — exit 0"
+    arrow: return

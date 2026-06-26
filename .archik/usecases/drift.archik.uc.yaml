@@ -47,6 +47,8 @@ slices:
       - basic
     tests:
       - src/cli/commands/drift.test.ts
+    realization:
+      seqFile: .archik/drift.archik.seq.yaml
   - id: missing-source
     description: A node's sourcePath is gone; drift exits 1 with the node id named.
     flows:

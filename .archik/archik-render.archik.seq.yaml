@@ -1,6 +1,7 @@
 version: "1.0"
 name: archik render — headless SVG pipeline
-description: How `archik render` turns a YAML architecture document into a self-contained SVG file via ELK layout and React server-side rendering.
+description: How `archik render` turns a YAML architecture document into a
+  self-contained SVG file via ELK layout and React server-side rendering.
 participants:
   - id: cmd
     nodeId: cli-render
@@ -107,5 +108,8 @@ steps:
     id: write-done
     from: reader
     to: cmd
-    label: "done — N nodes rendered"
+    label: done — N nodes rendered
     arrow: return
+realizes:
+  useCase: render
+  slice: arch-svg

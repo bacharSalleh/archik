@@ -1,0 +1,48 @@
+version: "1.0"
+name: archik evolution — reflect into proposals
+description: How `archik evolution reflect` turns the observed-events log into pending, evidence-backed proposals a human can approve — the reflect→propose leg of the self-evolution loop.
+realizes:
+  useCase: evolution-loop
+  slice: reflect-propose
+participants:
+  - id: cli
+    nodeId: cli-evolution
+    label: evolution command
+  - id: domain
+    nodeId: evo-domain
+    label: Evolution Domain
+  - id: store
+    nodeId: evo-store
+    label: Evolution Store
+steps:
+  - type: message
+    id: reflect
+    from: cli
+    to: domain
+    label: reflect (derive insights from usage)
+    arrow: sync
+    activate: true
+  - type: message
+    id: read-events
+    from: domain
+    to: store
+    label: read events.jsonl (accepts / rejects / runs)
+    arrow: sync
+  - type: message
+    id: events
+    from: store
+    to: domain
+    label: observed events
+    arrow: return
+  - type: message
+    id: write-proposals
+    from: domain
+    to: store
+    label: write pending proposals + reflection log
+    arrow: sync
+  - type: message
+    id: proposals-ready
+    from: domain
+    to: cli
+    label: N pending proposals (each with evidence)
+    arrow: return

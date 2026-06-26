@@ -11,50 +11,70 @@ status: active
 primaryActor: developer
 secondaryActors:
   - claude
-goal: Recurring friction (rejected suggestions, repeated validation/drift failures, failing commands) is detected from the local event log and turned into approved, measurable improvements without manual code changes.
+goal: Recurring friction (rejected suggestions, repeated validation/drift
+  failures, failing commands) is detected from the local event log and turned
+  into approved, measurable improvements without manual code changes.
 preconditions:
   - The developer has opted in with `archik evolution enable`.
 postconditions:
-  - Approved skill-notes are readable in .archik/evolution/learned.md and via archik://learned.
-  - Approved diagram changes are staged as a suggestion sidecar, never written directly.
+  - Approved skill-notes are readable in .archik/evolution/learned.md and via
+    archik://learned.
+  - Approved diagram changes are staged as a suggestion sidecar, never written
+    directly.
   - "`archik evolution report` shows before/after trends."
 flows:
   basic:
     steps:
-      - Developer runs normal archik commands; the dispatcher's observe hook appends sanitized events to .archik/evolution/events.jsonl.
+      - Developer runs normal archik commands; the dispatcher's observe hook
+        appends sanitized events to .archik/evolution/events.jsonl.
       - Developer (or an agent) runs `archik evolution reflect`.
-      - Reflection heuristics find a recurring pattern and write a pending proposal with evidence to .archik/evolution/proposals/.
-      - Developer reads it with `archik evolution proposals` and runs `archik evolution approve <id>`.
-      - "The proposal applies by kind: a skill-note appends to learned.md; update-node / add-exception stage a validated suggestion sidecar for canvas review."
-      - Next session, Claude reads learned.md and behaves accordingly; `archik evolution report` shows the trend.
+      - Reflection heuristics find a recurring pattern and write a pending
+        proposal with evidence to .archik/evolution/proposals/.
+      - Developer reads it with `archik evolution proposals` and runs `archik
+        evolution approve <id>`.
+      - "The proposal applies by kind: a skill-note appends to learned.md;
+        update-node / add-exception stage a validated suggestion sidecar for
+        canvas review."
+      - Next session, Claude reads learned.md and behaves accordingly; `archik
+        evolution report` shows the trend.
   alternates:
     - id: rejected
       branchFrom: basic.4
       steps:
         - Developer runs `archik evolution reject <id>`.
-        - The rejection is itself recorded as an event — future reflection sees that this kind of proposal is unwelcome.
+        - The rejection is itself recorded as an event — future reflection sees
+          that this kind of proposal is unwelcome.
     - id: agent-proposes
       branchFrom: basic.2
       steps:
-        - An MCP agent reflects more deeply (evolution-loop prompt) and files its own draft via `archik evolution propose`.
-        - The draft is schema-validated and lands as PENDING like any other proposal — same gate, same audit trail.
+        - An MCP agent reflects more deeply (evolution-loop prompt) and files
+          its own draft via `archik evolution propose`.
+        - The draft is schema-validated and lands as PENDING like any other
+          proposal — same gate, same audit trail.
 slices:
   - id: observe
-    description: Enabled observation appends sanitized semantic events per CLI run; disabled observation writes nothing; failures never break the observed command.
+    description: Enabled observation appends sanitized semantic events per CLI run;
+      disabled observation writes nothing; failures never break the observed
+      command.
     flows:
       - basic
     tests:
       - src/cli/observe.test.ts
       - src/domain/evolution/events.test.ts
   - id: reflect-propose
-    description: Heuristics turn event streaks into pending proposals with evidence, idempotently.
+    description: Heuristics turn event streaks into pending proposals with evidence,
+      idempotently.
     flows:
       - basic
     tests:
       - src/domain/evolution/reflect.test.ts
       - src/cli/commands/evolution.test.ts
+    realization:
+      seqFile: .archik/evolution-loop.archik.seq.yaml
   - id: gated-apply
-    description: Approve routes skill-notes to learned.md and diagram changes to a validated sidecar; illegal transitions and unknown ids are refused; reject is recorded.
+    description: Approve routes skill-notes to learned.md and diagram changes to a
+      validated sidecar; illegal transitions and unknown ids are refused; reject
+      is recorded.
     flows:
       - basic
       - rejected
@@ -62,13 +82,15 @@ slices:
       - src/domain/evolution/proposal.test.ts
       - src/cli/commands/evolution.test.ts
   - id: measure
-    description: The report compares the last 7 days against the previous 7 (error rate, acceptance rate, proposals applied).
+    description: The report compares the last 7 days against the previous 7 (error
+      rate, acceptance rate, proposals applied).
     flows:
       - basic
     tests:
       - src/domain/evolution/metrics.test.ts
   - id: agent-surface
-    description: MCP tools expose the loop to any agent; agent drafts land pending via evolution propose.
+    description: MCP tools expose the loop to any agent; agent drafts land pending
+      via evolution propose.
     flows:
       - basic
       - agent-proposes
