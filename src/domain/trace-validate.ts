@@ -41,7 +41,7 @@ export function checkTraces(
     if (doc.seqFile === undefined) continue;
 
     // 2. bound: the seq file must be discovered
-    const seq = seqDocs.find((s) => s.relPath === doc.seqFile || s.abs.endsWith(doc.seqFile!));
+    const seq = seqDocs.find((s) => s.relPath === doc.seqFile || s.abs.endsWith("/" + doc.seqFile!));
     if (seq === undefined) {
       errors.push({ path: relPath, message: `trace seqFile "${doc.seqFile}" is not a discovered sequence diagram` });
       continue;

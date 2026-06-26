@@ -42,4 +42,10 @@ describe("checkTraces", () => {
     expect(r.errors).toHaveLength(0);
     expect(r.info.join(" ")).toContain("m2");
   });
+
+  it("errors when a bound step uses a participant not in the seq diagram", () => {
+    const t = { ...baseTrace, seqFile: "x.seq.yaml", steps: [{ id: "m1", from: "ghost", to: "b", label: "go" }] };
+    const r = checkTraces([tr(t)], [uc("uc", ["s"])], [seq("x.seq.yaml", ["a", "b"], ["m1"])]);
+    expect(r.errors.some((e) => /ghost/.test(e.message) || /participant/i.test(e.message))).toBe(true);
+  });
 });
