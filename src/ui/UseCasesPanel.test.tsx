@@ -81,6 +81,21 @@ const SAMPLE_TRACE_FULL_PARTIAL = {
   ],
 };
 
+const SAMPLE_TRACES = {
+  ok: true,
+  count: 1,
+  traces: [
+    {
+      relPath: ".archik/traces/place-order.happy.archik.trace.json",
+      useCase: "place-order",
+      slice: "happy",
+      seqFile: ".archik/flow.archik.seq.yaml",
+      recordedAt: "2026-06-26T10:00:00.000Z",
+      steps: 3,
+    },
+  ],
+};
+
 describe("UseCasesPanel", () => {
   it("renders the trigger button collapsed by default", () => {
     mockEndpoints({});
@@ -141,6 +156,33 @@ describe("UseCasesPanel", () => {
     expect(
       screen.getByText(".archik/flow.archik.seq.yaml"),
     ).toBeInTheDocument();
+  });
+
+  it("surfaces a Concrete run link for a slice with a recorded trace", async () => {
+    mockEndpoints({
+      "/__archik/usecases": { body: SAMPLE_USECASE },
+      "/__archik/traces": { body: SAMPLE_TRACES },
+      // Keep the trace-matrix matcher last so it doesn't shadow
+      // /__archik/traces (both share the /__archik/trace prefix).
+      "/__archik/trace": { body: SAMPLE_TRACE_FULL_PARTIAL },
+    });
+    render(<UseCasesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /use cases/i }));
+    await waitFor(() => screen.getByText("happy"));
+    const happyBtn = screen.getByText("happy").closest("button");
+    fireEvent.click(happyBtn!);
+    await waitFor(() => {
+      expect(screen.getByText(/Concrete run/)).toBeInTheDocument();
+    });
+    const link = screen
+      .getByText(/Concrete run/)
+      .closest("a") as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toContain("/__archik/trace-page?path=");
+    expect(link.getAttribute("href")).toContain(
+      encodeURIComponent(
+        ".archik/traces/place-order.happy.archik.trace.json",
+      ),
+    );
   });
 
   it("shows the empty state when no use cases exist", async () => {

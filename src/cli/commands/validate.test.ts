@@ -571,6 +571,82 @@ describe("validateCommand cross-file existence", () => {
     });
   });
 
+  describe("concrete-trace validation", () => {
+    // Shared helpers: a minimal valid project (main + actors + use case + test)
+    // plus a traces/ directory where trace fixtures go.
+    const writeBase = async () => {
+      await writeFile(path.join(cwd, ".archik/main.archik.yaml"), validBody());
+      await writeFile(
+        path.join(cwd, ".archik/actors.archik.actors.yaml"),
+        [
+          'version: "1.0"',
+          "actors:",
+          "  - id: customer",
+          "    kind: human",
+          "    description: End-user buying products.",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
+        [
+          'version: "1.0"',
+          "id: place-order",
+          "name: Place an order",
+          "primaryActor: customer",
+          "goal: Customer pays.",
+          "flows:",
+          "  basic:",
+          "    steps: [a, b]",
+          "slices:",
+          "  - id: happy",
+          "    description: Happy path.",
+          "    flows: [basic]",
+          "    tests: [tests/happy.spec.ts]",
+          "",
+        ].join("\n"),
+      );
+      await mkdir(path.join(cwd, "tests"), { recursive: true });
+      await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
+      await mkdir(path.join(cwd, ".archik/traces"), { recursive: true });
+    };
+
+    it("validate fails when a trace targets an unknown slice", async () => {
+      await writeBase();
+      await writeFile(
+        path.join(cwd, ".archik/traces/uc.bad.archik.trace.json"),
+        JSON.stringify({
+          version: "1.0",
+          useCase: "place-order",
+          slice: "bad",
+          recordedAt: "2026-06-26T00:00:00Z",
+          steps: [{ from: "a", to: "b", label: "go" }],
+        }),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(1);
+      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(err).toMatch(/unknown use case \/ slice/i);
+    });
+
+    it("validate passes with a trace whose slice resolves", async () => {
+      await writeBase();
+      await writeFile(
+        path.join(cwd, ".archik/traces/place-order.happy.archik.trace.json"),
+        JSON.stringify({
+          version: "1.0",
+          useCase: "place-order",
+          slice: "happy",
+          recordedAt: "2026-06-26T00:00:00Z",
+          steps: [{ from: "a", to: "b", label: "go" }],
+        }),
+      );
+      const code = await validateCommand({ _: [] });
+      expect(code).toBe(0);
+    });
+  });
+
   describe("advisory complexity hint", () => {
     // Build a valid doc with 40 external nodes — external is exempt from
     // sourcePath, so no on-disk dirs needed. 40 > DEFAULT_LIMITS.maxNodes (15)

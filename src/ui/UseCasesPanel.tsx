@@ -40,13 +40,29 @@ type TraceRow = {
   level: "full" | "partial" | "none";
 };
 
+/** One discovered concrete-run trace file (mirrors `q traces --json`). */
+type TraceDocRow = {
+  relPath: string;
+  useCase: string;
+  slice: string;
+  seqFile?: string;
+  recordedAt: string;
+  steps: number;
+};
+
 type LoadState =
   | { status: "loading" }
-  | { status: "ready"; useCases: UseCase[]; trace: TraceRow[] }
+  | {
+      status: "ready";
+      useCases: UseCase[];
+      trace: TraceRow[];
+      traceDocs: TraceDocRow[];
+    }
   | { status: "error"; message: string };
 
 const USECASES_URL = "/__archik/usecases";
 const TRACE_URL = "/__archik/trace";
+const TRACES_URL = "/__archik/traces";
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const res = await fetch(url, { cache: "no-store", signal });
@@ -71,13 +87,21 @@ export function UseCasesPanel(): React.ReactElement {
     Promise.all([
       fetchJson<{ ok: boolean; useCases: UseCase[] }>(USECASES_URL, ctrl.signal),
       fetchJson<{ ok: boolean; rows: TraceRow[] }>(TRACE_URL, ctrl.signal),
+      // Concrete-run traces. Tolerated failure: an older dev server may
+      // not expose this endpoint yet, in which case the panel simply
+      // shows no "Concrete run" affordances rather than erroring out.
+      fetchJson<{ ok: boolean; traces: TraceDocRow[] }>(
+        TRACES_URL,
+        ctrl.signal,
+      ).catch(() => ({ ok: true, traces: [] as TraceDocRow[] })),
     ])
-      .then(([uc, tr]) => {
+      .then(([uc, tr, td]) => {
         if (cancelled) return;
         setState({
           status: "ready",
           useCases: uc.useCases ?? [],
           trace: tr.rows ?? [],
+          traceDocs: td.traces ?? [],
         });
       })
       .catch((err: unknown) => {
@@ -222,7 +246,11 @@ function UseCasesPanelBody({
       {state.status === "ready" && state.useCases.length > 0 && (
         <>
           <TraceSummary trace={state.trace} />
-          <UseCaseList useCases={state.useCases} trace={state.trace} />
+          <UseCaseList
+            useCases={state.useCases}
+            trace={state.trace}
+            traceDocs={state.traceDocs}
+          />
         </>
       )}
     </div>
@@ -275,9 +303,11 @@ function TraceSummary({ trace }: { trace: TraceRow[] }): React.ReactElement {
 function UseCaseList({
   useCases,
   trace,
+  traceDocs,
 }: {
   useCases: UseCase[];
   trace: TraceRow[];
+  traceDocs: TraceDocRow[];
 }): React.ReactElement {
   // Build (useCase, slice) → level lookup once.
   const traceByKey = useMemo(() => {
@@ -288,10 +318,26 @@ function UseCaseList({
     return map;
   }, [trace]);
 
+  // (useCase, slice) → concrete trace doc. The recorder writes one file per
+  // useCase.slice (keyed on both), so there is normally exactly one trace per
+  // slice; if duplicates ever exist, discovery order decides.
+  const traceDocByKey = useMemo(() => {
+    const map = new Map<string, TraceDocRow>();
+    for (const td of traceDocs) {
+      map.set(`${td.useCase}/${td.slice}`, td);
+    }
+    return map;
+  }, [traceDocs]);
+
   return (
     <div>
       {useCases.map((uc) => (
-        <UseCaseCard key={uc.id} uc={uc} traceByKey={traceByKey} />
+        <UseCaseCard
+          key={uc.id}
+          uc={uc}
+          traceByKey={traceByKey}
+          traceDocByKey={traceDocByKey}
+        />
       ))}
     </div>
   );
@@ -300,9 +346,11 @@ function UseCaseList({
 function UseCaseCard({
   uc,
   traceByKey,
+  traceDocByKey,
 }: {
   uc: UseCase;
   traceByKey: Map<string, TraceRow["level"]>;
+  traceDocByKey: Map<string, TraceDocRow>;
 }): React.ReactElement {
   return (
     <div
@@ -357,7 +405,16 @@ function UseCaseCard({
       <ul style={{ marginTop: 6, listStyle: "none", padding: 0 }}>
         {uc.slices.map((s) => {
           const level = traceByKey.get(`${uc.id}/${s.id}`);
-          return <SliceRow key={s.id} slice={s} level={level} />;
+          const traceDoc = traceDocByKey.get(`${uc.id}/${s.id}`);
+          return (
+            <SliceRow
+              key={s.id}
+              slice={s}
+              level={level}
+              useCaseId={uc.id}
+              traceDoc={traceDoc}
+            />
+          );
         })}
       </ul>
     </div>
@@ -367,9 +424,13 @@ function UseCaseCard({
 function SliceRow({
   slice,
   level,
+  useCaseId,
+  traceDoc,
 }: {
   slice: Slice;
   level?: "full" | "partial" | "none" | undefined;
+  useCaseId: string;
+  traceDoc?: TraceDocRow | undefined;
 }): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -422,6 +483,19 @@ function SliceRow({
               return `${tests} • ${seq}`;
             })()}
           </span>
+          {traceDoc && (
+            <span
+              title="Has a recorded concrete run"
+              aria-label="has concrete run"
+              style={{
+                color: "var(--archik-accent)",
+                fontSize: 11,
+                marginLeft: 2,
+              }}
+            >
+              ●
+            </span>
+          )}
         </span>
       </button>
       {expanded && (
@@ -458,7 +532,31 @@ function SliceRow({
               realises: <code>{slice.realization.seqFile}</code>
             </div>
           )}
-          {!slice.tests?.length && !slice.realization && (
+          {traceDoc && (
+            <div style={{ marginTop: 4 }}>
+              <a
+                href={`/__archik/trace-page?path=${encodeURIComponent(
+                  traceDoc.relPath,
+                )}&from-uc=${encodeURIComponent(useCaseId)}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  color: "var(--archik-accent)",
+                  textDecoration: "none",
+                  fontSize: 11,
+                }}
+                title={`Open the concrete run (${traceDoc.steps} steps)`}
+              >
+                ● Concrete run
+                <span style={{ color: "var(--archik-fg-muted)" }}>
+                  {" "}
+                  {traceDoc.recordedAt}
+                </span>
+              </a>
+            </div>
+          )}
+          {!slice.tests?.length && !slice.realization && !traceDoc && (
             <div>(no tests, no realisation)</div>
           )}
         </div>

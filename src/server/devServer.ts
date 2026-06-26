@@ -24,6 +24,8 @@ import {
   handleSeqFile,
   handleSidecar,
   handleTrace,
+  handleTraceFile,
+  handleTraces,
   handleUseCases,
   handleYaml,
 } from "./handlers.ts";
@@ -72,6 +74,10 @@ const USECASES_URL = "/__archik/usecases";
 const ACTORS_URL = "/__archik/actors";
 const ALPHAS_URL = "/__archik/alphas";
 const TRACE_URL = "/__archik/trace";
+/** Concrete-run traces: list (mirrors `q traces --json`) + per-file data
+ *  endpoint feeding the trace canvas page (`/__archik/trace-page`). */
+const TRACES_URL = "/__archik/traces";
+const TRACE_FILE_URL = "/__archik/trace-file";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -315,6 +321,16 @@ export async function startDevServer(
 
     if (url === ALPHAS_URL || url.startsWith(ALPHAS_URL + "?")) {
       void handleAlphas(root, docPath, req, res);
+      return;
+    }
+
+    if (url === TRACE_FILE_URL || url.startsWith(TRACE_FILE_URL + "?")) {
+      void handleTraceFile(root, req, res);
+      return;
+    }
+
+    if (url === TRACES_URL || url.startsWith(TRACES_URL + "?")) {
+      void handleTraces(root, req, res);
       return;
     }
 

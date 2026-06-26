@@ -32,6 +32,7 @@ import { discoverActorDocs } from "../io/actor-discovery.ts";
 import { discoverAlphaDoc } from "../io/alpha-discovery.ts";
 import { discoverSeqDocs } from "../io/seq-discovery.ts";
 import { discoverUseCaseDocs } from "../io/usecase-discovery.ts";
+import { discoverTraceDocs } from "../io/trace-discovery.ts";
 import {
   ALPHA_NAMES,
   STATE_LADDERS,
@@ -987,4 +988,79 @@ export async function handleTrace(
   };
 
   jsonResponse(res, 200, { ok: true, summary, rows });
+}
+
+/**
+ * GET /__archik/traces
+ *   → { ok, count, traces }              (mirrors `archik q traces --json`)
+ *
+ * Lists every discovered concrete-run trace (`*.archik.trace.json`) so the
+ * Use Cases panel can surface a "Concrete run" affordance per slice. The
+ * per-document JSON itself is served by `handleTraceFile` below — same
+ * page/data split as `/__archik/seq` (page) vs `/__archik/seq-file` (data).
+ */
+export async function handleTraces(
+  projectRoot: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!isGet(req)) {
+    methodNotAllowed(res);
+    return;
+  }
+  const { docs } = await discoverTraceDocs(projectRoot);
+  const traces = docs.map((d) => ({
+    relPath: d.relPath,
+    useCase: d.doc.useCase,
+    slice: d.doc.slice,
+    seqFile: d.doc.seqFile,
+    recordedAt: d.doc.recordedAt,
+    steps: d.doc.steps.length,
+  }));
+  jsonResponse(res, 200, { ok: true, count: traces.length, traces });
+}
+
+/**
+ * GET /__archik/trace-file?path=<relPath>
+ *   → raw JSON text of one trace document.
+ *
+ * Mirrors `handleSeqFile`: path-traversal guarded, must end in the trace
+ * extension, returns the file bytes verbatim so the client parses +
+ * validates (keeps the schema in one place — the client's zod copy).
+ */
+export async function handleTraceFile(
+  projectRoot: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const relPath = url.searchParams.get("path");
+  if (
+    !relPath ||
+    relPath.startsWith("/") ||
+    relPath.includes("\\") ||
+    /^[a-zA-Z]:[\\/]/.test(relPath) ||
+    !relPath.endsWith(".archik.trace.json")
+  ) {
+    res.writeHead(400, { "Content-Type": "text/plain" });
+    res.end("path must end in .archik.trace.json");
+    return;
+  }
+  const normalRoot = path.resolve(projectRoot);
+  const abs = path.resolve(normalRoot, relPath);
+  if (abs !== normalRoot && !abs.startsWith(normalRoot + path.sep)) {
+    res.writeHead(400, { "Content-Type": "text/plain" });
+    res.end("path escapes project root");
+    return;
+  }
+  let text: string;
+  try {
+    text = await fs.readFile(abs, "utf-8");
+  } catch {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end(`Not Found: ${relPath}`);
+    return;
+  }
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(text);
 }

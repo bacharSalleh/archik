@@ -469,6 +469,69 @@ function buildUseCaseSchema(): UseCaseSchemaSpec {
   };
 }
 
+type TraceSchemaSpec = {
+  traceDocument: FieldSpec[];
+  step: FieldSpec[];
+  stepStatuses: string[];
+  constraints: string[];
+};
+
+function buildTraceSchema(): TraceSchemaSpec {
+  return {
+    traceDocument: [
+      { name: "version", required: true, type: 'literal "1.0"' },
+      { name: "useCase", required: true, type: "string", notes: "id of the use case this trace records" },
+      { name: "slice", required: true, type: "string", notes: "id of the slice within the use case" },
+      { name: "seqFile", required: false, type: "string", notes: "optional — path to the .archik.seq.yaml this trace is bound to" },
+      { name: "recordedAt", required: true, type: "string", notes: "ISO 8601 timestamp of when the trace was captured" },
+      { name: "steps", required: true, type: "array of Step (≥1)" },
+    ],
+    step: [
+      { name: "id", required: false, type: "string", notes: "optional — matches a seq message id for binding" },
+      { name: "from", required: true, type: "string", notes: "participant or actor id" },
+      { name: "to", required: true, type: "string", notes: "participant or actor id" },
+      { name: "label", required: true, type: "string" },
+      { name: "data", required: false, type: "object", notes: "{ in?, out? } — real values that flowed (arbitrary JSON)" },
+      { name: "status", required: false, type: "enum", notes: "ok | error — defaults to ok" },
+    ],
+    stepStatuses: ["ok", "error"],
+    constraints: [
+      "File naming: *.archik.trace.json — place under .archik/ (e.g. .archik/traces/)",
+      "steps array must have at least one entry.",
+      "useCase + slice should match a discovered .archik.uc.yaml and its slice id for traceability.",
+      "seqFile (when set) should point at a discovered .archik.seq.yaml.",
+      "recordedAt must be a non-empty string; ISO 8601 strongly recommended.",
+    ],
+  };
+}
+
+function formatTraceSchema(spec: TraceSchemaSpec): string {
+  const sections: string[] = [];
+  sections.push("TRACE DOCUMENT  (*.archik.trace.json)");
+  for (const f of spec.traceDocument) sections.push(formatField(f));
+  sections.push("");
+  sections.push("STEP  (steps[])");
+  for (const f of spec.step) sections.push(formatField(f));
+  sections.push("");
+  sections.push("STEP STATUSES  (step.status)");
+  sections.push("  " + spec.stepStatuses.join(", "));
+  sections.push("");
+  sections.push("CONSTRAINTS");
+  for (const c of spec.constraints) sections.push(`  • ${c}`);
+  sections.push("");
+  return sections.join("\n");
+}
+
+function traceSchemaCommand(opts: ParsedOptions): number {
+  const spec = buildTraceSchema();
+  if (isJson(opts)) {
+    console.log(JSON.stringify(spec, null, 2));
+    return 0;
+  }
+  console.log(formatTraceSchema(spec));
+  return 0;
+}
+
 type ActorSchemaSpec = {
   actorDocument: FieldSpec[];
   actor: FieldSpec[];
@@ -616,6 +679,7 @@ function seqSchemaCommand(opts: ParsedOptions): number {
 
 export function schemaCommand(opts: ParsedOptions): number {
   if (opts._[0] === "seq") return seqSchemaCommand(opts);
+  if (opts._[0] === "trace") return traceSchemaCommand(opts);
   if (opts._[0] === "uc" || opts._[0] === "usecase") {
     return useCaseSchemaCommand(opts);
   }
