@@ -6,17 +6,17 @@
  */
 
 export const DARK_THEME_TOKENS: Record<string, string> = {
-  "--archik-canvas": "#050912",
-  "--archik-panel": "#0c1426",
-  "--archik-surface": "#14203a",
-  "--archik-surface-hover": "#1c2c4d",
+  "--archik-canvas": "#000000",
+  "--archik-panel": "#0a0a0a",
+  "--archik-surface": "#161616",
+  "--archik-surface-hover": "#222222",
 
-  "--archik-fg": "#e6edf7",
-  "--archik-fg-dim": "#8b9bb8",
-  "--archik-fg-muted": "#5b6a87",
+  "--archik-fg": "#ffffff",
+  "--archik-fg-dim": "#c8c8c8",
+  "--archik-fg-muted": "#9a9a9a",
 
-  "--archik-border": "#1d2b48",
-  "--archik-border-strong": "#2c3e63",
+  "--archik-border": "#262626",
+  "--archik-border-strong": "#3d3d3d",
 
   "--archik-accent": "#22d3ee",
   "--archik-accent-bright": "#67e8f9",
@@ -25,23 +25,23 @@ export const DARK_THEME_TOKENS: Record<string, string> = {
   "--archik-warning": "#fbbf24",
   "--archik-danger": "#fb7185",
 
-  "--archik-node-fill": "#0c1426",
-  "--archik-node-fill-tinted": "#142037",
-  "--archik-node-fill-frame": "#14203a",
-  "--archik-node-stroke": "#2c3e63",
-  "--archik-node-stroke-soft": "#1d2b48",
-  "--archik-node-text": "#e6edf7",
-  "--archik-node-text-dim": "#b6c2d8",
+  "--archik-node-fill": "#0c0c0c",
+  "--archik-node-fill-tinted": "#181818",
+  "--archik-node-fill-frame": "#101010",
+  "--archik-node-stroke": "#3d3d3d",
+  "--archik-node-stroke-soft": "#2a2a2a",
+  "--archik-node-text": "#ffffff",
+  "--archik-node-text-dim": "#d6d6d6",
   "--archik-node-caption": "#67e8f9",
-  "--archik-node-chrome-dot": "#475878",
+  "--archik-node-chrome-dot": "#3a3a3a",
 
-  "--archik-edge-filled": "#cbd5e1",
-  "--archik-edge-open": "#94a3b8",
-  "--archik-edge-dim": "#64748b",
+  "--archik-edge-filled": "#ededed",
+  "--archik-edge-open": "#b0b0b0",
+  "--archik-edge-dim": "#7a7a7a",
   "--archik-edge-async": "#67e8f9",
 
-  "--archik-grid-minor": "#0d1830",
-  "--archik-grid-major": "#182748",
+  "--archik-grid-minor": "#0f0f0f",
+  "--archik-grid-major": "#1c1c1c",
 
   "--archik-selected": "#22d3ee",
   "--archik-selected-glow": "rgba(34, 211, 238, 0.28)",
@@ -115,7 +115,7 @@ export function injectBackground(
   theme: ThemeName = "dark",
 ): string {
   const tokens = theme === "light" ? LIGHT_THEME_TOKENS : DARK_THEME_TOKENS;
-  const bg = tokens["--archik-canvas"] ?? "#050912";
+  const bg = tokens["--archik-canvas"] ?? "#000000";
   // Use the viewBox so the rect covers the negative-origin padding
   // region too (DiagramSvg's viewBox starts at -24,-24). 100% would
   // only cover the positive quadrant.
