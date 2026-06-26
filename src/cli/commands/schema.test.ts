@@ -134,6 +134,32 @@ describe("schemaCommand", () => {
     expect(parsed.actorKinds).toContain("external-system");
   });
 
+  it("schema trace prints the trace schema in human format", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    const exit = schemaCommand({ _: ["trace"] });
+    expect(exit).toBe(0);
+    const joined = output.join("\n");
+    expect(joined.toLowerCase()).toContain("usecase");
+    expect(joined.toLowerCase()).toContain("steps");
+    expect(joined).toContain("TRACE DOCUMENT");
+    expect(joined).toContain("recordedAt");
+  });
+
+  it("schema trace --json returns structured trace schema", () => {
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));
+    schemaCommand({ _: ["trace"], json: "true" });
+    const parsed = JSON.parse(output[0]!);
+    expect(parsed.traceDocument).toBeDefined();
+    expect(parsed.step).toBeDefined();
+    const ucField = parsed.traceDocument.find((f: { name: string }) => f.name === "useCase");
+    expect(ucField).toBeDefined();
+    expect(ucField.required).toBe(true);
+    const stepsField = parsed.traceDocument.find((f: { name: string }) => f.name === "steps");
+    expect(stepsField).toBeDefined();
+  });
+
   it("node schema includes the optional stereotype field", () => {
     const output: string[] = [];
     vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.join(" ")));

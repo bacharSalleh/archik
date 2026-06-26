@@ -711,6 +711,98 @@ describe("qCommand", () => {
     });
   });
 
+  describe("q traces subcommand", () => {
+    const minimalTraceDoc = (useCase: string, slice: string): string =>
+      JSON.stringify({
+        version: "1.0",
+        useCase,
+        slice,
+        recordedAt: "2026-01-01T00:00:00Z",
+        steps: [
+          { from: "a", to: "b", label: "call", status: "ok" },
+        ],
+      });
+
+    beforeEach(async () => {
+      await writeFile(
+        path.join(cwd, ".archik/main.archik.yaml"),
+        minimalDoc(),
+      );
+      await mkdir(path.join(cwd, ".archik/traces"), { recursive: true });
+      await writeFile(
+        path.join(cwd, ".archik/traces/uc.s.archik.trace.json"),
+        minimalTraceDoc("uc", "s"),
+      );
+    });
+
+    it("q traces lists discovered traces in JSON mode", async () => {
+      const code = await qCommand({ _: ["traces"], json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.count).toBe(1);
+      expect(parsed.traces.some((t: { useCase: string; slice: string }) => t.useCase === "uc" && t.slice === "s")).toBe(true);
+    });
+
+    it("q traces lists traces in human mode", async () => {
+      const code = await qCommand({ _: ["traces"] });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(out).toContain("uc");
+      expect(out).toContain("s");
+    });
+
+    it("q traces filters by --usecase", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/traces/other.s.archik.trace.json"),
+        minimalTraceDoc("other", "s"),
+      );
+      const code = await qCommand({ _: ["traces"], usecase: "uc", json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.count).toBe(1);
+      expect(parsed.traces[0].useCase).toBe("uc");
+    });
+
+    it("q traces filters by --slice", async () => {
+      await writeFile(
+        path.join(cwd, ".archik/traces/uc.other.archik.trace.json"),
+        minimalTraceDoc("uc", "other"),
+      );
+      const code = await qCommand({ _: ["traces"], slice: "s", json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.count).toBe(1);
+      expect(parsed.traces[0].slice).toBe("s");
+    });
+
+    it("q traces returns 1 when no traces match filter", async () => {
+      const code = await qCommand({ _: ["traces"], usecase: "nope" });
+      expect(code).toBe(1);
+    });
+
+    it("q traces returns 1 when no traces match filter in JSON mode", async () => {
+      const code = await qCommand({ _: ["traces"], usecase: "nope", json: "true" });
+      expect(code).toBe(1);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.count).toBe(0);
+    });
+
+    it("q traces JSON shape includes steps count, not array", async () => {
+      const code = await qCommand({ _: ["traces"], json: "true" });
+      expect(code).toBe(0);
+      const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      const parsed = JSON.parse(out);
+      expect(typeof parsed.traces[0].steps).toBe("number");
+      expect(parsed.traces[0].steps).toBe(1);
+    });
+  });
+
   describe("q actors", () => {
     beforeEach(async () => {
       await writeFile(path.join(cwd, ".archik/main.archik.yaml"), minimalDoc());

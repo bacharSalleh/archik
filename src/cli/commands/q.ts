@@ -6,6 +6,7 @@
  */
 import { discoverDocs, type LoadedDoc } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
+import { discoverTraceDocs } from "../../io/trace-discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { discoverActorDocs } from "../../io/actor-discovery.ts";
 import {
@@ -113,6 +114,7 @@ SUBCOMMANDS
   stats                    Counts: files, nodes, edges, kinds, relationships
   sequences                All sequence diagram files (.archik.seq.yaml)
                   --node <id>    filter to flows involving that architecture node id
+  traces [--usecase <id>] [--slice <id>]   Concrete run traces (.archik.trace.json)
   usecases                 All use case files (.archik.uc.yaml)
                   --actor <id>   filter to use cases involving that actor
   describe-usecase <id>    Use case detail: actors, flows, slices, realizations
@@ -532,6 +534,56 @@ async function sequencesCommand(
   return 0;
 }
 
+async function tracesCommand(
+  opts: ParsedOptions,
+  base: string,
+): Promise<number> {
+  const json = isJson(opts);
+  const ucFilter = getString(opts, "usecase");
+  const sliceFilter = getString(opts, "slice");
+  const { docs, errors } = await discoverTraceDocs(base);
+
+  for (const e of errors) {
+    if (!json) console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
+  }
+
+  const filtered = docs.filter(
+    (d) =>
+      (ucFilter === undefined || d.doc.useCase === ucFilter) &&
+      (sliceFilter === undefined || d.doc.slice === sliceFilter),
+  );
+
+  if (json) {
+    printJson({
+      ok: true,
+      count: filtered.length,
+      traces: filtered.map((d) => ({
+        relPath: d.relPath,
+        useCase: d.doc.useCase,
+        slice: d.doc.slice,
+        seqFile: d.doc.seqFile,
+        recordedAt: d.doc.recordedAt,
+        steps: d.doc.steps.length,
+      })),
+    });
+    return filtered.length === 0 ? 1 : 0;
+  }
+
+  if (filtered.length === 0) {
+    console.log("No traces found.");
+    if (ucFilter) console.log(`(filtered by --usecase ${ucFilter})`);
+    if (sliceFilter) console.log(`(filtered by --slice ${sliceFilter})`);
+    return 1;
+  }
+
+  for (const d of filtered) {
+    console.log(
+      `${bold(d.doc.useCase + "/" + d.doc.slice)}  ${dim(d.doc.steps.length + " steps")}  ${gray(d.relPath)}`,
+    );
+  }
+  return 0;
+}
+
 async function useCasesCommand(
   opts: ParsedOptions,
   base: string,
@@ -722,6 +774,7 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
     case "stats":
       return qStats(opts);
     case "sequences":
+    case "traces":
     case "usecases":
     case "describe-usecase":
     case "actors": {
@@ -740,6 +793,7 @@ export async function qCommand(opts: ParsedOptions): Promise<number> {
       }
       const base = projectRoot(abs);
       if (sub === "sequences") return sequencesCommand(opts, base);
+      if (sub === "traces") return tracesCommand(opts, base);
       if (sub === "usecases") return useCasesCommand(opts, base);
       if (sub === "describe-usecase") return describeUseCaseCommand(opts, base);
       return actorsCommand(opts, base);
