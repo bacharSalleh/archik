@@ -14,6 +14,8 @@ import { discoverDocs } from "../../io/discovery.ts";
 import { discoverSeqDocs } from "../../io/seq-discovery.ts";
 import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { discoverActorDocs } from "../../io/actor-discovery.ts";
+import { discoverTraceDocs } from "../../io/trace-discovery.ts";
+import { checkTraces } from "../../domain/trace-validate.ts";
 import {
   checkSeqEcbRules,
   checkSeqNodeBackrefs,
@@ -239,6 +241,25 @@ export async function validateCommand(
     return 1;
   }
 
+  // Concrete-trace validation — discover all *.archik.trace.json files
+  // and check each one against the already-loaded use-case + seq docs.
+  const traceDiscovery = await discoverTraceDocs(root);
+  const traceErrors: ValidationError[] = traceDiscovery.errors.map((e) => ({ path: e.relPath, message: e.message }));
+  let traceInfo: string[] = [];
+  if (traceErrors.length === 0) {
+    const traceCheck = checkTraces(traceDiscovery.docs, ucDiscovery.docs, seqDiscovery.docs);
+    traceErrors.push(...traceCheck.errors);
+    traceInfo = traceCheck.info;
+  }
+  if (traceErrors.length > 0) {
+    if (json) emitJson({ ok: false, file, errors: traceErrors });
+    else {
+      console.error(`✗ ${file}`);
+      console.error(formatErrors(traceErrors));
+    }
+    return 1;
+  }
+
   // Governance constraints — checked against the merged diagram so
   // cross-file edges can't dodge a rule by living in a sub-file.
   const constraintErrors = checkConstraints(discovery.docs);
@@ -288,6 +309,7 @@ export async function validateCommand(
         `ⓘ ${complexityHints} complexity hint${complexityHints === 1 ? "" : "s"} — run \`archik complexity\` to see them`,
       );
     }
+    for (const line of traceInfo) console.log(`ⓘ ${line}`);
   }
   return 0;
 }
