@@ -27,6 +27,12 @@
   "bin": {
     "archik": "bin/archik.js"
   },
+  "exports": {
+    "./trace": {
+      "types": "./dist/trace.d.ts",
+      "import": "./dist/trace.js"
+    }
+  },
   "files": [
     "bin",
     "dist",

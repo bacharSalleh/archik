@@ -64,4 +64,63 @@ await esbuild({
   },
 });
 
+console.log("[build] esbuild → dist/trace.js");
+await esbuild({
+  entryPoints: [path.join(root, "src", "trace", "recorder.ts")],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  outfile: path.join(root, "dist", "trace.js"),
+  minify: false,
+  sourcemap: false,
+  legalComments: "none",
+  external: [],
+});
+
+console.log("[build] tsc → dist/trace.d.ts");
+const tracetypesDir = path.join(root, "dist", ".tracetypes");
+// Write a minimal tsconfig so tsc knows about @types/node without loading
+// the project tsconfig (which has noEmit:true and breaks declaration emit).
+const { writeFileSync } = await import("node:fs");
+const tempTsconfig = path.join(root, ".tsconfig.trace.tmp.json");
+writeFileSync(tempTsconfig, JSON.stringify({
+  compilerOptions: {
+    target: "ES2022",
+    module: "esnext",
+    moduleResolution: "bundler",
+    allowImportingTsExtensions: true,
+    verbatimModuleSyntax: true,
+    declaration: true,
+    emitDeclarationOnly: true,
+    skipLibCheck: true,
+    strict: true,
+    rootDir: "src",
+    types: ["node"],
+    outDir: tracetypesDir,
+  },
+  include: ["src/trace/recorder.ts"],
+}), "utf-8");
+run(process.platform === "win32" ? "npx.cmd" : "npx", [
+  "tsc",
+  "--project", tempTsconfig,
+]);
+await rm(tempTsconfig, { force: true });
+// tsc path depends on rootDir inference — find wherever recorder.d.ts landed
+const { execSync } = await import("node:child_process");
+const foundRaw = execSync(`find "${tracetypesDir}" -name "recorder.d.ts"`, { cwd: root })
+  .toString()
+  .trim();
+if (!foundRaw) {
+  console.error("[build] ERROR: tsc did not emit recorder.d.ts");
+  process.exit(1);
+}
+// use first match (there should be exactly one)
+const foundPath = foundRaw.split("\n")[0].trim();
+console.log(`[build] found recorder.d.ts at: ${foundPath}`);
+await rm(path.join(root, "dist", "trace.d.ts"), { force: true });
+const { rename } = await import("node:fs/promises");
+await rename(foundPath, path.join(root, "dist", "trace.d.ts"));
+await rm(tracetypesDir, { recursive: true, force: true });
+
 console.log("[build] done.");
