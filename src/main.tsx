@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App.tsx";
 import { SequencePage } from "./ui/SequencePage.tsx";
+import { TraceRoute } from "./ui/TracePage.tsx";
 import { UseCasesPage } from "./ui/UseCasesPage.tsx";
 import "./index.css";
 
@@ -11,6 +12,8 @@ if (!rootEl) throw new Error("#root not found");
 const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname;
 const isSeqRoute = path === "/__archik/seq" || path.startsWith("/__archik/seq/");
+const isTraceRoute =
+  path === "/__archik/trace-page" || path.startsWith("/__archik/trace-page/");
 const isUseCasesRoute =
   path === "/__archik/usecases" || path.startsWith("/__archik/usecases/");
 
@@ -31,6 +34,23 @@ if (isSeqRoute) {
   root.render(
     <StrictMode>
       <SequencePage path={seqPath} back={back} />
+    </StrictMode>,
+  );
+} else if (isTraceRoute) {
+  // /__archik/trace-page?path=<relPath>&from-uc=<id> — renders one
+  // concrete-run trace as a vertical dataflow timeline. Same back-target
+  // convention as the seq route.
+  const tracePath = params.get("path") ?? "";
+  const fromUc = params.get("from-uc");
+  const fromFile = params.get("from-file") ?? params.get("from");
+  const back = fromUc
+    ? ({ type: "usecase", value: fromUc } as const)
+    : fromFile
+      ? ({ type: "file", value: fromFile } as const)
+      : null;
+  root.render(
+    <StrictMode>
+      <TraceRoute path={tracePath} back={back} />
     </StrictMode>,
   );
 } else if (isUseCasesRoute) {

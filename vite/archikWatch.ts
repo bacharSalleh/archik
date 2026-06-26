@@ -17,6 +17,8 @@ import {
   handleSeqFile,
   handleSidecar,
   handleTrace,
+  handleTraceFile,
+  handleTraces,
   handleUseCases,
   handleYaml,
 } from "../src/server/handlers.ts";
@@ -38,6 +40,8 @@ const USECASES_URL = `/__archik/usecases`;
 const ACTORS_URL = `/__archik/actors`;
 const ALPHAS_URL = `/__archik/alphas`;
 const TRACE_URL = `/__archik/trace`;
+const TRACES_URL = `/__archik/traces`;
+const TRACE_FILE_URL = `/__archik/trace-file`;
 const DOC_EVENT = "archik:doc-changed";
 const SUGGESTION_EVENT = "archik:suggestion-changed";
 
@@ -127,6 +131,20 @@ export function archikWatch(): Plugin {
       server.middlewares.use(ALPHAS_URL, (req, res, next) => {
         if (req.method === undefined) return next();
         void handleAlphas(root, docPath, req, res);
+      });
+
+      // Register the more-specific trace routes BEFORE TRACE_URL —
+      // Vite middleware matching is by prefix, so `/__archik/trace`
+      // would otherwise swallow `/__archik/traces` and
+      // `/__archik/trace-file`.
+      server.middlewares.use(TRACE_FILE_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleTraceFile(root, req, res);
+      });
+
+      server.middlewares.use(TRACES_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleTraces(root, req, res);
       });
 
       server.middlewares.use(TRACE_URL, (req, res, next) => {
