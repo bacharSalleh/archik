@@ -51,6 +51,7 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | List use cases (filter by actor)  | `npx archik q usecases [--actor <id>]`        |
 | Describe one use case             | `npx archik q describe-usecase <id>`          |
 | List actors                       | `npx archik q actors`                         |
+| List concrete run traces          | `npx archik q traces [--usecase <id>] [--slice <id>]` |
 | Use case coverage matrix          | `npx archik trace [--json] [--fail-on partial\|none]` |
 | Map changed files onto the model  | `npx archik affected [--since <ref>] [--files <list>] [--json]` |
 | Run the tests a change touches    | `npx archik affected --run [--runner '<cmd>']` |
@@ -534,6 +535,29 @@ slices:
 
 Query: `npx archik q usecases [--actor <id>]` | `npx archik q describe-usecase <id>`
 
+## Concrete run traces
+
+A sequence diagram is the **abstract** flow (boxes and arrows, no values). A **concrete trace** is one real run of a slice with the **actual data at each step** — captured from the slice's tests and shown on the canvas as an expandable dataflow **timeline** (each step's real in/out values, expandable to the full JSON). It's the concrete counterpart to the slice's abstract seq diagram (a bound trace links to that diagram; it doesn't redraw onto it). Use it when someone asks to *see a real example of a use case running, with the data at each step*.
+
+- **Tests record it via the `archik/trace` recorder** (a zero-dep import archik ships). Add it to the slice's test:
+  ```ts
+  import { trace } from "archik/trace";
+  const t = trace({
+    useCase: "place-order",
+    slice: "happy-path",
+    seqFile: ".archik/place-order.happy.archik.seq.yaml", // optional → binds to the diagram
+  });
+  t.step({ id: "m1", from: "browser", to: "api", label: "POST /orders", in: cart, out: res });
+  t.step({ id: "m2", from: "api", to: "db", label: "insert order", in: order });
+  // auto-flushes on process exit → .archik/traces/place-order.happy-path.archik.trace.json
+  ```
+  When `seqFile` is set, `id`/`from`/`to` must match the diagram's message + participant ids (so the run is checked against the declared flow); omit `seqFile` for a standalone trace.
+- **Passive — archik never runs your tests.** Run them however you like (`npm test`, `archik affected --run`); the recorder writes the file, archik only reads it. The canvas shows a "Concrete run" affordance on each slice that has one.
+- **Query / shape:** `npx archik q traces [--usecase <id>] [--slice <id>]` lists captured runs; `npx archik schema trace` prints the schema (the file is JSON, machine-generated — never hand-author it).
+- **Validated:** `npx archik validate` checks each trace — its use case/slice resolves, and (when bound) its step ids + participants exist in the seq diagram; seq steps the run didn't exercise are reported informationally, not as errors.
+
+**Two different "trace"s — don't confuse them:** `npx archik trace` is the use-case **coverage matrix** (use case × slice × test × seq). **Concrete run traces** are `*.archik.trace.json` files captured by the recorder and listed by `npx archik q traces`.
+
 ## Alpha state
 
 One file per project: `<name>.archik.alphas.yaml`. Direct-write. Tracks four Essence alphas that archik can directly evidence: **stakeholders**, **requirements**, **softwareSystem**, **work**.
@@ -663,6 +687,7 @@ npx archik schema                       # the document shape (start here when au
                   --seq                 #   seq diagram schema instead of arch schema
                   uc                    #   use case schema
                   actors                #   actors schema
+                  trace                 #   concrete run-trace schema
 
 npx archik q describe <id> | deps <id> | dependents <id>
                   list | edges | impact <id> | stats
@@ -671,6 +696,7 @@ npx archik q describe <id> | deps <id> | dependents <id>
                   usecases [--actor <id>]   # list use cases; filter by actor
                   describe-usecase <id>     # one use case in detail
                   actors                    # list actors
+                  traces [--usecase <id>] [--slice <id>]  # concrete run traces (.archik.trace.json)
                   --json                #   stable machine-readable shape
 
 npx archik trace [--json]               # coverage matrix: use case × slice × test × seq × ECB
