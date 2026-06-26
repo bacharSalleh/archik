@@ -500,7 +500,7 @@ export function TraceRoute({
   if (state.status === "error") {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
-        <div style={{ color: "var(--archik-fg-error, #ef4444)" }}>
+        <div style={{ color: "var(--archik-danger)" }}>
           {state.message}
         </div>
         <a

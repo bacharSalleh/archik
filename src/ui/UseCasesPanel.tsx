@@ -318,8 +318,9 @@ function UseCaseList({
     return map;
   }, [trace]);
 
-  // (useCase, slice) → concrete trace doc. Last write wins if a slice
-  // somehow has several recorded runs — most recent on disk shows.
+  // (useCase, slice) → concrete trace doc. The recorder writes one file per
+  // useCase.slice (keyed on both), so there is normally exactly one trace per
+  // slice; if duplicates ever exist, discovery order decides.
   const traceDocByKey = useMemo(() => {
     const map = new Map<string, TraceDocRow>();
     for (const td of traceDocs) {

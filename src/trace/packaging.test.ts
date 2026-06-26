@@ -27,4 +27,10 @@ describe("archik/trace packaging", () => {
     expect(typeof rec.step).toBe("function");
     expect(typeof rec.flush).toBe("function");
   });
+
+  it("dist/trace.js stays zero runtime dependency (no zod / node_modules)", () => {
+    const src = readFileSync(path.join(REPO, "dist/trace.js"), "utf-8");
+    expect(src).not.toMatch(/zod/);
+    expect(src).not.toMatch(/node_modules/);
+  });
 });
