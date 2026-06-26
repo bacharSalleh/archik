@@ -63,7 +63,7 @@ it is the developer's only copy of the pre-migration project.
    `npx archik validate .archik/main.archik.yaml`.
 
 6. **Author a sequence diagram per primary slice.** Direct-write
-   `.archik/<usecase>.<slice>.archik.seq.yaml` (schema: `npx archik schema --seq`).
+   `.archik/<usecase>.<slice>.archik.seq.yaml` (schema: `npx archik schema seq`).
    Every participant `nodeId` must be a real node; add a `realizes` block
    AND point the slice's `realization.seqFile` back at the file
    (bidirectional). Add the seq to each participating node's `seqFiles`
