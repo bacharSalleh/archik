@@ -196,6 +196,45 @@ describe("UseCasesPage", () => {
     expect(seqLink!.getAttribute("href")).toContain("from-uc=place-order");
   });
 
+  it("surfaces a concrete-run flow chart link when a trace doc exists", async () => {
+    mockEndpoints({
+      // /__archik/traces MUST precede /__archik/trace here — the mock
+      // matches by startsWith and "/__archik/trace" is a prefix of
+      // "/__archik/traces", so trace would otherwise shadow traces.
+      "/__archik/traces": {
+        body: {
+          ok: true,
+          traces: [
+            {
+              relPath: ".archik/traces/place-order.happy.archik.trace.json",
+              useCase: "place-order",
+              slice: "happy",
+              seqFile: ".archik/place-order-happy.archik.seq.yaml",
+              recordedAt: "2026-06-26",
+              steps: 5,
+            },
+          ],
+        },
+      },
+      "/__archik/trace": { body: SAMPLE_TRACE },
+      "/__archik/usecases": { body: SAMPLE_USECASES },
+    });
+    render(<UseCasesPage selectedId="place-order" />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("tests/place-order.happy.spec.ts"),
+      ).toBeInTheDocument(),
+    );
+    // The happy slice has a recorded run → a link to the trace page,
+    // carrying from-uc so the trace page can return here.
+    const links = screen.getAllByRole("link");
+    const traceLink = links.find((a) =>
+      a.getAttribute("href")?.includes("/__archik/trace-page?path="),
+    );
+    expect(traceLink).toBeDefined();
+    expect(traceLink!.getAttribute("href")).toContain("from-uc=place-order");
+  });
+
   it("derives the ECB ratio from realization.participants on each slice", async () => {
     mockEndpoints({
       "/__archik/usecases": { body: SAMPLE_USECASES },

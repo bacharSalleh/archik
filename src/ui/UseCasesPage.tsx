@@ -62,13 +62,29 @@ type TraceRow = {
   } | null;
 };
 
+/** One discovered concrete-run trace file (mirrors `q traces --json`). */
+type TraceDocRow = {
+  relPath: string;
+  useCase: string;
+  slice: string;
+  seqFile?: string;
+  recordedAt: string;
+  steps: number;
+};
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; useCases: UseCase[]; trace: TraceRow[] };
+  | {
+      status: "ready";
+      useCases: UseCase[];
+      trace: TraceRow[];
+      traceDocs: TraceDocRow[];
+    };
 
 const USECASES_URL = "/__archik/usecases";
 const TRACE_URL = "/__archik/trace";
+const TRACES_URL = "/__archik/traces";
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const res = await fetch(url, { cache: "no-store", signal });
@@ -87,13 +103,21 @@ export function UseCasesPage({ selectedId }: Props): React.ReactElement {
     Promise.all([
       fetchJson<{ ok: boolean; useCases: UseCase[] }>(USECASES_URL, ctrl.signal),
       fetchJson<{ ok: boolean; rows: TraceRow[] }>(TRACE_URL, ctrl.signal),
+      // Concrete-run traces. Tolerated failure: an older dev server may
+      // not serve this endpoint yet — degrade to "no flow chart links"
+      // rather than failing the whole page.
+      fetchJson<{ ok: boolean; traces: TraceDocRow[] }>(
+        TRACES_URL,
+        ctrl.signal,
+      ).catch(() => ({ ok: true, traces: [] as TraceDocRow[] })),
     ])
-      .then(([uc, tr]) => {
+      .then(([uc, tr, td]) => {
         if (cancelled) return;
         setState({
           status: "ready",
           useCases: uc.useCases ?? [],
           trace: tr.rows ?? [],
+          traceDocs: td.traces ?? [],
         });
       })
       .catch((err: unknown) => {
@@ -136,6 +160,7 @@ export function UseCasesPage({ selectedId }: Props): React.ReactElement {
           <Body
             useCases={state.useCases}
             trace={state.trace}
+            traceDocs={state.traceDocs}
             selectedId={selectedId}
           />
         )}
@@ -231,10 +256,12 @@ function Header({ state }: { state: LoadState }): React.ReactElement {
 function Body({
   useCases,
   trace,
+  traceDocs,
   selectedId,
 }: {
   useCases: UseCase[];
   trace: TraceRow[];
+  traceDocs: TraceDocRow[];
   selectedId: string | null;
 }): React.ReactElement {
   // Roll trace up to use-case granularity for the rail badges. Worst
@@ -261,6 +288,12 @@ function Body({
     return m;
   }, [trace]);
 
+  const traceDocByKey = useMemo(() => {
+    const m = new Map<string, TraceDocRow>();
+    for (const td of traceDocs) m.set(`${td.useCase}/${td.slice}`, td);
+    return m;
+  }, [traceDocs]);
+
   // Default to the first use case if no id requested or the requested
   // id doesn't exist (stale URL after rename / removal).
   const selected =
@@ -269,7 +302,11 @@ function Body({
   return (
     <>
       <Rail useCases={useCases} ucLevel={ucLevel} selectedId={selected.id} />
-      <Detail useCase={selected} traceByKey={traceByKey} />
+      <Detail
+        useCase={selected}
+        traceByKey={traceByKey}
+        traceDocByKey={traceDocByKey}
+      />
     </>
   );
 }
@@ -383,9 +420,11 @@ function LevelDot({
 function Detail({
   useCase,
   traceByKey,
+  traceDocByKey,
 }: {
   useCase: UseCase;
   traceByKey: Map<string, TraceRow>;
+  traceDocByKey: Map<string, TraceDocRow>;
 }): React.ReactElement {
   return (
     <main
@@ -531,6 +570,7 @@ function Detail({
                       slice={slice}
                       useCaseId={useCase.id}
                       trace={traceByKey.get(`${useCase.id}/${slice.id}`)}
+                      traceDoc={traceDocByKey.get(`${useCase.id}/${slice.id}`)}
                     />
                   ))}
                 </div>
@@ -600,10 +640,12 @@ function SliceCard({
   slice,
   useCaseId,
   trace,
+  traceDoc,
 }: {
   slice: Slice;
   useCaseId: string;
   trace: TraceRow | undefined;
+  traceDoc: TraceDocRow | undefined;
 }): React.ReactElement {
   const level = trace?.level ?? "none";
   return (
@@ -727,6 +769,35 @@ function SliceCard({
           ) : (
             <span style={{ color: "var(--archik-fg-muted)" }}>
               — no seq file yet
+            </span>
+          )}
+        </div>
+
+        <div style={miniLabelStyle}>Flow chart</div>
+        <div>
+          {traceDoc ? (
+            <a
+              href={`/__archik/trace-page?path=${encodeURIComponent(traceDoc.relPath)}&from-uc=${encodeURIComponent(useCaseId)}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: "var(--archik-accent)",
+                textDecoration: "none",
+                fontSize: 11,
+              }}
+              title={`Open the concrete run (${traceDoc.steps} steps)`}
+            >
+              ● Concrete run
+              <span style={{ color: "var(--archik-fg-muted)" }}>
+                {" "}
+                {traceDoc.recordedAt}
+              </span>
+              <ArrowUpRight size={11} style={{ opacity: 0.7 }} />
+            </a>
+          ) : (
+            <span style={{ color: "var(--archik-fg-muted)" }}>
+              — no recorded run yet
             </span>
           )}
         </div>
