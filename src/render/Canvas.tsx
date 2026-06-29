@@ -12,6 +12,12 @@ import { DiagramSvg } from "./DiagramSvg.tsx";
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 1.2;
+// Wheel zoom scales continuously with the scroll delta so it feels smooth
+// rather than jumping a full ZOOM_STEP on every event (trackpads/mice fire
+// wheel events rapidly, which made zooming feel far too fast). The sensitivity
+// is tuned so a typical notched-mouse tick (deltaY ≈ 100) lands near a gentle
+// ~6% change instead of the 20% button step.
+const ZOOM_WHEEL_SENSITIVITY = 0.0006;
 const clampZoom = (z: number): number =>
   Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
 
@@ -146,7 +152,7 @@ export function Canvas({
     const handler = (e: WheelEvent): void => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      const factor = Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY);
       setZoom((z) => clampZoom(z * factor));
     };
     el.addEventListener("wheel", handler, { passive: false });
