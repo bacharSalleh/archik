@@ -1,26 +1,10 @@
 import type { LayoutedSeqDocument, LayoutedStep } from "./seqLayout.ts";
-import { ACTIVATION_W, PARTICIPANT_HEADER_HEIGHT, SEQ_MARKER_FILLED, SEQ_MARKER_OPEN } from "./seqLayout.ts";
+import { ACTIVATION_W, PARTICIPANT_HEADER_HEIGHT } from "./seqLayout.ts";
 import { SeqParticipantHeader } from "./SeqParticipantHeader.tsx";
 import { SeqLifeline } from "./SeqLifeline.tsx";
 import { SeqMessage } from "./SeqMessage.tsx";
 import { SeqGroupFrame } from "./SeqGroupFrame.tsx";
 import { SeqNote } from "./SeqNote.tsx";
-
-function FilledTriangle({ id }: { id: string }): React.ReactElement {
-  return (
-    <marker id={id} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
-    </marker>
-  );
-}
-
-function OpenTriangle({ id }: { id: string }): React.ReactElement {
-  return (
-    <marker id={id} viewBox="0 0 12 12" refX="11" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinejoin="round" />
-    </marker>
-  );
-}
 
 function RenderStep({ step, onRefClick }: { step: LayoutedStep; onRefClick?: (f: string) => void }): React.ReactElement | null {
   if (step.type === "message") return <SeqMessage msg={step} />;
@@ -55,10 +39,6 @@ export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactE
       xmlns="http://www.w3.org/2000/svg"
       style={{ fontFamily: "var(--archik-font, system-ui)" }}
     >
-      <defs>
-        <FilledTriangle id={SEQ_MARKER_FILLED} />
-        <OpenTriangle id={SEQ_MARKER_OPEN} />
-      </defs>
       {participants.map((p) => (
         <SeqLifeline key={p.id} participant={p} />
       ))}

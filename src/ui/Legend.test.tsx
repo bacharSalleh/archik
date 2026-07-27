@@ -25,17 +25,22 @@ describe("Legend", () => {
   });
 
   it("shows every relationship with its UML glyph after clicking the trigger", () => {
-    const { container } = render(<Legend />);
+    render(<Legend />);
     fireEvent.click(screen.getByRole("button"));
     expect(screen.getByText("Relationships")).toBeInTheDocument();
     for (const rel of RELATIONSHIPS) {
       expect(screen.getByText(rel)).toBeInTheDocument();
     }
-    // Each relationship draws a sample edge with a namespaced end marker.
+    // Each relationship row draws a sample edge: a line plus at least one
+    // explicit arrowhead path (no SVG markers — WebKit lacks
+    // context-stroke). has_a draws two (diamond + open arrow).
     for (const rel of RELATIONSHIPS) {
-      expect(
-        container.querySelector(`defs marker#legend-arrow-${rel}-end`),
-      ).not.toBeNull();
+      const row = screen.getByText(rel).parentElement!;
+      const glyph = row.querySelector("svg");
+      expect(glyph, `glyph for ${rel}`).not.toBeNull();
+      expect(glyph!.querySelector("line")).not.toBeNull();
+      const heads = glyph!.querySelectorAll("path");
+      expect(heads.length).toBeGreaterThanOrEqual(rel === "has_a" ? 2 : 1);
     }
   });
 

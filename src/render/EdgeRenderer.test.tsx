@@ -36,14 +36,15 @@ describe("EdgeRenderer", () => {
     expect(points).toContain("100,50");
   });
 
-  it("references an arrowhead marker via marker-end", () => {
+  it("renders an explicit arrowhead path at the edge end", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge()} />
       </svg>,
     );
-    const poly = container.querySelector("polyline");
-    expect(poly?.getAttribute("marker-end")).toMatch(/^url\(#archik-arrow/);
+    const head = container.querySelector("[data-archik-arrowhead='end']");
+    expect(head).not.toBeNull();
+    expect(head?.getAttribute("d")).toBeTruthy();
   });
 
   it("renders uses as a solid, non-animated edge", () => {
@@ -82,7 +83,10 @@ describe("EdgeRenderer", () => {
       "polyline:not([data-archik-edge-hitarea])",
     );
     expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
-    expect(poly?.getAttribute("marker-end")).toBe("url(#archik-arrow-triangle)");
+    const head = container.querySelector("[data-archik-arrowhead='end']");
+    // Hollow UML triangle: panel fill + stroked outline.
+    expect(head?.getAttribute("fill")).toBe("var(--archik-panel)");
+    expect(head?.getAttribute("stroke")).toBeTruthy();
   });
 
   it("renders has_a with a composition diamond at the owner (start) end", () => {
@@ -91,10 +95,9 @@ describe("EdgeRenderer", () => {
         <EdgeRenderer edge={baseEdge({ relationship: "has_a" })} />
       </svg>,
     );
-    const poly = container.querySelector(
-      "polyline:not([data-archik-edge-hitarea])",
-    );
-    expect(poly?.getAttribute("marker-start")).toBe("url(#archik-arrow-diamond)");
+    const diamond = container.querySelector("[data-archik-arrowhead='start']");
+    expect(diamond).not.toBeNull();
+    expect(diamond?.getAttribute("d")).toContain("Z"); // closed diamond polygon
   });
 
   it("renders http_call as a dashed, animated edge (data on wire)", () => {
@@ -110,31 +113,39 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("class")).toContain("archik-edge-flowing");
   });
 
-  it("uses filled or open marker per relationship", () => {
+  it("uses the right arrowhead shape per relationship", () => {
+    // filled = solid head (fill only), open = chevron (stroke only),
+    // triangle = hollow UML head (panel fill + stroke).
     const cases = [
-      ["http_call", "archik-arrow-filled"],
-      ["writes", "archik-arrow-filled"],
-      ["reads", "archik-arrow-open"],
-      ["publishes", "archik-arrow-filled"],
-      ["subscribes", "archik-arrow-filled"],
-      ["depends_on", "archik-arrow-open"],
-      ["has_a", "archik-arrow-open"],
-      ["uses", "archik-arrow-open"],
-      ["implements", "archik-arrow-triangle"],
-      ["extends", "archik-arrow-triangle"],
+      ["http_call", "filled"],
+      ["writes", "filled"],
+      ["reads", "open"],
+      ["publishes", "filled"],
+      ["subscribes", "filled"],
+      ["depends_on", "open"],
+      ["has_a", "open"],
+      ["uses", "open"],
+      ["implements", "triangle"],
+      ["extends", "triangle"],
     ] as const;
-    for (const [rel, marker] of cases) {
+    for (const [rel, kind] of cases) {
       const { container, unmount } = render(
         <svg>
           <EdgeRenderer edge={baseEdge({ relationship: rel })} />
         </svg>,
       );
-      const visiblePolyline = container.querySelector(
-        "polyline:not([data-archik-edge-hitarea])",
-      );
-      expect(visiblePolyline?.getAttribute("marker-end")).toBe(
-        `url(#${marker})`,
-      );
+      const head = container.querySelector("[data-archik-arrowhead='end']");
+      expect(head, `head for ${rel}`).not.toBeNull();
+      if (kind === "filled") {
+        expect(head?.getAttribute("fill")).toBe("var(--archik-edge-filled)");
+        expect(head?.getAttribute("stroke")).toBeNull();
+      } else if (kind === "open") {
+        expect(head?.getAttribute("fill")).toBe("none");
+        expect(head?.getAttribute("stroke")).toBeTruthy();
+      } else {
+        expect(head?.getAttribute("fill")).toBe("var(--archik-panel)");
+        expect(head?.getAttribute("stroke")).toBeTruthy();
+      }
       unmount();
     }
   });

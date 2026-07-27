@@ -8,16 +8,11 @@ import {
 import { KIND_META } from "../render/kindPalette.ts";
 import { STYLES as EDGE_STYLES } from "../render/EdgeRenderer.tsx";
 import {
-  ARROW_MARKER_DIAMOND,
-  ARROW_MARKER_FILLED,
-  ARROW_MARKER_OPEN,
-  ARROW_MARKER_TRIANGLE,
-  FilledDiamondMarker,
-  FilledTriangleMarker,
-  HollowTriangleMarker,
-  OpenTriangleMarker,
-} from "../render/markers.tsx";
-import type { ComponentType } from "react";
+  diamondArrowPath,
+  filledArrowPath,
+  openArrowPath,
+  triangleArrowPath,
+} from "../render/arrowhead.ts";
 import { Popover } from "./Popover.tsx";
 
 export function Legend(): React.ReactElement {
@@ -194,16 +189,10 @@ function SectionHeading({
   );
 }
 
-const LEGEND_MARKERS: Record<string, ComponentType<{ id: string }>> = {
-  [ARROW_MARKER_FILLED]: FilledTriangleMarker,
-  [ARROW_MARKER_OPEN]: OpenTriangleMarker,
-  [ARROW_MARKER_TRIANGLE]: HollowTriangleMarker,
-  [ARROW_MARKER_DIAMOND]: FilledDiamondMarker,
-};
-
 /**
- * Miniature edge sample for the legend. Marker ids are namespaced per
- * relationship so they can't collide with the canvas `<defs>`.
+ * Miniature edge sample for the legend — a horizontal line plus the same
+ * explicit arrowhead paths the canvas draws (no SVG markers: they need
+ * context-stroke, which WebKit doesn't implement).
  */
 function RelationshipGlyph({
   relationship,
@@ -211,19 +200,10 @@ function RelationshipGlyph({
   relationship: Relationship;
 }): React.ReactElement {
   const style = EDGE_STYLES[relationship];
-  const endId = `legend-arrow-${relationship}-end`;
-  const startId = `legend-arrow-${relationship}-start`;
-  const EndMarker = LEGEND_MARKERS[style.markerId];
-  const StartMarker =
-    style.markerStartId !== undefined
-      ? LEGEND_MARKERS[style.markerStartId]
-      : undefined;
+  const tip = { x: 48, y: 7 };
+  const beforeTip = { x: 14, y: 7 };
   return (
     <svg width={64} height={14} aria-hidden="true">
-      <defs>
-        {EndMarker !== undefined && <EndMarker id={endId} />}
-        {StartMarker !== undefined && <StartMarker id={startId} />}
-      </defs>
       <line
         x1={14}
         y1={7}
@@ -234,11 +214,35 @@ function RelationshipGlyph({
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}
-        markerEnd={`url(#${endId})`}
-        {...(StartMarker !== undefined
-          ? { markerStart: `url(#${startId})` }
-          : {})}
       />
+      {style.head === "filled" && (
+        <path d={filledArrowPath(tip, beforeTip)} fill={style.stroke} />
+      )}
+      {style.head === "open" && (
+        <path
+          d={openArrowPath(tip, beforeTip)}
+          fill="none"
+          stroke={style.stroke}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {style.head === "triangle" && (
+        <path
+          d={triangleArrowPath(tip, beforeTip)}
+          fill="var(--archik-panel)"
+          stroke={style.stroke}
+          strokeWidth={1.8}
+          strokeLinejoin="round"
+        />
+      )}
+      {style.startHead === "filled" && (
+        <path d={filledArrowPath(beforeTip, tip)} fill={style.stroke} />
+      )}
+      {style.startHead === "diamond" && (
+        <path d={diamondArrowPath(beforeTip, tip)} fill={style.stroke} />
+      )}
     </svg>
   );
 }

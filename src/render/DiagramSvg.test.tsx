@@ -71,17 +71,14 @@ describe("DiagramSvg", () => {
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
-  it("includes the shape markers in defs", () => {
+  it("renders an explicit arrowhead path for each edge (no SVG markers)", () => {
     const { container } = render(<DiagramSvg positioned={populated} />);
-    for (const id of [
-      "archik-arrow-filled",
-      "archik-arrow-open",
-      "archik-arrow-selected",
-      "archik-arrow-triangle",
-      "archik-arrow-diamond",
-    ]) {
-      expect(container.querySelector(`defs marker#${id}`)).not.toBeNull();
-    }
+    // Arrowheads are drawn as paths tinted directly — SVG <marker> needs
+    // context-stroke, which WebKit doesn't implement.
+    expect(container.querySelector("marker")).toBeNull();
+    expect(
+      container.querySelector("[data-archik-arrowhead='end']"),
+    ).not.toBeNull();
   });
 
   it("renders every root node via NodeRenderer", () => {

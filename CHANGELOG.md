@@ -16,6 +16,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.1] - 2026-07-27
+
+### Fixed
+- **Invisible arrowheads on Safari / iOS**: edge arrowheads (canvas, legend glyphs, and sequence diagrams) no longer use SVG `<marker>` with `context-stroke` — WebKit doesn't implement `context-stroke`, so heads rendered black-on-black and looked "missing". They are now explicit paths tinted with the edge's own stroke color (geometry in `src/render/arrowhead.ts`), which renders identically in every browser.
+
 ## [0.19.0] - 2026-07-27
 
 ### Added

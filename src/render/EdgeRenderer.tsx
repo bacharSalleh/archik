@@ -1,20 +1,24 @@
 import type { PositionedEdge, Point } from "../layout/types.ts";
 import type { Relationship } from "../domain/types.ts";
 import {
-  ARROW_MARKER_DIAMOND,
-  ARROW_MARKER_FILLED,
-  ARROW_MARKER_OPEN,
-  ARROW_MARKER_SELECTED,
-  ARROW_MARKER_TRIANGLE,
-} from "./markers.tsx";
+  diamondArrowPath,
+  filledArrowPath,
+  openArrowPath,
+  triangleArrowPath,
+} from "./arrowhead.ts";
+
+/** Arrowhead drawn at the edge's end point. */
+export type EdgeHead = "filled" | "open" | "triangle";
+/** Arrowhead drawn at the edge's start point. */
+export type EdgeStartHead = "filled" | "diamond";
 
 export type EdgeStyle = {
   stroke: string;
   strokeWidth: number;
   strokeDasharray?: string;
   animated?: boolean;
-  markerId: string;
-  markerStartId?: string;
+  head: EdgeHead;
+  startHead?: EdgeStartHead;
 };
 
 const DEFAULT_STROKE = "var(--archik-edge-filled)";
@@ -31,70 +35,70 @@ export const STYLES: Record<Relationship, EdgeStyle> = {
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   grpc: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   invokes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   routes_to: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   websocket: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_FILLED,
-    markerStartId: ARROW_MARKER_FILLED,
+    head: "filled",
+    startHead: "filled",
   },
   webhook: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
     strokeDasharray: "2 6",
     animated: true,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
 
   // Data access — solid
   reads: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_OPEN,
+    head: "open",
   },
   writes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
 
   // Messaging — solid
   publishes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   subscribes: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
   streams_to: {
     stroke: DEFAULT_STROKE,
     strokeWidth: 1.4,
-    markerId: ARROW_MARKER_FILLED,
+    head: "filled",
   },
 
   // Structural — solid, dimmer. UML notation: hollow triangle for
@@ -105,29 +109,29 @@ export const STYLES: Record<Relationship, EdgeStyle> = {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
     strokeDasharray: "7 5",
-    markerId: ARROW_MARKER_TRIANGLE,
+    head: "triangle",
   },
   extends: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_TRIANGLE,
+    head: "triangle",
   },
   depends_on: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
     strokeDasharray: "7 5",
-    markerId: ARROW_MARKER_OPEN,
+    head: "open",
   },
   has_a: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_OPEN,
-    markerStartId: ARROW_MARKER_DIAMOND,
+    head: "open",
+    startHead: "diamond",
   },
   uses: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_OPEN,
+    head: "open",
   },
 };
 
@@ -182,13 +186,20 @@ export function EdgeRenderer({
     ? "var(--archik-selected)"
     : (statusStroke ?? edge.color ?? style.stroke);
   const strokeWidth = isSelected ? style.strokeWidth + 0.5 : style.strokeWidth;
-  const markerId = isSelected ? ARROW_MARKER_SELECTED : style.markerId;
-  const markerStartId =
-    !isSelected && style.markerStartId !== undefined
-      ? style.markerStartId
-      : undefined;
   const polylineClass =
     !isSelected && style.animated ? "archik-edge-flowing" : undefined;
+
+  // Arrowheads as explicit paths (SVG <marker> needs context-stroke to
+  // inherit the line color, which WebKit doesn't implement). The head
+  // collapses to the selected style when the edge is selected.
+  const tip = all[all.length - 1]!;
+  const beforeTip = all[all.length - 2] ?? tip;
+  const start = all[0]!;
+  const afterStart = all[1] ?? start;
+  const headKind: EdgeHead = isSelected ? "filled" : style.head;
+  const startHeadKind: EdgeStartHead | undefined = isSelected
+    ? undefined
+    : style.startHead;
 
   const dashPeriod =
     style.strokeDasharray !== undefined
@@ -240,15 +251,53 @@ export function EdgeRenderer({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
-        markerEnd={`url(#${markerId})`}
-        {...(markerStartId !== undefined
-          ? { markerStart: `url(#${markerStartId})` }
-          : {})}
         {...(style.strokeDasharray !== undefined
           ? { strokeDasharray: style.strokeDasharray }
           : {})}
         {...(polylineStyle !== undefined ? { style: polylineStyle } : {})}
       />
+      {headKind === "filled" && (
+        <path
+          data-archik-arrowhead="end"
+          d={filledArrowPath(tip, beforeTip)}
+          fill={stroke}
+        />
+      )}
+      {headKind === "open" && (
+        <path
+          data-archik-arrowhead="end"
+          d={openArrowPath(tip, beforeTip)}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {headKind === "triangle" && (
+        <path
+          data-archik-arrowhead="end"
+          d={triangleArrowPath(tip, beforeTip)}
+          fill="var(--archik-panel)"
+          stroke={stroke}
+          strokeWidth={1.8}
+          strokeLinejoin="round"
+        />
+      )}
+      {startHeadKind === "filled" && (
+        <path
+          data-archik-arrowhead="start"
+          d={filledArrowPath(start, afterStart)}
+          fill={stroke}
+        />
+      )}
+      {startHeadKind === "diamond" && (
+        <path
+          data-archik-arrowhead="start"
+          d={diamondArrowPath(start, afterStart)}
+          fill={stroke}
+        />
+      )}
       {edge.label !== undefined && labelAt !== undefined && (
         <g
           transform={`translate(${labelAt.x}, ${

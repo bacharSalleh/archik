@@ -3,18 +3,6 @@ import type { StatusMap } from "../domain/diff.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
 import { EdgeRenderer } from "./EdgeRenderer.tsx";
 import {
-  ARROW_MARKER_DIAMOND,
-  ARROW_MARKER_FILLED,
-  ARROW_MARKER_OPEN,
-  ARROW_MARKER_SELECTED,
-  ARROW_MARKER_TRIANGLE,
-  FilledDiamondMarker,
-  FilledTriangleMarker,
-  HollowTriangleMarker,
-  OpenTriangleMarker,
-  SelectedArrowMarker,
-} from "./markers.tsx";
-import {
   EdgeDiffOverlays,
   NodeDiffFrames,
   RemovedNodeDimmer,
@@ -104,13 +92,6 @@ export function DiagramInner({
 
   return (
     <>
-      <defs>
-        <FilledTriangleMarker id={ARROW_MARKER_FILLED} />
-        <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
-        <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
-        <HollowTriangleMarker id={ARROW_MARKER_TRIANGLE} />
-        <FilledDiamondMarker id={ARROW_MARKER_DIAMOND} />
-      </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (
           <EdgeRenderer

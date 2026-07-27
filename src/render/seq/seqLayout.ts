@@ -25,9 +25,6 @@ export const DIAGRAM_H_PADDING = 32;
 export const DIAGRAM_V_PADDING = 24;
 export const ACTIVATION_W = 8;
 
-export const SEQ_MARKER_FILLED = "seq-arrow-filled";
-export const SEQ_MARKER_OPEN = "seq-arrow-open";
-
 export type LayoutedParticipant = {
   id: string;
   nodeId: string;
