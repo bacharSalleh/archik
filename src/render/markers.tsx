@@ -25,8 +25,8 @@ export function FilledTriangleMarker({ id }: { id: string }): React.ReactElement
       viewBox="0 0 10 10"
       refX="10"
       refY="5"
-      markerWidth="6"
-      markerHeight="6"
+      markerWidth="8"
+      markerHeight="8"
       orient="auto-start-reverse"
     >
       <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
@@ -41,15 +41,15 @@ export function OpenTriangleMarker({ id }: { id: string }): React.ReactElement {
       viewBox="0 0 12 12"
       refX="11"
       refY="6"
-      markerWidth="7"
-      markerHeight="7"
+      markerWidth="9"
+      markerHeight="9"
       orient="auto-start-reverse"
     >
       <path
         d="M 1 1 L 11 6 L 1 11"
         fill="none"
         stroke="context-stroke"
-        strokeWidth="1.5"
+        strokeWidth="1.8"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
@@ -64,8 +64,8 @@ export function SelectedArrowMarker({ id }: { id: string }): React.ReactElement 
       viewBox="0 0 10 10"
       refX="10"
       refY="5"
-      markerWidth="6"
-      markerHeight="6"
+      markerWidth="8"
+      markerHeight="8"
       orient="auto-start-reverse"
     >
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--archik-selected)" />
@@ -76,7 +76,8 @@ export function SelectedArrowMarker({ id }: { id: string }): React.ReactElement 
 /**
  * UML generalization / realization head — a large unfilled triangle. The
  * fill matches the canvas panel so the edge line doesn't show through the
- * hollow body.
+ * hollow body; the outline is deliberately heavier than the edge stroke so
+ * the head stays visible on the true-black theme.
  */
 export function HollowTriangleMarker({ id }: { id: string }): React.ReactElement {
   return (
@@ -85,15 +86,15 @@ export function HollowTriangleMarker({ id }: { id: string }): React.ReactElement
       viewBox="0 0 14 14"
       refX="13"
       refY="7"
-      markerWidth="9"
-      markerHeight="9"
+      markerWidth="12"
+      markerHeight="12"
       orient="auto-start-reverse"
     >
       <path
         d="M 1 1 L 13 7 L 1 13 z"
         fill="var(--archik-panel)"
         stroke="context-stroke"
-        strokeWidth="1.5"
+        strokeWidth="2"
         strokeLinejoin="round"
       />
     </marker>
@@ -113,8 +114,8 @@ export function FilledDiamondMarker({ id }: { id: string }): React.ReactElement 
       viewBox="0 0 14 10"
       refX="1"
       refY="5"
-      markerWidth="9"
-      markerHeight="7"
+      markerWidth="12"
+      markerHeight="9"
       orient="auto"
     >
       <path d="M 1 5 L 7 1 L 13 5 L 7 9 z" fill="context-stroke" />

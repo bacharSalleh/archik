@@ -16,6 +16,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.18.1] - 2026-07-27
+
+### Changed
+- **Larger, higher-contrast edge arrowheads**: filled and open arrowheads ~35% bigger, the UML hollow triangle (generalization / realization) gets a heavier outline so it stays visible on the true-black theme, and the composition diamond is larger. Legend glyphs scale along since they share `src/render/markers.tsx`.
+
 ## [0.18.0] - 2026-07-27
 
 ### Added
