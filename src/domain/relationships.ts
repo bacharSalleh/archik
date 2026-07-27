@@ -58,3 +58,27 @@ export const RELATIONSHIP_CATEGORY: Record<Relationship, RelationshipCategory> =
 export function relationshipCategory(rel: Relationship): RelationshipCategory {
   return RELATIONSHIP_CATEGORY[rel];
 }
+
+/**
+ * Short one-liners shown in the canvas legend's Relationships section.
+ * Lives next to the enum so a new relationship can't ship without a
+ * description (exhaustive Record).
+ */
+export const RELATIONSHIP_DESCRIPTION: Record<Relationship, string> = {
+  http_call: "generic HTTP / REST call",
+  grpc: "typed RPC (protobuf, Connect, etc.)",
+  invokes: "function / agent / lambda invocation",
+  routes_to: "gateway / router forwarding requests",
+  websocket: "long-lived bidirectional connection",
+  webhook: "async callback the other party pushes to us",
+  reads: "reads data from the target",
+  writes: "writes data to the target",
+  publishes: "publishes messages / events",
+  subscribes: "consumes messages / events",
+  streams_to: "appends to an event stream",
+  implements: "UML realization — dashed, hollow triangle",
+  extends: "UML generalization — solid, hollow triangle",
+  depends_on: "UML dependency — dashed, open arrow",
+  has_a: "UML composition — diamond at the owner end",
+  uses: "lightweight usage — solid, open arrow",
+};

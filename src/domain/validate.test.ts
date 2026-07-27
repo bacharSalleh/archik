@@ -287,6 +287,21 @@ describe("checkSourcePaths", () => {
     expect(missing?.message).toContain("status: proposed");
   });
 
+  it("flags missing sourcePath on the UML data-type kinds (code-bearing)", () => {
+    const doc: Document = {
+      version: "1.0",
+      name: "Demo",
+      nodes: [
+        { id: "m", kind: "model", name: "M", description: "test fixture" },
+        { id: "d", kind: "dto", name: "D", description: "test fixture" },
+        { id: "o", kind: "dataobject", name: "O", description: "test fixture" },
+      ],
+      edges: [],
+    };
+    const errors = checkSourcePaths(doc, "normal", exists);
+    expect(errors.filter((e) => /missing required/.test(e.message))).toHaveLength(3);
+  });
+
   it("flags an on-disk-missing sourcePath in normal mode", () => {
     const errors = checkSourcePaths(docWithMixedNodes, "normal", exists);
     const dangling = errors.find((e) => e.path === "nodes.2.sourcePath");

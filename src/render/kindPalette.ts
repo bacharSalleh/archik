@@ -3,6 +3,7 @@ import {
   Bot,
   Box,
   Boxes,
+  Braces,
   Brain,
   Cable,
   Cloud,
@@ -12,6 +13,7 @@ import {
   DoorOpen,
   ExternalLink,
   Eye,
+  FileJson2,
   FunctionSquare,
   Globe,
   HardDrive,
@@ -25,6 +27,7 @@ import {
   Route,
   SendHorizontal,
   Server,
+  Shapes,
   Sparkles,
   UserRound,
   Waves,
@@ -96,6 +99,23 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
     color: "#84cc16",
     icon: HardDrive,
     description: "Object / blob storage (S3, GCS, etc.).",
+  },
+
+  // Data types ----------------------------------------------------------
+  model: {
+    color: "#2dd4bf",
+    icon: Shapes,
+    description: "Domain model — rich business object with behavior.",
+  },
+  dto: {
+    color: "#4ade80",
+    icon: FileJson2,
+    description: "Data transfer object — shape crossing a boundary.",
+  },
+  dataobject: {
+    color: "#86efac",
+    icon: Braces,
+    description: "Plain data structure / record, no behavior.",
   },
 
   // Messaging -----------------------------------------------------------

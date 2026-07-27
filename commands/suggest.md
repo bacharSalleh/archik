@@ -120,7 +120,8 @@ start Build phase here; that's gated on accept.
    `.archik/main.archik.suggested.yaml`.
 
    **Every new code-bearing node** (`service`, `function`, `worker`,
-   `module`, `page`, `component`, `store`, `hook`) must declare a
+   `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,
+   `dataobject`) must declare a
    `sourcePath:` that you have verified exists on disk. The
    validator rejects fabricated paths. If the source doesn't
    exist yet (you're proposing a not-yet-built component), mark

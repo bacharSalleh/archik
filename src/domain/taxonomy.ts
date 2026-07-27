@@ -11,6 +11,10 @@ export const NODE_KINDS = [
   "cache",
   "vectordb",
   "storage",
+  // data types
+  "model",
+  "dto",
+  "dataobject",
   // messaging
   "queue",
   "topic",
@@ -71,6 +75,9 @@ export const CODE_BEARING_KINDS: ReadonlySet<NodeKind> = new Set([
   "component",
   "store",
   "hook",
+  "model",
+  "dto",
+  "dataobject",
 ]);
 
 export function isCodeBearing(kind: NodeKind): boolean {

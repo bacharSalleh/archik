@@ -46,7 +46,20 @@ describe("EdgeRenderer", () => {
     expect(poly?.getAttribute("marker-end")).toMatch(/^url\(#archik-arrow/);
   });
 
-  it("renders depends_on as a solid, non-animated edge", () => {
+  it("renders uses as a solid, non-animated edge", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "uses" })} />
+      </svg>,
+    );
+    const poly = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
+    expect(poly?.getAttribute("class") ?? "").not.toContain("archik-edge-flowing");
+  });
+
+  it("renders depends_on as dashed but not animated (UML dependency)", () => {
     const { container } = render(
       <svg>
         <EdgeRenderer edge={baseEdge({ relationship: "depends_on" })} />
@@ -55,8 +68,33 @@ describe("EdgeRenderer", () => {
     const poly = container.querySelector(
       "polyline:not([data-archik-edge-hitarea])",
     );
-    expect(poly?.getAttribute("stroke-dasharray")).toBeFalsy();
+    expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
     expect(poly?.getAttribute("class") ?? "").not.toContain("archik-edge-flowing");
+  });
+
+  it("renders implements as dashed with a hollow triangle (UML realization)", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "implements" })} />
+      </svg>,
+    );
+    const poly = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    expect(poly?.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(poly?.getAttribute("marker-end")).toBe("url(#archik-arrow-triangle)");
+  });
+
+  it("renders has_a with a composition diamond at the owner (start) end", () => {
+    const { container } = render(
+      <svg>
+        <EdgeRenderer edge={baseEdge({ relationship: "has_a" })} />
+      </svg>,
+    );
+    const poly = container.querySelector(
+      "polyline:not([data-archik-edge-hitarea])",
+    );
+    expect(poly?.getAttribute("marker-start")).toBe("url(#archik-arrow-diamond)");
   });
 
   it("renders http_call as a dashed, animated edge (data on wire)", () => {
@@ -80,8 +118,10 @@ describe("EdgeRenderer", () => {
       ["publishes", "archik-arrow-filled"],
       ["subscribes", "archik-arrow-filled"],
       ["depends_on", "archik-arrow-open"],
-      ["has_a", "archik-arrow-filled"],
+      ["has_a", "archik-arrow-open"],
       ["uses", "archik-arrow-open"],
+      ["implements", "archik-arrow-triangle"],
+      ["extends", "archik-arrow-triangle"],
     ] as const;
     for (const [rel, marker] of cases) {
       const { container, unmount } = render(

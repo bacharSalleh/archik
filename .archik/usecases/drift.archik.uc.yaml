@@ -23,7 +23,7 @@ flows:
   basic:
     steps:
       - Developer runs `npx archik drift`.
-      - Drift detector walks every code-bearing node (`service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`) and checks `sourcePath` against the file system.
+      - Drift detector walks every code-bearing node (`service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`, `model`, `dto`, `dataobject`) and checks `sourcePath` against the file system.
       - It also walks every active use case slice's `tests` array.
       - It checks `.archikignore` patterns to skip vendored or generated paths the project deliberately doesn't model.
       - The command prints `✓ <count> nodes / <count> tests on disk` and exits 0.

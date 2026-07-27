@@ -1,12 +1,19 @@
 import type { PositionedDocument, ViewMode } from "../layout/types.ts";
 import type { StatusMap } from "../domain/diff.ts";
 import { NodeRenderer } from "./NodeRenderer.tsx";
+import { EdgeRenderer } from "./EdgeRenderer.tsx";
 import {
+  ARROW_MARKER_DIAMOND,
   ARROW_MARKER_FILLED,
   ARROW_MARKER_OPEN,
   ARROW_MARKER_SELECTED,
-  EdgeRenderer,
-} from "./EdgeRenderer.tsx";
+  ARROW_MARKER_TRIANGLE,
+  FilledDiamondMarker,
+  FilledTriangleMarker,
+  HollowTriangleMarker,
+  OpenTriangleMarker,
+  SelectedArrowMarker,
+} from "./markers.tsx";
 import {
   EdgeDiffOverlays,
   NodeDiffFrames,
@@ -14,68 +21,6 @@ import {
 } from "./diffOverlay.tsx";
 
 const VIEWBOX_PADDING = 24;
-
-/**
- * Markers use SVG `context-stroke` so the arrow head inherits the line's
- * stroke color — that way per-edge color overrides and structural-vs-flow
- * styles automatically tint the arrow without needing a marker per color.
- *
- * `context-stroke` is supported in modern Chrome / Firefox / Safari.
- */
-function FilledTriangleMarker({ id }: { id: string }): React.ReactElement {
-  return (
-    <marker
-      id={id}
-      viewBox="0 0 10 10"
-      refX="10"
-      refY="5"
-      markerWidth="6"
-      markerHeight="6"
-      orient="auto-start-reverse"
-    >
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
-    </marker>
-  );
-}
-
-function OpenTriangleMarker({ id }: { id: string }): React.ReactElement {
-  return (
-    <marker
-      id={id}
-      viewBox="0 0 12 12"
-      refX="11"
-      refY="6"
-      markerWidth="7"
-      markerHeight="7"
-      orient="auto-start-reverse"
-    >
-      <path
-        d="M 1 1 L 11 6 L 1 11"
-        fill="none"
-        stroke="context-stroke"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </marker>
-  );
-}
-
-function SelectedArrowMarker({ id }: { id: string }): React.ReactElement {
-  return (
-    <marker
-      id={id}
-      viewBox="0 0 10 10"
-      refX="10"
-      refY="5"
-      markerWidth="6"
-      markerHeight="6"
-      orient="auto-start-reverse"
-    >
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--archik-selected)" />
-    </marker>
-  );
-}
 
 type Props = {
   positioned: PositionedDocument;
@@ -163,6 +108,8 @@ export function DiagramInner({
         <FilledTriangleMarker id={ARROW_MARKER_FILLED} />
         <OpenTriangleMarker id={ARROW_MARKER_OPEN} />
         <SelectedArrowMarker id={ARROW_MARKER_SELECTED} />
+        <HollowTriangleMarker id={ARROW_MARKER_TRIANGLE} />
+        <FilledDiamondMarker id={ARROW_MARKER_DIAMOND} />
       </defs>
       <g className="archik-edges">
         {positioned.edges.map((edge) => (

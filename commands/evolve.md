@@ -147,7 +147,8 @@ any file under `.archik/`.
      `sourcePath`, or `stereotype` fields the user authored. Carry
      them over verbatim.
    - Every new code-bearing node (`service`, `function`, `worker`,
-     `module`, `page`, `component`, `store`, `hook`) needs a
+     `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,
+     `dataobject`) needs a
      `sourcePath:` that exists on disk — the validator rejects
      fabricated paths. If the refactor proposes a not-yet-built
      module (e.g. extracting a `payments` context that doesn't have

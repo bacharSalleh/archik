@@ -1,11 +1,14 @@
 import type { PositionedEdge, Point } from "../layout/types.ts";
 import type { Relationship } from "../domain/types.ts";
+import {
+  ARROW_MARKER_DIAMOND,
+  ARROW_MARKER_FILLED,
+  ARROW_MARKER_OPEN,
+  ARROW_MARKER_SELECTED,
+  ARROW_MARKER_TRIANGLE,
+} from "./markers.tsx";
 
-export const ARROW_MARKER_FILLED = "archik-arrow-filled";
-export const ARROW_MARKER_OPEN = "archik-arrow-open";
-export const ARROW_MARKER_SELECTED = "archik-arrow-selected";
-
-type EdgeStyle = {
+export type EdgeStyle = {
   stroke: string;
   strokeWidth: number;
   strokeDasharray?: string;
@@ -18,8 +21,10 @@ const DEFAULT_STROKE = "var(--archik-edge-filled)";
 const STRUCTURAL_STROKE = "var(--archik-edge-dim)";
 
 // Wire edges (HTTP, RPC, etc.) are dashed + animated to show data flowing
-// over the wire. Everything else is solid — clean and uncluttered.
-const STYLES: Record<Relationship, EdgeStyle> = {
+// over the wire. UML structural edges (implements, depends_on) use a
+// non-animated dash. Everything else is solid — clean and uncluttered.
+// Exported so the legend can draw each relationship with its true style.
+export const STYLES: Record<Relationship, EdgeStyle> = {
   // Wire — dashed + animated
   http_call: {
     stroke: DEFAULT_STROKE,
@@ -92,26 +97,32 @@ const STYLES: Record<Relationship, EdgeStyle> = {
     markerId: ARROW_MARKER_FILLED,
   },
 
-  // Structural — solid, dimmer
+  // Structural — solid, dimmer. UML notation: hollow triangle for
+  // generalization (extends) and realization (implements, dashed), open
+  // arrow for dependencies (depends_on, dashed), filled diamond at the
+  // owner end for composition (has_a).
   implements: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_OPEN,
+    strokeDasharray: "7 5",
+    markerId: ARROW_MARKER_TRIANGLE,
   },
   extends: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_OPEN,
+    markerId: ARROW_MARKER_TRIANGLE,
   },
   depends_on: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
+    strokeDasharray: "7 5",
     markerId: ARROW_MARKER_OPEN,
   },
   has_a: {
     stroke: STRUCTURAL_STROKE,
     strokeWidth: 1.2,
-    markerId: ARROW_MARKER_FILLED,
+    markerId: ARROW_MARKER_OPEN,
+    markerStartId: ARROW_MARKER_DIAMOND,
   },
   uses: {
     stroke: STRUCTURAL_STROKE,

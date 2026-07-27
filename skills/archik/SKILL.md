@@ -302,7 +302,7 @@ Empty strings rejected, missing values rejected. Explain what the node **does** 
 
 ### Code-bearing kinds need a `sourcePath`
 
-These kinds MUST declare a `sourcePath` that exists on disk: `service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`.
+These kinds MUST declare a `sourcePath` that exists on disk: `service`, `function`, `worker`, `module`, `page`, `component`, `store`, `hook`, `model`, `dto`, `dataobject`.
 
 Other kinds are exempt: `external`, `cloud`, `prompt`, `llm`, `route`, `interface`, `adapter`, `port`, `database`, `cache`, `queue`, `topic`, `stream`, `gateway`, `cdn`, `agent`, `frontend`, `vectordb`, `storage`, `auth`, `observability`, `tool`, `custom`.
 

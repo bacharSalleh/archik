@@ -127,7 +127,7 @@ function buildSchema(): SchemaSpec {
         required: false,
         type: "string",
         notes:
-          "relative path to source code on disk. REQUIRED in normal/suggested files for code-bearing kinds (service, function, worker, module, page, component, store, hook); MUST exist on disk. Optional in *.archik.discussion.yaml files. Used by `archik drift`.",
+          "relative path to source code on disk. REQUIRED in normal/suggested files for code-bearing kinds (service, function, worker, module, page, component, store, hook, model, dto, dataobject); MUST exist on disk. Optional in *.archik.discussion.yaml files. Used by `archik drift`.",
       },
       {
         name: "status",

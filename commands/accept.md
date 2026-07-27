@@ -56,7 +56,8 @@ done at step 1 — the diagram changed; the code probably hasn't.
    **Then** translate the diagram delta into a numbered file-level
    plan and present it for approval **before** touching code:
    - Each new code-bearing node (`service`, `function`, `worker`,
-     `module`, `page`, `component`, `store`, `hook`) → its
+     `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,
+     `dataobject`) → its
      `sourcePath` and the concrete files / signatures to land there.
    - Each new edge that requires code → the corresponding code
      change (a new `http_call` needs a client; `subscribes` needs a

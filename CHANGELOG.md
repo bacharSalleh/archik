@@ -16,6 +16,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.18.0] - 2026-07-27
+
+### Added
+- **UML data-type node kinds**: `model`, `dto`, and `dataobject` join the taxonomy. They are code-bearing kinds — active nodes must declare a `sourcePath` that exists on disk.
+- **Legend Relationships section**: the canvas legend popover now lists every relationship with a sample edge glyph (dash + arrowhead) and a one-line description, grouped into Runtime and Structural (UML).
+
+### Changed
+- **UML arrow notation for structural edges**: `extends` renders as a UML generalization (solid line, hollow triangle), `implements` as a realization (dashed line, hollow triangle), `depends_on` as a dependency (dashed line, open arrow), and `has_a` as a composition (filled diamond at the owner end). Arrow markers now live in `src/render/markers.tsx`, shared between the canvas and the legend.
+
 ## [0.15.0] - 2026-06-10
 
 ### Added

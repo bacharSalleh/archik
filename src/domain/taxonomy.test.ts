@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NodeKindSchema, NODE_KINDS } from "./taxonomy.ts";
+import { NodeKindSchema, NODE_KINDS, isCodeBearing } from "./taxonomy.ts";
 
 describe("NodeKind taxonomy", () => {
   it("includes the original eight architectural node kinds", () => {
@@ -40,6 +40,13 @@ describe("NodeKind taxonomy", () => {
       "module",
     ] as const) {
       expect(NODE_KINDS).toContain(k);
+    }
+  });
+
+  it("includes the UML data-type kinds and treats them as code-bearing", () => {
+    for (const k of ["model", "dto", "dataobject"] as const) {
+      expect(NODE_KINDS).toContain(k);
+      expect(isCodeBearing(k)).toBe(true);
     }
   });
 

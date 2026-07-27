@@ -67,6 +67,10 @@ const DETAILED_SIZE: Record<NodeKind, { width: number; height: number }> = {
   cache: CARD_SUBTITLE,
   vectordb: CARD,
   storage: CARD,
+  // Data types
+  model: CARD,
+  dto: CARD,
+  dataobject: CARD,
   // Messaging
   queue: { width: 188, height: 80 },
   topic: CARD,
@@ -119,6 +123,9 @@ const COMPACT_SIZE: Record<NodeKind, { width: number; height: number }> = {
   cache: CHIP,
   vectordb: CHIP,
   storage: CHIP,
+  model: CHIP,
+  dto: CHIP,
+  dataobject: CHIP,
   queue: { width: 168, height: 36 },
   topic: CHIP,
   stream: CHIP,

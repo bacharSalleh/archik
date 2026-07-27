@@ -69,6 +69,9 @@ function Shape({
     case "cache":
     case "vectordb":
     case "storage":
+    case "model":
+    case "dto":
+    case "dataobject":
     case "topic":
     case "stream":
     case "gateway":

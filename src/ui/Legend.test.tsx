@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Legend } from "./Legend.tsx";
 import { NODE_KINDS } from "../domain/taxonomy.ts";
+import { RELATIONSHIPS } from "../domain/relationships.ts";
 
 describe("Legend", () => {
   it("renders a trigger button labelled 'Legend'", () => {
@@ -20,6 +21,21 @@ describe("Legend", () => {
     fireEvent.click(screen.getByRole("button"));
     for (const kind of NODE_KINDS) {
       expect(screen.getByText(kind)).toBeInTheDocument();
+    }
+  });
+
+  it("shows every relationship with its UML glyph after clicking the trigger", () => {
+    const { container } = render(<Legend />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.getByText("Relationships")).toBeInTheDocument();
+    for (const rel of RELATIONSHIPS) {
+      expect(screen.getByText(rel)).toBeInTheDocument();
+    }
+    // Each relationship draws a sample edge with a namespaced end marker.
+    for (const rel of RELATIONSHIPS) {
+      expect(
+        container.querySelector(`defs marker#legend-arrow-${rel}-end`),
+      ).not.toBeNull();
     }
   });
 
