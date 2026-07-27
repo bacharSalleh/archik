@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Toolbar } from "./Toolbar.tsx";
 import { ordersDocument } from "../domain/__fixtures__/orders.ts";
@@ -90,5 +90,44 @@ describe("Toolbar view controls", () => {
     expect(onFocusDepthChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /clear focus/i }));
     expect(onClearFocus).toHaveBeenCalledTimes(1);
+  });
+});
+
+function stubMatchMedia(narrow: boolean): void {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: vi.fn((query: string) => ({
+      matches: narrow && query === "(max-width: 900px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })),
+  });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("Toolbar responsive layout", () => {
+  it("renders secondary controls in the bar on wide screens", () => {
+    stubMatchMedia(false);
+    render(
+      <Toolbar {...baseProps} onToggleHideStructural={() => {}} />,
+    );
+    expect(screen.getByLabelText("Hide weak edges")).toBeInTheDocument();
+    expect(screen.queryByLabelText("More actions")).toBeNull();
+  });
+
+  it("moves secondary controls into a More menu on narrow screens", () => {
+    stubMatchMedia(true);
+    render(
+      <Toolbar {...baseProps} onToggleHideStructural={() => {}} />,
+    );
+    // The toggle leaves the bar…
+    expect(screen.queryByLabelText("Hide weak edges")).toBeNull();
+    // …and the More trigger appears.
+    expect(screen.getByLabelText("More actions")).toBeInTheDocument();
   });
 });

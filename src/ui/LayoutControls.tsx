@@ -117,7 +117,7 @@ export function LayoutControls({
       )}
     >
       {() => (
-        <div style={{ minWidth: 240, padding: 8 }}>
+        <div style={{ minWidth: "min(240px, calc(100vw - 16px))", padding: 8 }}>
           <div
             style={{
               display: "flex",

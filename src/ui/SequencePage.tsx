@@ -8,6 +8,7 @@ import { layoutSeqDocument } from "../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../render/seq/SeqDiagramSvg.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { KIND_META } from "../render/kindPalette.ts";
+import { useMediaQuery } from "./useMediaQuery.ts";
 
 type State =
   | { status: "loading" }
@@ -62,7 +63,11 @@ export function SequencePage({ path, back }: Props): React.ReactElement {
   const [railOpen, setRailOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const v = window.localStorage.getItem(RAIL_OPEN_KEY);
-    return v === null ? true : v === "1";
+    if (v !== null) return v === "1";
+    // Default collapsed on narrow screens — the rail overlays the diagram there.
+    return typeof window.matchMedia === "function"
+      ? !window.matchMedia("(max-width: 768px)").matches
+      : true;
   });
   const [yamlOpen, setYamlOpen] = useState(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -171,7 +176,7 @@ export function SequencePage({ path, back }: Props): React.ReactElement {
   };
 
   return (
-    <div className="flex h-screen flex-col" style={{ background: "var(--archik-canvas)" }}>
+    <div className="flex h-dvh flex-col" style={{ background: "var(--archik-canvas)" }}>
       <Header
         backHref={backHref}
         backLabel={backLabel}
@@ -319,18 +324,39 @@ function Rail({
   realizedSlice: RealizedSliceShape | null;
   kinds: Map<string, NodeKind> | undefined;
 }): React.ReactElement {
+  const isNarrow = useMediaQuery("(max-width: 768px)");
   return (
     <aside
-      style={{
-        width: 300,
-        flexShrink: 0,
-        borderLeft: "1px solid var(--archik-border)",
-        background: "var(--archik-panel)",
-        overflowY: "auto",
-        padding: 16,
-        fontSize: 12,
-        color: "var(--archik-fg-dim)",
-      }}
+      style={
+        isNarrow
+          ? {
+              // Overlay the diagram on narrow screens instead of
+              // squeezing it into a 300px column.
+              position: "fixed",
+              right: 0,
+              top: 48,
+              bottom: 0,
+              width: "min(320px, 85vw)",
+              zIndex: 30,
+              borderLeft: "1px solid var(--archik-border)",
+              background: "var(--archik-panel)",
+              overflowY: "auto",
+              padding: 16,
+              fontSize: 12,
+              color: "var(--archik-fg-dim)",
+              boxShadow: "-8px 0 24px rgba(0, 0, 0, 0.3)",
+            }
+          : {
+              width: 300,
+              flexShrink: 0,
+              borderLeft: "1px solid var(--archik-border)",
+              background: "var(--archik-panel)",
+              overflowY: "auto",
+              padding: 16,
+              fontSize: 12,
+              color: "var(--archik-fg-dim)",
+            }
+      }
     >
       {/* Realizes */}
       <Section title="Realizes">

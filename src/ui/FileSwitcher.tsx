@@ -85,7 +85,7 @@ export function FileSwitcher({
       )}
     >
       {(close) => (
-        <div style={{ minWidth: 220, padding: 4 }}>
+        <div style={{ minWidth: "min(220px, calc(100vw - 16px))", padding: 4 }}>
           <div
             style={{
               fontSize: 10,

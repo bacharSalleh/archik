@@ -1223,6 +1223,18 @@ export function App(): React.ReactElement {
             className="archik-panel archik-drawer-content archik-drawer-fade"
             style={{ overflow: "hidden" }}
           >
+            {/* Mobile bottom-sheet header — hidden on desktop via CSS. */}
+            <div className="archik-sheet-handle">
+              <span className="archik-sheet-grip" aria-hidden="true" />
+              <button
+                type="button"
+                aria-label="Close inspector"
+                className="archik-sheet-close"
+                onClick={clearSelection}
+              >
+                ✕
+              </button>
+            </div>
             {isMultiSelection ? (
               <BulkInspector
                 count={selection.length}

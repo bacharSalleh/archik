@@ -53,7 +53,7 @@ export function KindPicker({
       {(close) => (
         <div
           style={{
-            minWidth: 240,
+            minWidth: "min(240px, calc(100vw - 16px))",
             maxHeight: "min(60vh, 360px)",
             overflowY: "auto",
             padding: 4,

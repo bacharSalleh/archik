@@ -6,6 +6,7 @@ import {
   Maximize2,
   Minimize2,
   Minus,
+  MoreHorizontal,
   Plus,
   Redo2,
   Rows3,
@@ -13,6 +14,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import { Fragment } from "react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
@@ -21,9 +23,11 @@ import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
 import { Logo } from "./Logo.tsx";
+import { Popover } from "./Popover.tsx";
 import { SearchBox } from "./SearchBox.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 import { UseCasesPanel } from "./UseCasesPanel.tsx";
+import { useMediaQuery } from "./useMediaQuery.ts";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -128,6 +132,316 @@ export function Toolbar({
     typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)
       ? "⌘S"
       : "Ctrl+S";
+  // Responsive: below 900px the secondary controls move into a "More"
+  // menu; below 640px the bar keeps only + Node / Save / theme / More.
+  const isTablet = useMediaQuery("(max-width: 900px)");
+  const isPhone = useMediaQuery("(max-width: 640px)");
+
+  const searchBox = <SearchBox document={document} />;
+  const undoRedo = (
+    <>
+      {onUndo !== undefined && (
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title={`Undo (${shortcutHint.replace("S", "Z")})`}
+          aria-label="Undo"
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          <Undo2 size={14} strokeWidth={1.8} />
+        </button>
+      )}
+      {onRedo !== undefined && (
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title={`Redo (${shortcutHint.replace("S", "⇧Z").replace("Ctrl+", "Ctrl+Shift+")})`}
+          aria-label="Redo"
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          <Redo2 size={14} strokeWidth={1.8} />
+        </button>
+      )}
+    </>
+  );
+  const panels = (
+    <>
+      <UseCasesPanel />
+      <AlphasPanel />
+      <Legend />
+      <ExportMenu
+        document={document}
+        filename={filename}
+        {...(getSvg !== undefined ? { getSvg } : {})}
+      />
+    </>
+  );
+
+  // Secondary view controls. On wide screens they render as icon buttons
+  // in the bar; below 900px they move into the "More" menu, each row
+  // getting its text label next to the same control.
+  const secondary: Array<{ key: string; label: string; node: React.ReactNode }> = [];
+  if (viewMode !== undefined && onViewModeChange !== undefined) {
+    secondary.push({
+      key: "view-mode",
+      label: viewMode === "compact" ? "Detailed view" : "Compact view",
+      node: (
+        <button
+          type="button"
+          onClick={() =>
+            onViewModeChange(viewMode === "compact" ? "detailed" : "compact")
+          }
+          title={
+            viewMode === "compact"
+              ? "Switch to detailed view"
+              : "Switch to compact view"
+          }
+          aria-label="Toggle view mode"
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          {viewMode === "compact" ? (
+            <LayoutGrid size={14} strokeWidth={1.8} />
+          ) : (
+            <Rows3 size={14} strokeWidth={1.8} />
+          )}
+        </button>
+      ),
+    });
+  }
+  if (showStereotypeBands !== undefined && onToggleStereotypeBands !== undefined) {
+    secondary.push({
+      key: "ecb",
+      label: "ECB stereotype bands",
+      node: (
+        <button
+          type="button"
+          onClick={onToggleStereotypeBands}
+          title={
+            showStereotypeBands
+              ? "Hide ECB stereotype bands"
+              : "Show ECB stereotype bands (boundary / control / entity)"
+          }
+          aria-label="Toggle ECB stereotype bands"
+          aria-pressed={showStereotypeBands}
+          className="archik-btn"
+          style={{
+            padding: "5px 8px",
+            ...(showStereotypeBands
+              ? {
+                  background: "var(--archik-stereotype-control)",
+                  borderColor: "var(--archik-stereotype-control)",
+                  color: "white",
+                }
+              : {}),
+          }}
+        >
+          <Stamp size={14} strokeWidth={1.8} />
+        </button>
+      ),
+    });
+  }
+  if (onToggleHideStructural !== undefined) {
+    secondary.push({
+      key: "hide-weak",
+      label: "Hide weak edges",
+      node: (
+        <button
+          type="button"
+          onClick={onToggleHideStructural}
+          title={
+            hideStructural
+              ? "Show weak edges"
+              : "Hide weak edges (uses / depends_on / has_a / implements / extends)"
+          }
+          aria-label="Hide weak edges"
+          aria-pressed={hideStructural}
+          className="archik-btn"
+          style={{
+            padding: "5px 8px",
+            ...(hideStructural
+              ? {
+                  background: "var(--archik-accent)",
+                  borderColor: "var(--archik-accent)",
+                  color: "white",
+                }
+              : {}),
+          }}
+        >
+          <EyeOff size={14} strokeWidth={1.8} />
+        </button>
+      ),
+    });
+  }
+  if (onCollapseAll !== undefined) {
+    secondary.push({
+      key: "collapse-all",
+      label: "Collapse all containers",
+      node: (
+        <button
+          type="button"
+          onClick={onCollapseAll}
+          title="Collapse all containers"
+          aria-label="Collapse all"
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          <Minimize2 size={14} strokeWidth={1.8} />
+        </button>
+      ),
+    });
+  }
+  if (onExpandAll !== undefined) {
+    secondary.push({
+      key: "expand-all",
+      label: "Expand all containers",
+      node: (
+        <button
+          type="button"
+          onClick={onExpandAll}
+          title="Expand all containers"
+          aria-label="Expand all"
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          <Maximize2 size={14} strokeWidth={1.8} />
+        </button>
+      ),
+    });
+  }
+  if (
+    focusDepth !== undefined &&
+    onFocusDepthChange !== undefined &&
+    onClearFocus !== undefined
+  ) {
+    secondary.push({
+      key: "focus",
+      label: "Focus depth",
+      node: (
+        <div
+          role="group"
+          aria-label="Focus mode"
+          className="archik-focus-control"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            height: 28,
+            padding: "0 4px",
+            borderRadius: 7,
+            border: "1px solid var(--archik-accent)",
+            background:
+              "color-mix(in srgb, var(--archik-accent) 12%, var(--archik-panel))",
+          }}
+        >
+          <Crosshair
+            size={13}
+            strokeWidth={2}
+            style={{ color: "var(--archik-accent)" }}
+            aria-hidden="true"
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+              color: "var(--archik-accent)",
+              marginRight: 2,
+            }}
+          >
+            Focus
+          </span>
+          <button
+            type="button"
+            aria-label="Decrease focus depth"
+            title="Show fewer hops"
+            disabled={focusDepth <= 0}
+            onClick={() => onFocusDepthChange(Math.max(0, focusDepth - 1))}
+            className="archik-focus-step"
+          >
+            <Minus size={13} strokeWidth={2} />
+          </button>
+          <span
+            className="archik-mono"
+            aria-label={`Focus depth ${focusDepth}`}
+            style={{
+              minWidth: 16,
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--archik-fg)",
+            }}
+          >
+            {focusDepth}
+          </span>
+          <button
+            type="button"
+            aria-label="Increase focus depth"
+            title="Show more hops"
+            onClick={() => onFocusDepthChange(focusDepth + 1)}
+            className="archik-focus-step"
+          >
+            <Plus size={13} strokeWidth={2} />
+          </button>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 1,
+              height: 16,
+              margin: "0 2px",
+              background: "var(--archik-border)",
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Clear focus"
+            title="Clear focus (Esc)"
+            onClick={onClearFocus}
+            className="archik-focus-step"
+          >
+            <X size={13} strokeWidth={2} />
+          </button>
+        </div>
+      ),
+    });
+  }
+  if (density !== undefined && onDensityChange !== undefined) {
+    secondary.push({
+      key: "density",
+      label: "Spacing",
+      node: <LayoutControls density={density} onChange={onDensityChange} />,
+    });
+  }
+  if (onToggleSeqHighlight !== undefined && (seqNodeCount ?? 0) > 0) {
+    secondary.push({
+      key: "seq-highlight",
+      label: "Sequence highlights",
+      node: (
+        <button
+          type="button"
+          onClick={onToggleSeqHighlight}
+          title={seqHighlight ? "Hide sequence diagram highlights" : `Show ${seqNodeCount} node${seqNodeCount === 1 ? "" : "s"} with sequence diagrams`}
+          aria-label="Toggle sequence diagram highlights"
+          aria-pressed={seqHighlight}
+          className="archik-btn"
+          style={{
+            padding: "5px 8px",
+            ...(seqHighlight ? {
+              background: "var(--archik-status-proposed)",
+              borderColor: "var(--archik-status-proposed)",
+              color: "white",
+            } : {}),
+          }}
+        >
+          <GitBranch size={14} strokeWidth={1.8} />
+        </button>
+      ),
+    });
+  }
   return (
     <header
       className="flex items-center gap-3 px-4 py-2.5"
@@ -151,6 +465,14 @@ export function Toolbar({
           color: "var(--archik-fg-dim)",
           fontSize: 11,
           opacity: 0.85,
+          ...(isPhone
+            ? {
+                maxWidth: 90,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap" as const,
+              }
+            : {}),
         }}
       >
         {document.name}
@@ -186,7 +508,7 @@ export function Toolbar({
           {saveLabel}
         </span>
       )}
-      {saveStatus === "error" && saveError !== undefined && (
+      {saveStatus === "error" && saveError !== undefined && !isPhone && (
         <span
           className="archik-pill archik-pill--danger"
           style={{
@@ -203,252 +525,77 @@ export function Toolbar({
         </span>
       )}
       <div className="ml-auto flex items-center gap-2">
-        <SearchBox document={document} />
-        {onUndo !== undefined && (
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!canUndo}
-            title={`Undo (${shortcutHint.replace("S", "Z")})`}
-            aria-label="Undo"
-            className="archik-btn"
-            style={{ padding: "5px 8px" }}
-          >
-            <Undo2 size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        {onRedo !== undefined && (
-          <button
-            type="button"
-            onClick={onRedo}
-            disabled={!canRedo}
-            title={`Redo (${shortcutHint.replace("S", "⇧Z").replace("Ctrl+", "Ctrl+Shift+")})`}
-            aria-label="Redo"
-            className="archik-btn"
-            style={{ padding: "5px 8px" }}
-          >
-            <Redo2 size={14} strokeWidth={1.8} />
-          </button>
-        )}
+        {!isPhone && searchBox}
+        {!isPhone && undoRedo}
         {onAddNode !== undefined && <AddNodeForm onAdd={onAddNode} />}
-        {viewMode !== undefined && onViewModeChange !== undefined && (
-          <button
-            type="button"
-            onClick={() =>
-              onViewModeChange(viewMode === "compact" ? "detailed" : "compact")
-            }
-            title={
-              viewMode === "compact"
-                ? "Switch to detailed view"
-                : "Switch to compact view"
-            }
-            aria-label="Toggle view mode"
-            className="archik-btn"
-            style={{ padding: "5px 8px" }}
-          >
-            {viewMode === "compact" ? (
-              <LayoutGrid size={14} strokeWidth={1.8} />
-            ) : (
-              <Rows3 size={14} strokeWidth={1.8} />
+        {!isTablet &&
+          secondary.map((item) => <Fragment key={item.key}>{item.node}</Fragment>)}
+        {!isTablet && panels}
+        {isTablet && (
+          <Popover
+            align="end"
+            trigger={(open) => (
+              <button
+                type="button"
+                className="archik-btn"
+                aria-label="More actions"
+                aria-expanded={open}
+                title="More actions"
+                style={{ padding: "5px 8px" }}
+              >
+                <MoreHorizontal size={14} strokeWidth={1.8} />
+              </button>
             )}
-          </button>
-        )}
-        {showStereotypeBands !== undefined &&
-          onToggleStereotypeBands !== undefined && (
-            <button
-              type="button"
-              onClick={onToggleStereotypeBands}
-              title={
-                showStereotypeBands
-                  ? "Hide ECB stereotype bands"
-                  : "Show ECB stereotype bands (boundary / control / entity)"
-              }
-              aria-label="Toggle ECB stereotype bands"
-              aria-pressed={showStereotypeBands}
-              className="archik-btn"
-              style={{
-                padding: "5px 8px",
-                ...(showStereotypeBands
-                  ? {
-                      background: "var(--archik-stereotype-control)",
-                      borderColor: "var(--archik-stereotype-control)",
-                      color: "white",
-                    }
-                  : {}),
-              }}
-            >
-              <Stamp size={14} strokeWidth={1.8} />
-            </button>
-          )}
-        {onToggleHideStructural !== undefined && (
-          <button
-            type="button"
-            onClick={onToggleHideStructural}
-            title={
-              hideStructural
-                ? "Show weak edges"
-                : "Hide weak edges (uses / depends_on / has_a / implements / extends)"
-            }
-            aria-label="Hide weak edges"
-            aria-pressed={hideStructural}
-            className="archik-btn"
-            style={{
-              padding: "5px 8px",
-              ...(hideStructural
-                ? {
-                    background: "var(--archik-accent)",
-                    borderColor: "var(--archik-accent)",
-                    color: "white",
-                  }
-                : {}),
-            }}
           >
-            <EyeOff size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        {onCollapseAll !== undefined && (
-          <button
-            type="button"
-            onClick={onCollapseAll}
-            title="Collapse all containers"
-            aria-label="Collapse all"
-            className="archik-btn"
-            style={{ padding: "5px 8px" }}
-          >
-            <Minimize2 size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        {onExpandAll !== undefined && (
-          <button
-            type="button"
-            onClick={onExpandAll}
-            title="Expand all containers"
-            aria-label="Expand all"
-            className="archik-btn"
-            style={{ padding: "5px 8px" }}
-          >
-            <Maximize2 size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        {focusDepth !== undefined &&
-          onFocusDepthChange !== undefined &&
-          onClearFocus !== undefined && (
-            <div
-              role="group"
-              aria-label="Focus mode"
-              className="archik-focus-control"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                height: 28,
-                padding: "0 4px",
-                borderRadius: 7,
-                border: "1px solid var(--archik-accent)",
-                background:
-                  "color-mix(in srgb, var(--archik-accent) 12%, var(--archik-panel))",
-              }}
-            >
-              <Crosshair
-                size={13}
-                strokeWidth={2}
-                style={{ color: "var(--archik-accent)" }}
-                aria-hidden="true"
-              />
-              <span
+            {() => (
+              <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.02em",
-                  color: "var(--archik-accent)",
-                  marginRight: 2,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  padding: 8,
+                  minWidth: "min(220px, calc(100vw - 16px))",
+                  maxHeight: "min(70vh, 560px)",
+                  overflowY: "auto",
                 }}
               >
-                Focus
-              </span>
-              <button
-                type="button"
-                aria-label="Decrease focus depth"
-                title="Show fewer hops"
-                disabled={focusDepth <= 0}
-                onClick={() => onFocusDepthChange(Math.max(0, focusDepth - 1))}
-                className="archik-focus-step"
-              >
-                <Minus size={13} strokeWidth={2} />
-              </button>
-              <span
-                className="archik-mono"
-                aria-label={`Focus depth ${focusDepth}`}
-                style={{
-                  minWidth: 16,
-                  textAlign: "center",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--archik-fg)",
-                }}
-              >
-                {focusDepth}
-              </span>
-              <button
-                type="button"
-                aria-label="Increase focus depth"
-                title="Show more hops"
-                onClick={() => onFocusDepthChange(focusDepth + 1)}
-                className="archik-focus-step"
-              >
-                <Plus size={13} strokeWidth={2} />
-              </button>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 1,
-                  height: 16,
-                  margin: "0 2px",
-                  background: "var(--archik-border)",
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Clear focus"
-                title="Clear focus (Esc)"
-                onClick={onClearFocus}
-                className="archik-focus-step"
-              >
-                <X size={13} strokeWidth={2} />
-              </button>
-            </div>
-          )}
-        {density !== undefined && onDensityChange !== undefined && (
-          <LayoutControls density={density} onChange={onDensityChange} />
+                {isPhone && (
+                  <>
+                    <div>{searchBox}</div>
+                    <div style={{ display: "flex", gap: 8 }}>{undoRedo}</div>
+                  </>
+                )}
+                {secondary.map((item) => (
+                  <div
+                    key={item.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      fontSize: 12,
+                      color: "var(--archik-fg)",
+                    }}
+                  >
+                    {item.node}
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    borderTop: "1px solid var(--archik-border)",
+                    paddingTop: 8,
+                  }}
+                >
+                  {panels}
+                </div>
+              </div>
+            )}
+          </Popover>
         )}
-        {onToggleSeqHighlight !== undefined && (seqNodeCount ?? 0) > 0 && (
-          <button
-            type="button"
-            onClick={onToggleSeqHighlight}
-            title={seqHighlight ? "Hide sequence diagram highlights" : `Show ${seqNodeCount} node${seqNodeCount === 1 ? "" : "s"} with sequence diagrams`}
-            aria-label="Toggle sequence diagram highlights"
-            aria-pressed={seqHighlight}
-            className="archik-btn"
-            style={{
-              padding: "5px 8px",
-              ...(seqHighlight ? {
-                background: "var(--archik-status-proposed)",
-                borderColor: "var(--archik-status-proposed)",
-                color: "white",
-              } : {}),
-            }}
-          >
-            <GitBranch size={14} strokeWidth={1.8} />
-          </button>
-        )}
-        <UseCasesPanel />
-        <AlphasPanel />
-        <Legend />
-        <ExportMenu
-          document={document}
-          filename={filename}
-          {...(getSvg !== undefined ? { getSvg } : {})}
-        />
         <button
           type="button"
           onClick={onSave}

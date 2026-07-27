@@ -36,7 +36,7 @@ export function TracePage({
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "100dvh",
         background: "var(--archik-canvas)",
         color: "var(--archik-fg)",
         fontFamily: "Inter, system-ui, sans-serif",

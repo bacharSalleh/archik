@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Popover } from "./Popover.tsx";
+import { Popover, popoverShift } from "./Popover.tsx";
 
 function make(align?: "start" | "end"): ReturnType<typeof render> {
   const trigger = (open: boolean): React.ReactNode => (
@@ -74,5 +74,32 @@ describe("Popover", () => {
     expect(btn).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(btn);
     expect(btn).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("popoverShift", () => {
+  it("returns 0 when the popover fits", () => {
+    expect(popoverShift({ left: 100, right: 300 }, 1000)).toBe(0);
+  });
+
+  it("shifts left when overflowing the right edge", () => {
+    // right edge 950 on a 800px viewport with 8px margin → -158
+    expect(popoverShift({ left: 700, right: 950 }, 800)).toBe(800 - 8 - 950);
+  });
+
+  it("shifts right when overflowing the left edge", () => {
+    expect(popoverShift({ left: -50, right: 100 }, 800)).toBe(58);
+  });
+
+  it("pins oversized content to the left margin", () => {
+    // 1000px wide content in an 800px viewport: right-fix would push it
+    // further left than the margin, so the left pin wins.
+    expect(popoverShift({ left: 0, right: 1000 }, 800)).toBe(8);
+  });
+
+  it("respects a custom margin", () => {
+    expect(popoverShift({ left: 700, right: 950 }, 800, 20)).toBe(
+      800 - 20 - 950,
+    );
   });
 });

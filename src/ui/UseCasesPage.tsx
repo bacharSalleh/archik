@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowUpRight, ChevronLeft } from "lucide-react";
+import { useMediaQuery } from "./useMediaQuery.ts";
 
 /**
  * UseCasesPage — full-page master/detail view of every use case in the
@@ -96,6 +97,7 @@ type Props = { selectedId: string | null };
 
 export function UseCasesPage({ selectedId }: Props): React.ReactElement {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const isNarrow = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     let cancelled = false;
@@ -138,14 +140,22 @@ export function UseCasesPage({ selectedId }: Props): React.ReactElement {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "100dvh",
         background: "var(--archik-canvas)",
         color: "var(--archik-fg)",
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
       <Header state={state} />
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          // Stack rail above detail on narrow screens.
+          flexDirection: isNarrow ? "column" : "row",
+          overflow: "hidden",
+        }}
+      >
         {state.status === "loading" && <CenterMsg>Loading…</CenterMsg>}
         {state.status === "error" && (
           <CenterMsg tone="error">Couldn't load: {state.message}</CenterMsg>
@@ -320,12 +330,18 @@ function Rail({
   ucLevel: Map<string, "full" | "partial" | "none">;
   selectedId: string;
 }): React.ReactElement {
+  const isNarrow = useMediaQuery("(max-width: 768px)");
   return (
     <nav
       aria-label="Use cases"
       style={{
-        width: 260,
-        borderRight: "1px solid var(--archik-border)",
+        width: isNarrow ? "100%" : 260,
+        ...(isNarrow
+          ? {
+              maxHeight: "40dvh",
+              borderBottom: "1px solid var(--archik-border)",
+            }
+          : { borderRight: "1px solid var(--archik-border)" }),
         background: "var(--archik-panel)",
         overflowY: "auto",
         padding: "8px 0",

@@ -38,7 +38,7 @@ export function Legend(): React.ReactElement {
       {() => (
         <div
           style={{
-            minWidth: 320,
+            minWidth: "min(320px, calc(100vw - 16px))",
             maxHeight: "min(70vh, 520px)",
             overflowY: "auto",
             padding: 6,

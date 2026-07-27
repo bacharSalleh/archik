@@ -16,6 +16,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.0] - 2026-07-27
+
+### Added
+- **Mobile-friendly canvas app**: pinch-to-zoom and two-finger pan on the diagram (single-finger pan stays native scroll), tap-to-select with drag-to-connect kept mouse/pen-only, a responsive toolbar that folds secondary controls into a "More" menu below 900px (and search/undo/panels below 640px), the inspector drawer becomes a bottom sheet on phones, popovers clamp into the viewport, the use-cases page stacks rail over detail, the sequence-page rail overlays on narrow screens, touch targets grow on coarse pointers, and pages use `100dvh`.
+
 ## [0.18.1] - 2026-07-27
 
 ### Changed

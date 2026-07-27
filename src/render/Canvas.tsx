@@ -8,6 +8,7 @@ import type {
 } from "../layout/types.ts";
 import { layout } from "../layout/index.ts";
 import { DiagramSvg } from "./DiagramSvg.tsx";
+import { midpoint, pinchDistance, zoomFromPinch } from "./pinch.ts";
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
@@ -159,6 +160,64 @@ export function Canvas({
     return () => el.removeEventListener("wheel", handler);
   }, [scrollMounted]);
 
+  // Pinch-to-zoom + two-finger pan for touch. Single-finger pan is left to
+  // the browser's native scrolling (touch-action: pan-x pan-y on the
+  // container); the moment a second finger lands we own the gesture and
+  // preventDefault every touchmove so the browser neither scrolls nor
+  // page-zooms out from under us. Listeners are native (not React pointer
+  // events) because passive:false is required to cancel the gesture.
+  useEffect(() => {
+    if (!scrollMounted) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    let startDist = 0;
+    let startZoom = 1;
+    let lastMid: { x: number; y: number } | null = null;
+
+    const pointOf = (t: Touch): { x: number; y: number } => ({
+      x: t.clientX,
+      y: t.clientY,
+    });
+
+    const handleStart = (e: TouchEvent): void => {
+      if (e.touches.length === 2) {
+        const a = pointOf(e.touches[0]!);
+        const b = pointOf(e.touches[1]!);
+        startDist = pinchDistance(a, b);
+        startZoom = zoomRef.current;
+        lastMid = midpoint(a, b);
+      } else {
+        lastMid = null;
+      }
+    };
+    const handleMove = (e: TouchEvent): void => {
+      if (e.touches.length !== 2 || lastMid === null) return;
+      e.preventDefault();
+      const a = pointOf(e.touches[0]!);
+      const b = pointOf(e.touches[1]!);
+      const dist = pinchDistance(a, b);
+      setZoom(zoomFromPinch(startDist, dist, startZoom, ZOOM_MIN, ZOOM_MAX));
+      const mid = midpoint(a, b);
+      el.scrollLeft -= mid.x - lastMid.x;
+      el.scrollTop -= mid.y - lastMid.y;
+      lastMid = mid;
+    };
+    const handleEnd = (e: TouchEvent): void => {
+      if (e.touches.length < 2) lastMid = null;
+    };
+
+    el.addEventListener("touchstart", handleStart, { passive: true });
+    el.addEventListener("touchmove", handleMove, { passive: false });
+    el.addEventListener("touchend", handleEnd, { passive: true });
+    el.addEventListener("touchcancel", handleEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", handleStart);
+      el.removeEventListener("touchmove", handleMove);
+      el.removeEventListener("touchend", handleEnd);
+      el.removeEventListener("touchcancel", handleEnd);
+    };
+  }, [scrollMounted]);
+
   // Capture-phase click swallower for the node that ends a drag-to-connect.
   useEffect(() => {
     const el = scrollRef.current;
@@ -217,6 +276,9 @@ export function Canvas({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
+    // Touch drags are pan gestures (native scroll), not edge connects —
+    // drag-to-connect stays a mouse/pen interaction for now.
+    if (e.pointerType === "touch") return;
     // Modifier-held clicks are reserved for multi-select / toggle.
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     if (!onConnectDrag) return;
@@ -326,6 +388,14 @@ export function Canvas({
           display: "flex",
           justifyContent: "safe center",
           alignItems: "safe center",
+          // Native single-finger pan; pinch is handled by the touch
+          // listeners above. No `pinch-zoom` — we own that gesture.
+          touchAction: "pan-x pan-y",
+          overscrollBehavior: "contain",
+          // No text selection / iOS callout when long-pressing nodes.
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
         }}
       >
         <DiagramSvg
@@ -399,8 +469,7 @@ function ZoomControls({
         onClick={onZoomOut}
         title="Zoom out"
         aria-label="Zoom out"
-        className="archik-btn"
-        style={{ minWidth: 28, padding: "0 8px", height: 24 }}
+        className="archik-btn archik-zoom-btn"
       >
         −
       </button>
@@ -409,8 +478,8 @@ function ZoomControls({
         onClick={onZoomReset}
         title="Reset zoom (100%)"
         aria-label="Reset zoom"
-        className="archik-btn"
-        style={{ minWidth: 48, padding: "0 8px", height: 24 }}
+        className="archik-btn archik-zoom-btn"
+        style={{ minWidth: 48 }}
       >
         {Math.round(zoom * 100)}%
       </button>
@@ -419,8 +488,7 @@ function ZoomControls({
         onClick={onZoomIn}
         title="Zoom in"
         aria-label="Zoom in"
-        className="archik-btn"
-        style={{ minWidth: 28, padding: "0 8px", height: 24 }}
+        className="archik-btn archik-zoom-btn"
       >
         +
       </button>

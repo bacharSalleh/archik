@@ -544,3 +544,111 @@ body,
 .archik-drawer-fade {
   animation: archikFadeIn 220ms ease-out;
 }
+
+/* ---------------------------------------------------------------------------
+   Mobile — bottom-sheet inspector, touch targets, dynamic viewport height.
+   --------------------------------------------------------------------------- */
+
+/* Canvas zoom buttons — sized here (not inline) so the coarse-pointer
+   media query below can enlarge them on touch devices. */
+.archik-zoom-btn {
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+}
+
+/* Bottom-sheet handle: hidden on desktop, shown in sheet mode. */
+.archik-sheet-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 10px 12px 2px;
+  flex-shrink: 0;
+}
+.archik-sheet-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--archik-border-strong);
+}
+.archik-sheet-close {
+  position: absolute;
+  right: 8px;
+  top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--archik-fg-dim);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.archik-sheet-close:hover {
+  background: var(--archik-surface-hover);
+  color: var(--archik-fg);
+}
+
+@media (max-width: 768px) {
+  /* Inspector becomes a bottom sheet overlaying the canvas. */
+  .archik-drawer-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    margin-left: 0;
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 200ms ease;
+  }
+  .archik-drawer-shell--open {
+    width: auto;
+    margin-left: 0;
+    transform: translateY(0);
+  }
+  .archik-drawer-shell--closed {
+    width: auto;
+    margin-left: 0;
+    transform: translateY(100%);
+  }
+  .archik-drawer-content {
+    width: 100%;
+    height: 60dvh;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* The handle sits above the inspector body — inspectors use h-full,
+     which would overflow next to the handle, so flex takes over. */
+  .archik-drawer-content > *:not(.archik-sheet-handle) {
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+  }
+  .archik-sheet-handle {
+    display: flex;
+  }
+}
+
+/* Bigger hit targets on touch devices. */
+@media (pointer: coarse) {
+  .archik-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+  .archik-zoom-btn {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+  }
+  .archik-focus-step {
+    width: 32px;
+    height: 32px;
+  }
+}
