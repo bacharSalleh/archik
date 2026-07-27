@@ -1143,7 +1143,7 @@ export function App(): React.ReactElement {
         </div>
       )}
       <main
-        className="flex min-h-0 flex-1 p-4"
+        className="archik-main flex min-h-0 flex-1 p-4"
         style={{ gap: 0 }}
       >
         <div

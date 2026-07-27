@@ -6,13 +6,13 @@ describe("AddNodeForm", () => {
   it("starts collapsed showing the trigger button", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
     expect(
-      screen.getByRole("button", { name: /\+ node/i }),
+      screen.getByRole("button", { name: /add node/i }),
     ).toBeInTheDocument();
   });
 
   it("opens the modal when the trigger is clicked", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add node/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
   });
@@ -20,7 +20,7 @@ describe("AddNodeForm", () => {
   it("calls onAdd with the chosen kind + trimmed name + trimmed description", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
-    fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add node/i }));
     fireEvent.click(screen.getByLabelText(/kind/i));
     fireEvent.click(screen.getByRole("button", { name: /^database/i }));
     fireEvent.change(screen.getByLabelText(/^name$/i), {
@@ -39,7 +39,7 @@ describe("AddNodeForm", () => {
 
   it("closes the modal after a successful add and resets fields", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add node/i }));
     fireEvent.change(screen.getByLabelText(/^name$/i), {
       target: { value: "X" },
     });
@@ -49,14 +49,14 @@ describe("AddNodeForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(
-      screen.getByRole("button", { name: /\+ node/i }),
+      screen.getByRole("button", { name: /add node/i }),
     ).toBeInTheDocument();
   });
 
   it("does not call onAdd when name or description is empty (both required)", () => {
     const onAdd = vi.fn();
     render(<AddNodeForm onAdd={onAdd} />);
-    fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add node/i }));
     const submit = screen.getByRole("button", { name: /^add$/i });
     expect((submit as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(submit);
@@ -71,7 +71,7 @@ describe("AddNodeForm", () => {
 
   it("closes the modal when Cancel is clicked", () => {
     render(<AddNodeForm onAdd={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /\+ node/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add node/i }));
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(screen.queryByRole("dialog")).toBeNull();
   });

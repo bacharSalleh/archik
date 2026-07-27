@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import type { NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
+import { useMediaQuery } from "./useMediaQuery.ts";
 
 export type AddNodeFormProps = {
   onAdd: (kind: NodeKind, name: string, description: string) => void;
@@ -11,6 +13,7 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
   const [kind, setKind] = useState<NodeKind>("service");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const isPhone = useMediaQuery("(max-width: 640px)");
 
   const close = (): void => {
     setOpen(false);
@@ -45,8 +48,11 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
         type="button"
         onClick={() => setOpen(true)}
         className="archik-btn"
+        aria-label="Add node"
+        title="Add node"
+        {...(isPhone ? { style: { padding: "5px 8px" } } : {})}
       >
-        + Node
+        {isPhone ? <Plus size={14} strokeWidth={1.8} /> : "+ Node"}
       </button>
       {open && (
         <div className="archik-modal-overlay" onClick={close}>

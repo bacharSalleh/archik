@@ -16,6 +16,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.2] - 2026-07-27
+
+### Fixed
+- **Canvas now uses the full mobile viewport**: on screens ≤768px the page padding and the canvas panel border/radius are gone — the diagram renders edge-to-edge; the file-switcher dropdown stays.
+- **Oversized "+ Node" trigger on phones**: below 640px it renders as a compact "+" icon button instead of the wide text button that wrapped to two lines.
+
 ## [0.19.1] - 2026-07-27
 
 ### Fixed

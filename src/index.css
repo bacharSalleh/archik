@@ -594,6 +594,17 @@ body,
 }
 
 @media (max-width: 768px) {
+  /* Full-bleed canvas on phones — drop the page padding and the panel
+     border so the diagram uses the whole viewport. The file-switcher
+     bar stays. */
+  .archik-main {
+    padding: 0 !important;
+  }
+  .archik-main > .archik-panel {
+    border: 0;
+    border-radius: 0;
+  }
+
   /* Inspector becomes a bottom sheet overlaying the canvas. */
   .archik-drawer-shell {
     position: fixed;
