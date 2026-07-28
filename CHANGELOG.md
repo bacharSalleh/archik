@@ -16,6 +16,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.5] - 2026-07-28
+
+### Changed
+- **Sequence-diagram readability**: message labels get a canvas-colored halo (`paintOrder: stroke`) so they stay legible where they cross lifelines, activation bars, and dashed return lines; the diagram is centered horizontally when narrower than the viewport.
+
 ## [0.19.4] - 2026-07-28
 
 ### Fixed

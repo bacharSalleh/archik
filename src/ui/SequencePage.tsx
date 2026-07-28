@@ -268,6 +268,9 @@ function DiagramArea({
           style={{
             width: laid.totalWidth * zoom,
             height: laid.totalHeight * zoom,
+            // Center horizontally when the diagram is narrower than the
+            // viewport; margin auto collapses to 0 when it overflows.
+            margin: "0 auto",
           }}
         >
           <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0" }}>

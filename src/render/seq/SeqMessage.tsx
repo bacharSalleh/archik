@@ -42,7 +42,16 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
       <g opacity={opacity}>
         <path d={d} fill="none" stroke={STROKE} strokeWidth={1.4} />
         {head({ x, y: y + SELF_LOOP_H }, { x: x + SELF_LOOP_W, y: y + SELF_LOOP_H })}
-        <text x={x + SELF_LOOP_W + 6} y={y + SELF_LOOP_H / 2 + 4} fontSize={11} fill="var(--archik-fg)" fontFamily="inherit">
+        <text
+          x={x + SELF_LOOP_W + 6}
+          y={y + SELF_LOOP_H / 2 + 4}
+          fontSize={11}
+          fill="var(--archik-fg)"
+          fontFamily="inherit"
+          stroke="var(--archik-canvas)"
+          strokeWidth={3}
+          paintOrder="stroke"
+        >
           {msg.label}
         </text>
       </g>
@@ -65,7 +74,17 @@ export function SeqMessage({ msg }: { msg: LayoutedMessage }): React.ReactElemen
         strokeDasharray={dashed ? "4 4" : undefined}
       />
       {!isDestroy && head({ x: msg.toCx, y: msg.y }, { x: msg.fromCx, y: msg.y })}
-      <text x={labelX} y={msg.y + LABEL_OFFSET_Y} textAnchor="middle" fontSize={11} fill="var(--archik-fg)" fontFamily="inherit">
+      <text
+        x={labelX}
+        y={msg.y + LABEL_OFFSET_Y}
+        textAnchor="middle"
+        fontSize={11}
+        fill="var(--archik-fg)"
+        fontFamily="inherit"
+        stroke="var(--archik-canvas)"
+        strokeWidth={3}
+        paintOrder="stroke"
+      >
         {isCreate && "«create» "}
         {msg.label}
       </text>
