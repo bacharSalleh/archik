@@ -38,7 +38,7 @@ export function SeqGroupFrame({ group, renderStep, onRefClick }: Props): React.R
         fill="none"
         stroke={color}
         strokeWidth={1.2}
-        opacity={0.6}
+        opacity={0.8}
       />
       <rect x={group.x} y={group.y} width={TAB_W} height={TAB_H} rx={4} fill={color} opacity={0.8} />
       <text
@@ -85,7 +85,7 @@ export function SeqGroupFrame({ group, renderStep, onRefClick }: Props): React.R
               stroke={color}
               strokeWidth={1}
               strokeDasharray="4 2"
-              opacity={0.5}
+              opacity={0.65}
             />
           )}
         </g>

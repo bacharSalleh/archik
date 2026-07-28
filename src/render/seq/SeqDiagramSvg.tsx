@@ -57,9 +57,9 @@ export function SeqDiagramSvg({ laid, svgRef, onRefClick }: Props): React.ReactE
             y={a.startY}
             width={ACTIVATION_W}
             height={a.endY - a.startY}
-            fill="var(--archik-node-fill)"
-            stroke="var(--archik-node-stroke)"
-            strokeWidth={1}
+            fill="var(--archik-surface)"
+            stroke="var(--archik-fg-muted)"
+            strokeWidth={1.2}
             rx={2}
           />
         ))}

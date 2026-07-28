@@ -16,6 +16,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.4] - 2026-07-28
+
+### Fixed
+- **Sequence-diagram legibility on dark themes**: lifelines were nearly invisible (`--archik-node-stroke` at 0.5 opacity on true black) and activation bars were black-on-black. Lifelines now use `--archik-fg-muted` at 0.6 opacity with a wider dash, activations get a surface fill with a muted outline (proper UML execution boxes), and group frames/dividers are more contrasty.
+
 ## [0.19.3] - 2026-07-28
 
 ### Added
