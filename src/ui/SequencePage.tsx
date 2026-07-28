@@ -5,10 +5,13 @@ import { SeqDocumentSchema } from "../domain/seq-schema.ts";
 import type { SeqDocument } from "../domain/seq-schema.ts";
 import type { NodeKind } from "../domain/types.ts";
 import { layoutSeqDocument } from "../render/seq/seqLayout.ts";
+import type { LayoutedSeqDocument } from "../render/seq/seqLayout.ts";
 import { SeqDiagramSvg } from "../render/seq/SeqDiagramSvg.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { KIND_META } from "../render/kindPalette.ts";
 import { useMediaQuery } from "./useMediaQuery.ts";
+import { usePinchZoom } from "../render/usePinchZoom.ts";
+import { ZoomControls } from "../render/ZoomControls.tsx";
 
 type State =
   | { status: "loading" }
@@ -188,9 +191,7 @@ export function SequencePage({ path, back }: Props): React.ReactElement {
         getSvg={() => svgRef.current}
       />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
-          <SeqDiagramSvg laid={laid} svgRef={svgRef} onRefClick={handleRefClick} />
-        </div>
+        <DiagramArea laid={laid} svgRef={svgRef} onRefClick={handleRefClick} />
         {railOpen && (
           <Rail
             doc={state.doc}
@@ -202,6 +203,88 @@ export function SequencePage({ path, back }: Props): React.ReactElement {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+const SEQ_ZOOM_MIN = 0.25;
+const SEQ_ZOOM_MAX = 4;
+const SEQ_ZOOM_STEP = 1.2;
+const clampSeqZoom = (z: number): number =>
+  Math.max(SEQ_ZOOM_MIN, Math.min(SEQ_ZOOM_MAX, z));
+
+/**
+ * Scrollable diagram area with zoom: buttons + pinch (shared hook with
+ * the architecture canvas). On narrow screens the initial zoom fits the
+ * diagram's width so the whole flow is visible without sideways
+ * scrolling; Reset returns to that fit.
+ */
+function DiagramArea({
+  laid,
+  svgRef,
+  onRefClick,
+}: {
+  laid: LayoutedSeqDocument;
+  svgRef: React.RefObject<SVGSVGElement | null>;
+  onRefClick?: (f: string) => void;
+}): React.ReactElement {
+  const isNarrow = useMediaQuery("(max-width: 768px)");
+  const fitZoom = useMemo(() => {
+    if (!isNarrow || typeof window === "undefined") return 1;
+    const avail = window.innerWidth - 48; // 24px padding each side
+    return clampSeqZoom(Math.min(1, avail / laid.totalWidth));
+  }, [isNarrow, laid.totalWidth]);
+  const [zoom, setZoom] = useState(fitZoom);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Re-fit when the viewport class or the diagram changes (file switch,
+  // rotation). User zoom persists across plain re-renders.
+  useEffect(() => {
+    setZoom(fitZoom);
+  }, [fitZoom]);
+  usePinchZoom({
+    scrollRef,
+    zoomRef,
+    setZoom,
+    min: SEQ_ZOOM_MIN,
+    max: SEQ_ZOOM_MAX,
+    enabled: true,
+  });
+
+  return (
+    <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex" }}>
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: 24,
+          touchAction: "pan-x pan-y",
+          overscrollBehavior: "contain",
+        }}
+      >
+        <div
+          style={{
+            width: laid.totalWidth * zoom,
+            height: laid.totalHeight * zoom,
+          }}
+        >
+          <div style={{ transform: `scale(${zoom})`, transformOrigin: "0 0" }}>
+            <SeqDiagramSvg
+              laid={laid}
+              svgRef={svgRef}
+              {...(onRefClick !== undefined ? { onRefClick } : {})}
+            />
+          </div>
+        </div>
+      </div>
+      <ZoomControls
+        zoom={zoom}
+        onZoomIn={() => setZoom((z) => clampSeqZoom(z * SEQ_ZOOM_STEP))}
+        onZoomOut={() => setZoom((z) => clampSeqZoom(z / SEQ_ZOOM_STEP))}
+        onZoomReset={() => setZoom(fitZoom)}
+      />
     </div>
   );
 }
@@ -262,12 +345,16 @@ function Header({
               textDecoration: "none",
               fontFamily: "ui-monospace, monospace",
               fontSize: 12,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "30vw",
             }}
           >
             {realizedSlice.useCase}
           </a>
           <Crumb />
-          <span style={{ color: "var(--archik-fg)", fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+          <span style={{ color: "var(--archik-fg)", fontFamily: "ui-monospace, monospace", fontSize: 12, whiteSpace: "nowrap" }}>
             {realizedSlice.slice}
           </span>
         </>
@@ -275,7 +362,16 @@ function Header({
       {!realizedSlice && (
         <>
           <Crumb />
-          <span style={{ color: "var(--archik-fg)", fontWeight: 500 }}>
+          <span
+            style={{
+              color: "var(--archik-fg)",
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "40vw",
+            }}
+          >
             {seqName}
           </span>
         </>

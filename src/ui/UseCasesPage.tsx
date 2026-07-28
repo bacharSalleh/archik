@@ -180,6 +180,7 @@ export function UseCasesPage({ selectedId }: Props): React.ReactElement {
 }
 
 function Header({ state }: { state: LoadState }): React.ReactElement {
+  const isPhone = useMediaQuery("(max-width: 640px)");
   const totals = useMemo(() => {
     if (state.status !== "ready") return null;
     let full = 0;
@@ -198,8 +199,8 @@ function Header({ state }: { state: LoadState }): React.ReactElement {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 16,
-        padding: "0 20px",
+        gap: isPhone ? 8 : 16,
+        padding: isPhone ? "0 12px" : "0 20px",
         height: 52,
         borderBottom: "1px solid var(--archik-border)",
         background: "var(--archik-panel)",
@@ -215,6 +216,7 @@ function Header({ state }: { state: LoadState }): React.ReactElement {
           color: "var(--archik-fg-dim)",
           fontSize: 13,
           textDecoration: "none",
+          whiteSpace: "nowrap",
         }}
       >
         <ChevronLeft size={14} />
@@ -227,11 +229,12 @@ function Header({ state }: { state: LoadState }): React.ReactElement {
           fontWeight: 600,
           margin: 0,
           color: "var(--archik-fg)",
+          whiteSpace: "nowrap",
         }}
       >
         Use cases
       </h1>
-      {totals && totals.total > 0 && (
+      {totals && totals.total > 0 && !isPhone && (
         <div
           style={{
             display: "flex",

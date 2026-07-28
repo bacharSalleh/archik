@@ -16,6 +16,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.19.3] - 2026-07-28
+
+### Added
+- **Zoom on the sequence-diagram page**: the same zoom controls as the canvas (− / % / +), pinch-to-zoom and two-finger pan via the new shared `usePinchZoom` hook and `ZoomControls` component (extracted from the canvas). On phones the diagram opens at a fit-to-width zoom so the whole flow is visible immediately; Reset returns to that fit.
+
+### Fixed
+- **Mobile polish on the use-cases and sequence pages**: use-cases header collapses to a single line on phones (trace stats hidden — the rail badges carry them); sequence-page breadcrumbs truncate instead of wrapping to two lines.
+
 ## [0.19.2] - 2026-07-27
 
 ### Fixed

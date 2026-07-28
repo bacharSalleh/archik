@@ -8,7 +8,8 @@ import type {
 } from "../layout/types.ts";
 import { layout } from "../layout/index.ts";
 import { DiagramSvg } from "./DiagramSvg.tsx";
-import { midpoint, pinchDistance, zoomFromPinch } from "./pinch.ts";
+import { usePinchZoom } from "./usePinchZoom.ts";
+import { ZoomControls } from "./ZoomControls.tsx";
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
@@ -160,63 +161,16 @@ export function Canvas({
     return () => el.removeEventListener("wheel", handler);
   }, [scrollMounted]);
 
-  // Pinch-to-zoom + two-finger pan for touch. Single-finger pan is left to
-  // the browser's native scrolling (touch-action: pan-x pan-y on the
-  // container); the moment a second finger lands we own the gesture and
-  // preventDefault every touchmove so the browser neither scrolls nor
-  // page-zooms out from under us. Listeners are native (not React pointer
-  // events) because passive:false is required to cancel the gesture.
-  useEffect(() => {
-    if (!scrollMounted) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    let startDist = 0;
-    let startZoom = 1;
-    let lastMid: { x: number; y: number } | null = null;
-
-    const pointOf = (t: Touch): { x: number; y: number } => ({
-      x: t.clientX,
-      y: t.clientY,
-    });
-
-    const handleStart = (e: TouchEvent): void => {
-      if (e.touches.length === 2) {
-        const a = pointOf(e.touches[0]!);
-        const b = pointOf(e.touches[1]!);
-        startDist = pinchDistance(a, b);
-        startZoom = zoomRef.current;
-        lastMid = midpoint(a, b);
-      } else {
-        lastMid = null;
-      }
-    };
-    const handleMove = (e: TouchEvent): void => {
-      if (e.touches.length !== 2 || lastMid === null) return;
-      e.preventDefault();
-      const a = pointOf(e.touches[0]!);
-      const b = pointOf(e.touches[1]!);
-      const dist = pinchDistance(a, b);
-      setZoom(zoomFromPinch(startDist, dist, startZoom, ZOOM_MIN, ZOOM_MAX));
-      const mid = midpoint(a, b);
-      el.scrollLeft -= mid.x - lastMid.x;
-      el.scrollTop -= mid.y - lastMid.y;
-      lastMid = mid;
-    };
-    const handleEnd = (e: TouchEvent): void => {
-      if (e.touches.length < 2) lastMid = null;
-    };
-
-    el.addEventListener("touchstart", handleStart, { passive: true });
-    el.addEventListener("touchmove", handleMove, { passive: false });
-    el.addEventListener("touchend", handleEnd, { passive: true });
-    el.addEventListener("touchcancel", handleEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", handleStart);
-      el.removeEventListener("touchmove", handleMove);
-      el.removeEventListener("touchend", handleEnd);
-      el.removeEventListener("touchcancel", handleEnd);
-    };
-  }, [scrollMounted]);
+  // Pinch-to-zoom + two-finger pan for touch (single-finger pan is
+  // native scroll). Shared with the sequence-diagram page.
+  usePinchZoom({
+    scrollRef,
+    zoomRef,
+    setZoom,
+    min: ZOOM_MIN,
+    max: ZOOM_MAX,
+    enabled: scrollMounted,
+  });
 
   // Capture-phase click swallower for the node that ends a drag-to-connect.
   useEffect(() => {
@@ -432,66 +386,6 @@ export function Canvas({
         onZoomOut={() => setZoom((z) => clampZoom(z / ZOOM_STEP))}
         onZoomReset={() => setZoom(1)}
       />
-    </div>
-  );
-}
-
-type ZoomControlsProps = {
-  zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomReset: () => void;
-};
-
-function ZoomControls({
-  zoom,
-  onZoomIn,
-  onZoomOut,
-  onZoomReset,
-}: ZoomControlsProps): React.ReactElement {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        right: 12,
-        bottom: 12,
-        display: "flex",
-        gap: 4,
-        padding: 4,
-        background: "var(--archik-panel)",
-        border: "1px solid var(--archik-border)",
-        borderRadius: 6,
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)",
-      }}
-    >
-      <button
-        type="button"
-        onClick={onZoomOut}
-        title="Zoom out"
-        aria-label="Zoom out"
-        className="archik-btn archik-zoom-btn"
-      >
-        −
-      </button>
-      <button
-        type="button"
-        onClick={onZoomReset}
-        title="Reset zoom (100%)"
-        aria-label="Reset zoom"
-        className="archik-btn archik-zoom-btn"
-        style={{ minWidth: 48 }}
-      >
-        {Math.round(zoom * 100)}%
-      </button>
-      <button
-        type="button"
-        onClick={onZoomIn}
-        title="Zoom in"
-        aria-label="Zoom in"
-        className="archik-btn archik-zoom-btn"
-      >
-        +
-      </button>
     </div>
   );
 }
