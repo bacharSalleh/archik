@@ -1,3 +1,5 @@
+
+
 <p align="center">
   <img src="https://cdn.jsdelivr.net/npm/archik/docs/logo.svg" alt="archik" width="120">
 </p>
@@ -56,7 +58,7 @@ Both paths install the same skill and commands and use the `archik` npm binary, 
 
 ```bash
 npx archik init     # scaffold
-npx archik start    # live canvas at http://localhost:5173
+npx archik dev      # live canvas at http://localhost:5173
 ```
 
 Then, in Claude Code, start every project with:
