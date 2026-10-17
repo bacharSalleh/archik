@@ -49,6 +49,15 @@ export function classifyChange(before: Document, after: Document): DoorClassific
   const now = new Map(after.nodes.map((n) => [n.id, n]));
   const reasons: DoorReason[] = [];
 
+  if (JSON.stringify(before.style ?? null) !== JSON.stringify(after.style ?? null)) {
+    const from = before.style?.kind ?? "none";
+    const to = after.style?.kind ?? "none";
+    reasons.push({
+      text: from === to ? `changes the ${to} style's layers or shared modules` : `changes the architecture style from ${from} to ${to}`,
+      crossCutting: false,
+    });
+  }
+
   for (const n of after.nodes) {
     if (was.has(n.id)) continue;
     if (RISKY_KINDS.has(n.kind)) {
@@ -75,6 +84,12 @@ export function classifyChange(before: Document, after: Document): DoorClassific
     if (next === undefined) {
       if (!isPlanned(n)) reasons.push({ text: `removes \`${n.id}\``, crossCutting: false });
       continue;
+    }
+    if (next.layer !== n.layer && n.layer !== undefined && !isPlanned(n)) {
+      reasons.push({
+        text: `moves \`${n.id}\` from layer ${n.layer} to ${next.layer ?? "no layer"}`,
+        crossCutting: false,
+      });
     }
     if (next.parentId !== n.parentId && !isPlanned(n)) {
       const from = n.parentId === undefined ? "top level" : `\`${n.parentId}\``;

@@ -10,6 +10,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 - **The YAML is the source of truth.** `.archik/main.archik.yaml` (and any `*.archik.yaml` sub-files) describe the system the user is building. The browser canvas is just a stateless projection of that file.
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
 - **Every change says why.** A draft carries a short decision record (context, decision, alternatives, consequences). Accept writes it to `.archik/decisions/NNNN-<slug>.md`. The diagram is the *what*; the records are the *why*. Read past records before you change a structure they explain — they are plain markdown, so reading them directly is fine (the "CLI only" rule is about the YAML model files).
+- **The architect chose a structure — follow it.** If the model declares a `style` (layered, hexagonal, clean, modular-monolith, feature-slices), run `npx archik style` before you design anything. Every new node goes in a layer (or module) that fits its job, and every dependency follows the style's rule — `suggest set` rejects one that breaks it. Put the code where the layer says: an adapter's code lives with the adapters, not inside the core. If the change seems to need a dependency the style forbids, that is a design question for the user — ask, don't work around it.
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
 - **One change to ship, not the whole system.** When a user hands you a brief on a fresh project, never say "let me sketch your whole system." Propose the smallest structure that delivers the first piece of value. New code-bearing nodes start `status: proposed` (the code doesn't exist on disk yet) and flip to `status: active` when the code lands in BUILD. The project's commitments live in the YAML, not in the chat log.
 - **Read the learned overlay at session start.** If `.archik/evolution/learned.md` exists, read it (with the Read tool — it is docs, not an archik YAML) before your first archik action and treat every note as binding guidance. Each note is a lesson this project's evolution loop gathered from real usage and a human approved. After a suggestion of yours is rejected, run `npx archik evolution reflect` — repeated rejections become proposals the user can review.
@@ -49,6 +50,8 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Verify edges against the code     | `npx archik drift --edges [--json]`           |
 | Validate a file                   | `npx archik validate <path>`                  |
 | Spot over-complex files / hubs    | `npx archik complexity [--fail-on-warn]`      |
+| See the architecture style + where nodes sit | `npx archik style` (`list` for all styles) |
+| Where a node sits / what it may use | `npx archik q describe <id>` (the `style:` line) |
 | Find folder loops / oversized files | `npx archik smells [dir] [--json] [--fail-on-warn]` |
 | Accept today's smells as known debt | `npx archik smells --update-baseline` (commit `.archik/smells-baseline.json`) |
 | Stage a proposed change           | `npx archik suggest set --note '…' - <<'YAML' … YAML` |
@@ -102,7 +105,7 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
 
 | Phase    | Driver        | Tool you reach for                                  |
 | -------- | ------------- | --------------------------------------------------- |
-| Discover | Claude        | `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` + past records in `.archik/decisions/` |
+| Discover | Claude        | `npx archik style` + `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` + past records in `.archik/decisions/` |
 | Design   | Claude → User | sidecar via `suggest set`, with its decision record |
 | Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate) — one-way doors alone, two-way doors together with the plan |
 | Build    | Claude → User | numbered plan (own HITL approval for one-way doors), then small commits |
@@ -380,6 +383,7 @@ Run a candidate through this checklist before staging a sidecar. Each item is a 
 - **Bounded contexts.** Name the context this change belongs to. A change spanning two contexts usually means a missing third (orchestrator, port, gateway).
 - **Async at context boundaries.** Default cross-context coupling to `publishes` / `subscribes` over a stream/queue. `http_call` across contexts is allowed but should be justified (sync-required RPC, query for read-side data).
 - **Composition over sprawl.** Group related nodes under a `module` parent via `parentId`. Flat top-level lists past ~8 nodes are a smell. Run `npx archik complexity` to catch this objectively — it flags over-large files, over-stuffed containers, hub nodes, and deep nesting, each with a concrete fix.
+- **Follow the declared style.** Layered: depend down only, outside systems only from infrastructure. Hexagonal: adapters plug into ports; the core and its ports never know an adapter or an outside system — add a port in the core and an adapter that implements it. Clean: inward only. Modular monolith: talk to another module only through its interface / port node. Feature slices: no slice uses another — move shared needs to a shared module. A new node without a `layer` (layered kinds) is skipped by the checks, so always set one on new top-level nodes.
 - **No folder loops.** Dependencies between sibling folders should flow one way. Run `npx archik smells` — it reads the code (no model needed) and reports folder loops with the real `file imports "specifier"` lines as evidence, plus the cheapest import to cut. Name smells by that evidence; don't invent labels.
 - **Ports & adapters at the edge.** External integrations sit behind an `external` node, never inline in a service. Port (interface) + adapter (concrete) is preferred when the integration could swap.
 - **Public traffic → gateway/auth upstream.** Anything user-facing routes through a `gateway`/`auth` node, not directly to a service.
@@ -466,6 +470,8 @@ npx archik complexity [path] [--json]   # advisory report: over-large files, hub
                   [--fail-on-warn]      #   exit 1 if any finding (CI / pre-commit gate)
                   [--max-nodes N] [--max-edges N] [--max-children N]
                   [--max-degree N] [--max-depth N]   # override the strict defaults
+npx archik style [list] [--json]        # the architecture style: rule, layers / modules,
+                                        #   violations; list = every style + its YAML
 npx archik smells [dir] [--json]        # folder loops + oversized files, read from TS/JS code
                   [--fail-on-warn]      #   exit 1 on findings (only NEW ones if a baseline exists)
                   [--update-baseline]   #   save today's findings to .archik/smells-baseline.json

@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Crosshair } from "lucide-react";
 import type { Command } from "../domain/commands.ts";
+import { effectiveLayers } from "../domain/style.ts";
 import type { Interface, Node, NodeKind } from "../domain/types.ts";
 import { KindPicker } from "./KindPicker.tsx";
 import { useUIStore } from "./store.ts";
@@ -13,6 +14,9 @@ type Props = {
    *  hidden — used while reviewing a suggestion sidecar so the user
    *  doesn't accidentally write edits to the wrong document. */
   readOnly?: boolean;
+  /** Layers of the document's architecture style (ordered); empty when
+   *  the style has none — the Layer field is hidden then. */
+  layers?: readonly string[];
 };
 
 export function NodeInspector({
@@ -21,6 +25,7 @@ export function NodeInspector({
   onStartConnect,
   allNodes = [],
   readOnly = false,
+  layers = [],
 }: Props): React.ReactElement {
   if (!node) {
     return (
@@ -62,6 +67,29 @@ export function NodeInspector({
           disabled={readOnly}
         />
       </Field>
+
+      {layers.length > 0 && (
+        <Field label="Layer" htmlFor="ni-layer">
+          <select
+            id="ni-layer"
+            value={node.layer ?? ""}
+            onChange={(e) => update({ layer: e.target.value === "" ? undefined : e.target.value })}
+            disabled={readOnly}
+            className="archik-input w-full"
+          >
+            <option value="">
+              {inheritedLayer(node, allNodes) !== undefined
+                ? `(inherit: ${inheritedLayer(node, allNodes)})`
+                : "(none)"}
+            </option>
+            {layers.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <Field label="Stack" htmlFor="ni-stack">
         <input
@@ -275,6 +303,14 @@ function CollapseToggle({
       </button>
     </div>
   );
+}
+
+/** The layer a node gets from its nearest ancestor, if any. */
+function inheritedLayer(node: Node, allNodes: ReadonlyArray<Node>): string | undefined {
+  if (node.parentId === undefined) return undefined;
+  const byId = new Map(allNodes.map((n) => [n.id, n]));
+  const parent = byId.get(node.parentId);
+  return parent === undefined ? undefined : effectiveLayers(allNodes).get(parent.id);
 }
 
 function Field({

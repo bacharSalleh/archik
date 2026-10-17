@@ -724,6 +724,46 @@ EXAMPLES
   archik affected --files src/api/routes.ts,src/worker/run.ts
 `,
 
+  style: `archik style — the architecture style the code must follow
+
+USAGE
+  archik style [path] [--json]
+  archik style list [--json]
+
+DESCRIPTION
+  The architect picks one style for the system and declares it in the
+  root model file. archik then enforces it on every change — validate,
+  suggest set and canvas save reject a dependency that breaks it — and
+  the canvas draws the board in the style's lanes.
+
+    layered            presentation → application → domain → infrastructure
+                       (depend down only; only infrastructure calls outside systems)
+    hexagonal          adapters → ports / core
+                       (the core and its ports never depend on an adapter)
+    clean              frameworks → interface-adapters → application → domain
+                       (dependencies point inward)
+    modular-monolith   top-level nodes are modules; use another module only
+                       through its interface / port node or a shared module
+    feature-slices     top-level nodes are slices; no slice uses another,
+                       only shared modules
+
+  Layered kinds: give the top-level node of each area a \`layer:\`;
+  children inherit it. Custom layer names: \`style.layers\` (outer/top
+  first). Module kinds: \`style.shared\` lists modules all may use.
+
+  \`archik style\` shows the rule, where each node sits, violations and
+  nodes that still have no layer. \`archik q describe <id>\` shows a
+  node's layer or module and what it may depend on.
+
+  Adopting or changing a style is a model change: stage it with
+  \`archik suggest set\` (it is a one-way door) like any other.
+
+EXIT CODES
+  0  the model follows its style (or no style is declared)
+  1  violations
+  2  could not load the model
+`,
+
   smells: `archik smells — structural smells backed by code evidence
 
 USAGE

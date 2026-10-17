@@ -8,7 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- **Architecture style**: declare the structure the code must follow with `style:` in the root model — `layered`, `hexagonal`, `clean`, `modular-monolith` or `feature-slices` — and `layer:` on nodes (children inherit it). Enforced like constraints at validate, suggest set and canvas save, with a fix hint per violation. The canvas lays the board out in the style's lanes, labels each layer, shows the style in the legend and offers a Layer picker in the inspector. New `archik style [list]` command and `archik_style` MCP tool; `q describe` says where a node sits and what it may depend on. Style and layer changes are one-way doors.
+- The loop template, skill and slash commands agree a style with the user on new projects, offer one after `spawn`, and design every change inside it.
 
 ### Changed
 -

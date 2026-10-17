@@ -67,6 +67,13 @@ function buildSchema(): SchemaSpec {
         notes:
           "governance rules enforced against the MERGED diagram (root + sub-files) at validate, suggest set, and canvas PUT. Each constraint: { id, description, <one rule>, except? }. Rules: forbidEdge { relationship?, from?, to? }; requireOwner { kinds? } — matching nodes must declare `owner`; requireEdge { node, to | from, relationship? } — matching nodes need an outgoing edge to / incoming edge from a match; maxDependencies { node, max, relationship? } — outgoing-edge budget. Node selectors: { id?, kind?, parent?, notParent? } — parent/notParent walk the whole parentId chain. `except` lists grandfathered node/edge ids.",
       },
+      {
+        name: "style",
+        required: false,
+        type: "Style",
+        notes:
+          "the architecture style the model must follow, enforced like constraints (validate, suggest set, canvas save). { kind: layered | hexagonal | clean | modular-monolith | feature-slices, layers?: [outer/top first] (layered kinds), shared?: [module ids] (module kinds) }. Default layers — layered: presentation, application, domain, infrastructure (depend down only; only infrastructure calls `external` nodes); hexagonal: adapters, ports, core (adapters depend on ports/core; core and ports never on adapters; only adapters call externals); clean: frameworks, interface-adapters, application, domain (inward only). modular-monolith: each top-level node is a module; cross-module edges must target an interface/port node or a shared module. feature-slices: no slice-to-slice edges except to shared modules. See `archik style list`.",
+      },
       { name: "metadata", required: false, type: "DocumentMetadata" },
     ],
     node: [
@@ -135,6 +142,13 @@ function buildSchema(): SchemaSpec {
         type: "enum",
         notes:
           'proposed | active | deprecated — drift only checks active nodes (default when absent)',
+      },
+      {
+        name: "layer",
+        required: false,
+        type: "string",
+        notes:
+          "layer of a layered / hexagonal / clean `style`. Children inherit their parent's layer, so set it on the top-level node of each area. Not used by module styles.",
       },
       {
         name: "owner",

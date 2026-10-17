@@ -223,6 +223,13 @@ archik suggest set` stages it.
    - "Looks wrong? Run `/archik:reject` and we'll iterate. Or run
      `/archik:evolve` after accepting if you want a cleaner
      bounded-context version."
+   - Offer an **architecture style** next: name the style the code is
+     closest to (`npx archik style list` — e.g. `controllers/`,
+     `services/`, `repositories/` folders → layered; `ports/` +
+     `adapters/` → hexagonal; one folder per feature → feature
+     slices) and offer to stage it with layers on the top-level
+     nodes. Spawn itself stays descriptive — don't add the style in
+     the spawn draft.
 
    **Offer a smells check at the end of this step** (not after
    accept — you won't be there). Run it now so the offer is concrete:

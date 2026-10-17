@@ -341,6 +341,14 @@ body,
   text-decoration-color: var(--archik-status-deprecated);
 }
 
+/* --- Architecture style: layer label above the node that sets it --- */
+.archik-layer-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  fill: var(--archik-fg-muted);
+}
+
 /* --- Edges: status stroke is set as an SVG attribute by EdgeRenderer --- */
 
 @keyframes archikPulse {

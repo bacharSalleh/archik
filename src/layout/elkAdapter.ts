@@ -1,4 +1,5 @@
 import ELK from "elkjs/lib/elk.bundled.js";
+import { effectiveLayers, styleLayers } from "../domain/style.ts";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 import type { Document, Node, NodeKind } from "../domain/types.ts";
 import type { LayoutEngine } from "./layoutEngine.ts";
@@ -382,9 +383,25 @@ async function runLayout(
   const viewMode = options.viewMode === "compact" ? "compact" : "detailed";
   const sizeTable = viewMode === "compact" ? COMPACT_SIZE : DETAILED_SIZE;
   const { roots, byId } = buildHierarchy(doc, sizeTable, viewMode);
+  const rootOptions = buildElkOptions(options);
+  // Architecture style lanes: top-level nodes are placed left → right
+  // in layer order (presentation … infrastructure, adapters … core), so
+  // the board reads like the style it follows.
+  if (doc.style !== undefined) {
+    const layers = styleLayers(doc.style);
+    if (layers.length > 0) {
+      const layerOf = effectiveLayers(doc.nodes);
+      rootOptions["elk.partitioning.activate"] = "true";
+      for (const r of roots) {
+        const idx = layers.indexOf(layerOf.get(r.id) ?? "");
+        if (idx < 0) continue;
+        r.layoutOptions = { ...(r.layoutOptions ?? {}), "elk.partitioning.partition": String(idx) };
+      }
+    }
+  }
   const graph: ElkNode = {
     id: "__root__",
-    layoutOptions: buildElkOptions(options),
+    layoutOptions: rootOptions,
     children: roots,
     edges: toElkEdges(doc),
   };

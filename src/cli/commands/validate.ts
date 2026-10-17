@@ -12,6 +12,7 @@ import {
 import { discoverDocs } from "../../io/discovery.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { checkConstraints } from "../../domain/constraints.ts";
+import { checkStyle } from "../../domain/style.ts";
 import { analyzeComplexity, DEFAULT_LIMITS } from "../../domain/complexity.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -134,6 +135,7 @@ export async function validateCommand(
   }
 
   const complexityHints = analyzeComplexity(discovery.docs, DEFAULT_LIMITS).length;
+  const style = checkStyle(discovery.docs);
   if (json) {
     emitJson({
       ok: true,
@@ -141,6 +143,8 @@ export async function validateCommand(
       nodes: validated.value.nodes.length,
       edges: validated.value.edges.length,
       complexityHints,
+      style: style.style?.kind ?? null,
+      styleHints: style.hints,
     });
   } else {
     const totalNodes = discovery.docs.reduce(
@@ -154,8 +158,10 @@ export async function validateCommand(
     const fileCount = discovery.docs.length;
     const suffix = fileCount > 1 ? ` (${fileCount} files)` : "";
     console.log(
-      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges`,
+      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges` +
+        (style.style !== null ? `, follows the ${style.style.kind} style` : ""),
     );
+    for (const h of style.hints) console.log(`ⓘ ${h}`);
     if (complexityHints > 0) {
       console.log(
         `ⓘ ${complexityHints} complexity hint${complexityHints === 1 ? "" : "s"} — run \`archik complexity\` to see them`,

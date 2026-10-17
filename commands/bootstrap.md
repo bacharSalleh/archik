@@ -67,7 +67,14 @@ brief and start the DESIGN loop.
    > Only the first milestone is modelled in detail; later areas stay
    > coarse placeholders until their turn.
    > The commitment lives in the YAML, not in the chat log."
-5. When the brief lands, run the standard DESIGN loop:
+5. When the brief lands, agree the **architecture style** first:
+   show `npx archik style list`, recommend one that fits the brief
+   (small service → layered; rich domain with many integrations →
+   hexagonal or clean; several teams in one deployable → modular
+   monolith; many independent features → feature slices), and ask
+   the user to pick. The first sidecar sets `style:` and puts each
+   top-level node in its layer or module.
+6. Then run the standard DESIGN loop:
    `/archik:suggest` (structural sidecar) → `/archik:accept` →
    BUILD. Stop at each inline-review gate; don't barrel through.
 

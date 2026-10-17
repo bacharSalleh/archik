@@ -26,6 +26,7 @@ import { useUIStore, type SelectionItem } from "./store.ts";
 import { DecisionPanel } from "./DecisionPanel.tsx";
 import type { Decision } from "../domain/decision.ts";
 import { classifyChange, type DoorClassification } from "../domain/door.ts";
+import { styleLayers } from "../domain/style.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -1241,6 +1242,7 @@ export function App(): React.ReactElement {
                 onStartConnect={startConnect}
                 allNodes={renderDoc.nodes}
                 readOnly={reviewing}
+                layers={renderDoc.style !== undefined ? styleLayers(renderDoc.style) : []}
               />
             ) : null}
           </div>

@@ -112,6 +112,16 @@ There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk
 | Sub-architecture | `.archik/*.archik.yaml` | A node's internals, linked via `archikFile` |
 | Decisions | `.archik/decisions/NNNN-*.md` | Why each accepted change was made — context, decision, alternatives, consequences |
 
+**Architecture style.** The architect picks the structure the code must follow — `layered`, `hexagonal`, `clean`, `modular-monolith` or `feature-slices` — with `style:` in the root file and a `layer:` on top-level nodes. archik enforces it on every change (validate, suggest set, canvas save reject a dependency that breaks it), draws the board in the style's lanes, and tells agents where each node sits and what it may depend on (`archik style`, `archik q describe`).
+
+```yaml
+style:
+  kind: hexagonal        # adapters → ports / core; the core never depends on an adapter
+nodes:
+  - { id: rest-api, kind: module, name: REST API, layer: adapters, ... }
+  - { id: core, kind: module, name: Ordering core, layer: core, ... }
+```
+
 The diagram says *what*; decision records say *why*. Every staged change carries one under `metadata.suggestion.decision` — `suggest set` refuses a draft without it — and accepting the change writes it as a numbered markdown record with the node and edge changes listed as evidence. Records are never edited; a later decision that changes course lists the old numbers in `supersedes`.
 
 Each change is also labelled by how hard it is to undo. A **one-way door** — a new data store, queue, external system, gateway, LLM or top-level module, a removal, or a boundary move — gets its own canvas review before the build plan; if it adds data, an outside system or public traffic, its record must say how it is secured, observed and rolled back. A **two-way door** goes through one combined review of model and plan.
@@ -212,6 +222,7 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik dev` / `start` / `stop` / `status` | Live canvas lifecycle (foreground / detached) |
 | `archik validate [path]` | Schema + cross-file + constraints (exit 1 on error) |
 | `archik complexity [path]` | Flag over-large files, hub nodes, deep nesting (`--fail-on-warn` to gate) |
+| `archik style [list]` | The architecture style: rule, layers / modules, where nodes sit, violations; `list` shows every style |
 | `archik smells [dir]` | Folder import loops + oversized source files, from the code (`--max-file-lines`, `--fail-on-warn`, `--update-baseline`) |
 | `archik render --out <svg>` | Headless SVG render (`--focus <id>`, `--hide-structural`) |
 | `archik watch` | Re-render SVG on every change |
@@ -246,6 +257,7 @@ Reach for archik when a project has more than a handful of components, ships wit
 | Drift detection | **Yes** | No | No |
 | Decision records tied to model changes | **Yes** | No | No |
 | Governance constraints | **Yes** | No | No |
+| Enforced architecture style (layered, hexagonal, clean, modular) | **Yes** | No | No |
 | Validator | **Schema + cross-file + constraints** | Syntax only | Syntax only |
 
 ## Contributing

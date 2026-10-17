@@ -153,7 +153,7 @@ export function Toolbar({
   );
   const panels = (
     <>
-      <Legend />
+      <Legend style={document.style} />
       <ExportMenu
         document={document}
         filename={filename}

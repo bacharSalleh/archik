@@ -64,6 +64,24 @@ describe("classifyChange", () => {
     expect(classifyChange(base, removed).reasons.map((r) => r.text)).toEqual(["removes `cart`"]);
   });
 
+  it("flags a style change and a layer move as one-way", () => {
+    const styled: Document = { ...base, style: { kind: "layered" } };
+    expect(classifyChange(base, styled).reasons.map((r) => r.text)).toEqual([
+      "changes the architecture style from none to layered",
+    ]);
+    const layered: Document = {
+      ...styled,
+      nodes: base.nodes.map((x) => (x.id === "checkout" ? { ...x, layer: "application" } : x)),
+    };
+    const moved: Document = {
+      ...styled,
+      nodes: base.nodes.map((x) => (x.id === "checkout" ? { ...x, layer: "domain" } : x)),
+    };
+    expect(classifyChange(layered, moved).reasons.map((r) => r.text)).toEqual([
+      "moves `checkout` from layer application to domain",
+    ]);
+  });
+
   it("does not count removing or adding proposed-only work as one-way", () => {
     const planned = withNodes({ id: "db", kind: "database", name: "DB", description: "x", status: "proposed" });
     expect(classifyChange(base, planned).needsCrossCutting).toBe(true); // still a data store decision
