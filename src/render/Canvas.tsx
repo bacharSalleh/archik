@@ -10,6 +10,7 @@ import { layout } from "../layout/index.ts";
 import { DiagramSvg } from "./DiagramSvg.tsx";
 import { usePinchZoom } from "./usePinchZoom.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
+import { fitZoom } from "./fitZoom.ts";
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
@@ -203,24 +204,42 @@ export function Canvas({
   // Restore (or default) for the NEW viewKey once layout is ready.
   // Doing this only after `positioned` is set ensures the scroll
   // container has its real content size, otherwise scrollLeft/scrollTop
-  // get clamped to 0.
+  // get clamped to 0. A first visit fits the whole diagram in the
+  // viewport (never above 100%) — a wide layout at 100% can leave the
+  // top-left of the scroll area empty, so the user saw no nodes at all.
   const positionedReady = positioned !== null;
   useEffect(() => {
-    if (viewKey === undefined || !positionedReady) return;
-    const saved = viewStatesRef.current.get(viewKey);
+    if (!positionedReady) return;
+    const saved =
+      viewKey === undefined ? undefined : viewStatesRef.current.get(viewKey);
     if (saved) {
       setZoom(saved.zoom);
     } else {
-      setZoom(1);
+      const el = scrollRef.current;
+      const [, , boxW, boxH] = (svgRef.current?.getAttribute("viewBox") ?? "")
+        .split(" ")
+        .map(Number);
+      setZoom(
+        el && boxW && boxH
+          ? fitZoom(
+              { width: boxW, height: boxH },
+              { width: el.clientWidth, height: el.clientHeight },
+              ZOOM_MIN,
+              ZOOM_MAX,
+            )
+          : 1,
+      );
     }
     // Restore scroll on the next frame so the SVG has rendered at the
     // chosen zoom — otherwise the scrollable area doesn't yet match
-    // the saved offsets and the browser clamps them.
+    // the saved offsets and the browser clamps them. With no saved
+    // pose, center on the diagram (only matters when the fit hit the
+    // minimum zoom and the content still overflows).
     const raf = requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (!el) return;
-      el.scrollLeft = saved?.scrollX ?? 0;
-      el.scrollTop = saved?.scrollY ?? 0;
+      el.scrollLeft = saved?.scrollX ?? (el.scrollWidth - el.clientWidth) / 2;
+      el.scrollTop = saved?.scrollY ?? (el.scrollHeight - el.clientHeight) / 2;
     });
     return () => cancelAnimationFrame(raf);
   }, [viewKey, positionedReady]);
