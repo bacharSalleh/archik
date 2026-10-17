@@ -7,6 +7,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.21.0] - 2026-10-17
+
 **Upgrading from 0.19 or older:** `npm i -D archik@latest`, then `npx archik migrate` (or `npx archik upgrade --migrate` once you are on this version). An older binary's `upgrade --migrate` only knows the old migrations.
 
 ### Added
@@ -24,9 +35,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The engineering loop template, the Claude skill and the slash commands teach the decision record as part of DESIGN, and reading past records as part of DISCOVER.
 - **BREAKING**: `suggest set` refuses a change that adds data, an outside system or public traffic unless its decision record has `crossCutting`.
 - The loop matches gates to reversibility: one-way doors keep separate canvas and plan gates; two-way doors get one combined review. New projects model the first milestone in detail and later areas as coarse placeholders. VERIFY checks that `crossCutting` promises landed in the code.
-
-### Fixed
--
 
 ## [0.20.0] - 2026-10-17
 
