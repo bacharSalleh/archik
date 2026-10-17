@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+-
+
+### Changed
+-
+
+### Fixed
+-
+
+## [0.22.0] - 2026-10-17
+
+### Added
 - **Steer by moving boxes**: drag a node onto a container on the canvas and choose *Move inside* (or drop it on empty space to move it to the top level). A built node whose code must follow becomes a pending move (`status: proposed`, `sourcePath` in the new parent's folder). Saving a structural change opens a **Why** dialog and saves the model together with its decision record (`POST /__archik/decide`); wording edits save as before.
 - **`archik gap`**: what the code must change to match the model — move code (old path from the last commit), create code, style breaks in imports, imports across a deleted edge, missing structural imports, proposed nodes to finish. Imports the model never drew are counted separately (`--all`). Also the **Code gap** canvas panel with "Copy task for your agent", the `archik_gap` MCP tool, and the new `/archik:realize` slash command.
 - Decision records show before → after values for simple field changes (parentId, sourcePath, layer, status, name).
@@ -16,9 +27,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - A `proposed` node may name a `sourcePath` that does not exist yet — its planned location; `archik gap` lists it as work. Built nodes still need real paths.
-
-### Fixed
--
 
 ## [0.21.0] - 2026-10-17
 
