@@ -1,7 +1,8 @@
 name: "archik"
 description: >-
   Architecture-as-code gate: validate the archik model, detect drift
-  against the source tree, enforce trace coverage, and post the
+  against the source tree, report structural smells (folder import
+  loops, oversized files), and post the
   architecture diff vs the base branch as a sticky PR comment.
 author: "Bashar"
 branding:
@@ -21,9 +22,9 @@ inputs:
   drift:
     description: "Run `archik drift` (diagram vs source tree)."
     default: "true"
-  trace-fail-on:
-    description: "Run `archik trace` and fail at this coverage level: partial | none. Empty = report only."
-    default: ""
+  smells-fail:
+    description: "Fail when `archik smells` finds folder import loops or oversized files. Default: report only."
+    default: "false"
   compare-ref:
     description: "Git ref to diff the architecture against. Default: the PR base branch (pull_request events only)."
     default: ""
@@ -48,7 +49,7 @@ runs:
         INPUT_PATH: ${{ inputs.path }}
         INPUT_VALIDATE: ${{ inputs.validate }}
         INPUT_DRIFT: ${{ inputs.drift }}
-        INPUT_TRACE_FAIL_ON: ${{ inputs.trace-fail-on }}
+        INPUT_SMELLS_FAIL: ${{ inputs.smells-fail }}
         INPUT_COMPARE_REF: ${{ inputs.compare-ref }}
       run: |
         set -uo pipefail
@@ -88,14 +89,14 @@ runs:
           fi
         fi
 
-        trace_args=()
-        [ -n "$INPUT_TRACE_FAIL_ON" ] && trace_args=(--fail-on "$INPUT_TRACE_FAIL_ON")
-        if archik trace "${trace_args[@]}" --json \
-            > "$report/trace.json" 2> "$report/trace.err"; then
-          echo "trace: ok"
+        smells_args=()
+        [ "$INPUT_SMELLS_FAIL" = "true" ] && smells_args=(--fail-on-warn)
+        if archik smells "${smells_args[@]}" --json \
+            > "$report/smells.json" 2> "$report/smells.err"; then
+          echo "smells: ok"
         else
-          cat "$report/trace.err" >&2 || true
-          echo "trace" >> "$report/failures"
+          cat "$report/smells.err" >&2 || true
+          echo "smells" >> "$report/failures"
         fi
 
         # Architecture diff vs the base branch — report-only; a branch
@@ -123,7 +124,7 @@ runs:
       uses: actions/github-script@v7
       env:
         INPUT_COMMENT: ${{ inputs.comment }}
-        INPUT_TRACE_FAIL_ON: ${{ inputs.trace-fail-on }}
+        INPUT_SMELLS_FAIL: ${{ inputs.smells-fail }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
@@ -148,7 +149,7 @@ runs:
           const failures = readText("failures").split("\n").filter(Boolean);
           const validate = read("validate.json");
           const drift = read("drift.json");
-          const trace = read("trace.json");
+          const smells = read("smells.json");
           const diff = read("diff.json");
           const baseRef = readText("base-ref");
 
@@ -156,8 +157,7 @@ runs:
 
           if (validate !== undefined) {
             if (validate.ok) {
-              lines.push(`✅ **validate** — ${validate.nodes} nodes, ${validate.edges} edges` +
-                (validate.useCases ? `, ${validate.useCases} use cases` : ""));
+              lines.push(`✅ **validate** — ${validate.nodes} nodes, ${validate.edges} edges`);
             } else {
               lines.push(`❌ **validate** failed:`);
               for (const e of (validate.errors ?? []).slice(0, 20)) {
@@ -179,21 +179,17 @@ runs:
               for (const u of (drift.unmapped ?? []).slice(0, 10)) {
                 lines.push(`- unmapped code: \`${u.path}\``);
               }
-              for (const m of (drift.missingTests ?? []).slice(0, 10)) {
-                lines.push(`- missing test \`${m.testPath}\` (slice \`${m.ucId}/${m.sliceId}\`)`);
-              }
             }
             lines.push("");
           }
 
-          if (trace !== undefined && trace.summary !== undefined) {
-            const s = trace.summary;
-            const gate = process.env.INPUT_TRACE_FAIL_ON;
-            const failed = failures.includes("trace");
-            const badge = failed ? "❌" : "✅";
-            lines.push(`${badge} **trace** — ${s.slices} slices across ${s.useCases} use cases: ` +
-              `${s.fullyTraced} full, ${s.partial} partial, ${s.untraced} untraced` +
-              (gate ? ` (gate: fail on ${gate})` : " (report only)"));
+          if (smells !== undefined && smells.summary !== undefined) {
+            const s = smells.summary;
+            const badge = failures.includes("smells") ? "❌" : s.total === 0 ? "✅" : "⚠️";
+            lines.push(`${badge} **smells** — ${s.folderLoops} folder loop(s), ${s.oversizedFiles} oversized file(s)`);
+            for (const loop of (smells.folderLoops ?? []).slice(0, 5)) {
+              lines.push(`- loop: ${loop.folders.map((f) => `\`${f}\``).join(" ↔ ")}`);
+            }
             lines.push("");
           }
 

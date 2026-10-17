@@ -82,78 +82,10 @@ export function Legend(): React.ReactElement {
               </div>
             );
           })}
-          <StereotypeLegendSection />
           <RelationshipLegendSection />
         </div>
       )}
     </Popover>
-  );
-}
-
-const STEREOTYPE_ENTRIES: Array<{
-  id: "boundary" | "control" | "entity";
-  varName: string;
-  description: string;
-}> = [
-  {
-    id: "boundary",
-    varName: "--archik-stereotype-boundary",
-    description: "talks to actors / external systems (UIs, adapters)",
-  },
-  {
-    id: "control",
-    varName: "--archik-stereotype-control",
-    description: "orchestration logic between boundaries and entities",
-  },
-  {
-    id: "entity",
-    varName: "--archik-stereotype-entity",
-    description: "long-lived domain state (modules, databases)",
-  },
-];
-
-function StereotypeLegendSection(): React.ReactElement {
-  return (
-    <>
-      <SectionHeading first={false}>Stereotype (ECB)</SectionHeading>
-      {STEREOTYPE_ENTRIES.map((entry) => (
-        <div
-          key={entry.id}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "20px 80px 1fr",
-            alignItems: "center",
-            gap: 8,
-            padding: "5px 6px",
-            fontSize: 12,
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              borderRadius: 3,
-              background: `var(${entry.varName})`,
-            }}
-          />
-          <code
-            style={{
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, monospace",
-              color: "var(--archik-fg)",
-              fontSize: 11,
-            }}
-          >
-            {entry.id}
-          </code>
-          <span style={{ color: "var(--archik-fg-dim)" }}>
-            {entry.description}
-          </span>
-        </div>
-      ))}
-    </>
   );
 }
 

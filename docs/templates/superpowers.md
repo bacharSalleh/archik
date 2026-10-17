@@ -15,12 +15,12 @@ replace it.
 
 | Loop phase | Invoke | What it feeds (the archik artifact) |
 | --- | --- | --- |
-| DESIGN — requirements | `superpowers:brainstorming` | Explore intent before committing. Output is the **archik requirements model** (actors + use cases + slices), *not* a separate spec doc. |
+| DESIGN — requirements | `superpowers:brainstorming` | Explore intent before committing. Output is the **staged archik sidecar** (nodes, nesting, edges), *not* a separate spec doc. |
 | BUILD — plan | `superpowers:writing-plans` | Turn the accepted models into the **numbered build plan** that goes through the plan gate. |
-| BUILD — code | `superpowers:test-driven-development` | RED → GREEN → REFACTOR per slice. The tests it writes are the ones a slice names; landing them flips the slice `proposed → active`. |
+| BUILD — code | `superpowers:test-driven-development` | RED → GREEN → REFACTOR per plan step. Landing the code flips its node `proposed → active`. |
 | BUILD — when stuck | `superpowers:systematic-debugging` | Root-cause a failure before patching. A fix that invalidates a model triggers the loop's back-edge to DESIGN. |
-| VERIFY — before "done" | `superpowers:verification-before-completion` | Evidence before claiming a slice is done. Gates the `proposed → active` flip and any "tests pass" claim. |
-| Pre-merge | `superpowers:requesting-code-review` | Review before integrating, alongside `archik trace` / `archik validate`. |
+| VERIFY — before "done" | `superpowers:verification-before-completion` | Evidence before claiming a step is done. Gates the `proposed → active` flip and any "tests pass" claim. |
+| Pre-merge | `superpowers:requesting-code-review` | Review before integrating, alongside `archik validate` / `archik drift` / `archik smells`. |
 | Branch isolation | `superpowers:using-git-worktrees` | Isolate the workspace before executing a multi-step plan. |
 
 ## Precedence

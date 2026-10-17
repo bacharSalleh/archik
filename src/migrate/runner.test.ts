@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -55,10 +55,14 @@ describe("runMigrations", () => {
     expect(readStamp(dir).migrationLevel).toBe(0);
   });
 
-  it("collects needsJudgment from migration #2", async () => {
+  it("strips retired node fields via migration #3", async () => {
     await mkdir(path.join(dir, ".archik"), { recursive: true });
-    await writeFile(path.join(dir, ".archik/main.archik.yaml"), "DOC");
+    await writeFile(
+      path.join(dir, ".archik/main.archik.yaml"),
+      "nodes:\n  - id: a\n    stereotype: control\n",
+    );
     const run = await runMigrations(dir, { archikVersion: "0.16.1", validate: okValidate });
-    expect(run.needsJudgment.join(" ")).toMatch(/use case/i);
+    expect(run.needsJudgment).toEqual([]);
+    expect(await readFile(path.join(dir, ".archik/main.archik.yaml"), "utf-8")).not.toContain("stereotype");
   });
 });

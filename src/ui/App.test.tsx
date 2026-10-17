@@ -39,24 +39,6 @@ function mockFetchWithSuggestionDisabled(...mainResponses: Response[]) {
         json: async () => ({ files: [] }),
       } as unknown as Response;
     }
-    // UseCasesPanel fetches usecases + trace on app mount so the
-    // toolbar trigger button can show "am I done?" without the user
-    // opening the popover. Tests don't drive that surface — return
-    // empty payloads so the mount fetch is harmless.
-    if (url.includes("/__archik/usecases")) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ ok: true, useCases: [] }),
-      } as unknown as Response;
-    }
-    if (url.includes("/__archik/trace")) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ ok: true, rows: [] }),
-      } as unknown as Response;
-    }
     const next = mainResponses[mainCalls++];
     if (next === undefined) {
       throw new Error(`unexpected fetch to ${url} (no more mocked responses)`);
@@ -129,9 +111,7 @@ describe("App", () => {
       const url = typeof input === "string" ? input : (input as Request).url;
       return (
         !url.includes(SUGGESTION_URL) &&
-        !url.includes("/__archik/files") &&
-        !url.includes("/__archik/usecases") &&
-        !url.includes("/__archik/trace")
+        !url.includes("/__archik/files")
       );
     });
     expect(mainCalls).toHaveLength(2);

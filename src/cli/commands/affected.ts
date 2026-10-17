@@ -2,41 +2,28 @@
  * `archik affected` — map a change set back onto the model. The daily
  * "what am I touching?" command: takes the files that changed (from
  * git, or an explicit `--files` list), and reports the affected
- * nodes, use case slices, tests to run, and seq diagrams that may
- * have gone stale.
+ * nodes and the nodes that depend on them (via edges).
  *
  *   archik affected                       # working tree vs HEAD
  *   archik affected --since main          # this branch vs main
  *   archik affected --files src/api/x.ts  # explicit list, no git
- *   archik affected --run                 # …and execute the affected tests
  *
  * Changed files come from `git diff --name-only <ref>` plus untracked
  * files (`git ls-files --others --exclude-standard`), translated to
  * project-root-relative paths when the git toplevel sits above the
  * project root.
  *
- * `--run` executes the affected test files with the project's test
- * runner (vitest / jest / playwright / mocha, detected from
- * package.json; override with --runner '<cmd>'). The runner's output
- * streams through and its exit code becomes ours, so "run what my
- * change touches" is one command in a pre-push hook or CI.
- *
  * Exit codes:
  *   0  success (even when nothing is affected)
- *   1  git / file errors — or, with --run, failing tests
+ *   1  git / file errors
  *   2  argument errors
  */
-import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import {
   buildAffectedReport,
   type AffectedReport,
 } from "../../domain/affected.ts";
 import { runGit } from "../git.ts";
 import { discoverDocs } from "../../io/discovery.ts";
-import { discoverSeqDocs } from "../../io/seq-discovery.ts";
-import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
 import { bold, cross, cyan, dim, gray, yellow } from "../colors.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -102,18 +89,7 @@ export async function affectedCommand(opts: ParsedOptions): Promise<number> {
     else console.error(`${cross()} ${rootError.relPath}: ${rootError.message}`);
     return 1;
   }
-  const ucDiscovery = await discoverUseCaseDocs(root);
-  const seqDiscovery = await discoverSeqDocs(root);
-  for (const e of [...ucDiscovery.errors, ...seqDiscovery.errors]) {
-    if (!json) console.error(`${yellow("warn:")} ${e.relPath}: ${e.message}`);
-  }
-
-  const report = buildAffectedReport(
-    changed,
-    archDiscovery.docs,
-    ucDiscovery.docs,
-    seqDiscovery.docs,
-  );
+  const report = buildAffectedReport(changed, archDiscovery.docs);
 
   if (json) {
     console.log(JSON.stringify({ ok: true, ...report }, null, 2));
@@ -121,73 +97,7 @@ export async function affectedCommand(opts: ParsedOptions): Promise<number> {
     printText(report);
   }
 
-  if (getString(opts, "run") === undefined) return 0;
-  return runAffectedTests(report, root, getString(opts, "runner"));
-}
-
-/** Test runners we can detect from package.json, in priority order.
- *  Each entry: dependency name → argv prefix (files are appended). */
-const KNOWN_RUNNERS: Array<{ dep: string; argv: string[] }> = [
-  { dep: "vitest", argv: ["npx", "--no-install", "vitest", "run"] },
-  { dep: "@playwright/test", argv: ["npx", "--no-install", "playwright", "test"] },
-  { dep: "jest", argv: ["npx", "--no-install", "jest"] },
-  { dep: "mocha", argv: ["npx", "--no-install", "mocha"] },
-];
-
-export function detectRunner(pkg: {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-}): string[] | undefined {
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  for (const { dep, argv } of KNOWN_RUNNERS) {
-    if (deps[dep] !== undefined) return argv;
-  }
-  return undefined;
-}
-
-function runAffectedTests(
-  report: AffectedReport,
-  root: string,
-  runnerOverride: string | undefined,
-): number {
-  if (report.testsToRun.length === 0) {
-    console.log("affected --run: no tests to run.");
-    return 0;
-  }
-
-  let argv: string[] | undefined;
-  if (runnerOverride !== undefined && runnerOverride !== "true") {
-    argv = runnerOverride.split(/\s+/).filter((p) => p.length > 0);
-  } else {
-    let pkg: Record<string, unknown> = {};
-    try {
-      pkg = JSON.parse(
-        readFileSync(path.join(root, "package.json"), "utf-8"),
-      ) as Record<string, unknown>;
-    } catch {
-      // fall through — no package.json is the same as no known runner
-    }
-    argv = detectRunner(pkg as Parameters<typeof detectRunner>[0]);
-  }
-  if (argv === undefined || argv.length === 0) {
-    console.error(
-      `${cross()} couldn't detect a test runner (looked for ${KNOWN_RUNNERS.map((r) => r.dep).join(", ")} in package.json).`,
-    );
-    console.error(`  Pass one explicitly: archik affected --run --runner 'npx vitest run'`);
-    return 2;
-  }
-
-  const [cmd, ...args] = argv;
-  const full = [...args, ...report.testsToRun];
-  console.log(
-    `${dim("affected --run:")} ${cmd} ${full.join(" ")}`,
-  );
-  const result = spawnSync(cmd!, full, { cwd: root, stdio: "inherit" });
-  if (result.error !== undefined) {
-    console.error(`${cross()} ${cmd}: ${result.error.message}`);
-    return 1;
-  }
-  return result.status ?? 1;
+  return 0;
 }
 
 function printText(report: AffectedReport): void {
@@ -206,26 +116,12 @@ function printText(report: AffectedReport): void {
     console.log("");
   }
 
-  if (report.slices.length > 0) {
-    console.log(`${bold("USE CASE SLICES")} ${dim(`(${report.slices.length})`)}`);
-    for (const s of report.slices) {
+  if (report.dependents.length > 0) {
+    console.log(`${bold("DEPENDENTS")} ${dim(`(${report.dependents.length})`)} — depend on a changed node`);
+    for (const d of report.dependents) {
       console.log(
-        `  ~ ${cyan(`${s.useCase}/${s.slice}`.padEnd(30))} via ${s.via.join("+")}`,
+        `  ← ${cyan(d.id.padEnd(22))} ${dim(`(${d.kind})`)}  → ${d.dependsOn.join(", ")}`,
       );
-    }
-    console.log("");
-  }
-
-  if (report.testsToRun.length > 0) {
-    console.log(`${bold("TESTS TO RUN")} ${dim(`(${report.testsToRun.length})`)}`);
-    for (const t of report.testsToRun) console.log(`  • ${t}`);
-    console.log("");
-  }
-
-  if (report.staleSeqs.length > 0) {
-    console.log(`${bold("SEQ DIAGRAMS TO RE-CHECK")} ${dim(`(${report.staleSeqs.length})`)}`);
-    for (const s of report.staleSeqs) {
-      console.log(`  ? ${gray(s.seqFile)}  ${dim(`touches ${s.nodes.join(", ")}`)}`);
     }
     console.log("");
   }
@@ -238,7 +134,7 @@ function printText(report: AffectedReport): void {
 
   if (report.unmapped.length > 0) {
     console.log(
-      `${bold("UNMAPPED")} ${dim(`(${report.unmapped.length})`)} — no node or test claims these`,
+      `${bold("UNMAPPED")} ${dim(`(${report.unmapped.length})`)} — no node claims these`,
     );
     for (const f of report.unmapped) console.log(`  ${yellow("?")} ${f}`);
     console.log("");
@@ -247,7 +143,7 @@ function printText(report: AffectedReport): void {
   const s = report.summary;
   console.log(
     `${bold("affected")}: ${s.changedFiles} changed file${s.changedFiles === 1 ? "" : "s"} → ` +
-      `${s.nodes} node${s.nodes === 1 ? "" : "s"}, ${s.slices} slice${s.slices === 1 ? "" : "s"} ` +
-      `across ${s.useCases} use case${s.useCases === 1 ? "" : "s"}, ${s.unmapped} unmapped`,
+      `${s.nodes} node${s.nodes === 1 ? "" : "s"}, ${s.dependents} dependent${s.dependents === 1 ? "" : "s"}, ` +
+      `${s.unmapped} unmapped`,
   );
 }

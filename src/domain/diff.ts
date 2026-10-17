@@ -87,8 +87,7 @@ export function diffDocuments(
 // Every Node field whose change is user-visible on the canvas.
 // Keep this list in sync with `NodeSchema` in `schema.ts` so
 // `archik diff` doesn't silently drop attribute changes (e.g. a
-// stereotype flip from `boundary` to `control`, or a status flip
-// from `proposed` to `active`). Keys NOT in this list (e.g. `id`,
+// status flip from `proposed` to `active`). Keys NOT in this list (e.g. `id`,
 // which would be a delete + add anyway) are intentionally excluded.
 const NODE_FIELDS = [
   "kind",
@@ -102,9 +101,7 @@ const NODE_FIELDS = [
   "metadata",
   "archikFile",
   "sourcePath",
-  "seqFiles",
   "status",
-  "stereotype",
   "owner",
 ] as const;
 

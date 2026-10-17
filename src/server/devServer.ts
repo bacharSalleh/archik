@@ -14,19 +14,12 @@ import { suggestionPath } from "../domain/suggestion.ts";
 import { projectRoot as deriveProjectRoot } from "../cli/resolveDocPath.ts";
 import {
   handleAccept,
-  handleActors,
-  handleAlphas,
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
   handleListFiles,
   handleNodeKinds,
-  handleSeqFile,
   handleSidecar,
-  handleTrace,
-  handleTraceFile,
-  handleTraces,
-  handleUseCases,
   handleYaml,
 } from "./handlers.ts";
 
@@ -65,19 +58,7 @@ const FILE_ACCEPT_URL = "/__archik/file-accept";
 /** List every archik file under the project root, with a
  *  has-suggestion flag — drives the file-switcher dropdown. */
 const FILES_URL = "/__archik/files";
-const SEQ_FILE_URL = "/__archik/seq-file";
 const NODE_KINDS_URL = "/__archik/node-kinds";
-/** Read-only JSON endpoints surfacing the M1-M4 artifacts to the
- *  canvas. Each mirrors a `--json` CLI shape 1:1 so the UI never
- *  has to re-implement validation logic. */
-const USECASES_URL = "/__archik/usecases";
-const ACTORS_URL = "/__archik/actors";
-const ALPHAS_URL = "/__archik/alphas";
-const TRACE_URL = "/__archik/trace";
-/** Concrete-run traces: list (mirrors `q traces --json`) + per-file data
- *  endpoint feeding the trace canvas page (`/__archik/trace-page`). */
-const TRACES_URL = "/__archik/traces";
-const TRACE_FILE_URL = "/__archik/trace-file";
 const SSE_KEEPALIVE_MS = 25_000;
 
 
@@ -288,54 +269,8 @@ export async function startDevServer(
       return;
     }
 
-    if (url === SEQ_FILE_URL || url.startsWith(SEQ_FILE_URL + "?")) {
-      void handleSeqFile(root, req, res);
-      return;
-    }
-
     if (url === NODE_KINDS_URL || url.startsWith(NODE_KINDS_URL + "?")) {
       void handleNodeKinds(root, docPath, res);
-      return;
-    }
-
-    if (url === USECASES_URL || url.startsWith(USECASES_URL + "?")) {
-      // Dual-purpose URL: browser navigation (Accept: text/html) falls
-      // through to the SPA fallback so the user lands on UseCasesPage;
-      // every other consumer (fetch from JS, curl, CLI) gets the JSON
-      // payload. Mirrors the seq pattern (`/__archik/seq` page,
-      // `/__archik/seq-file` data) without forcing a rename of the
-      // already-published JSON endpoint.
-      const acceptsHtml = (req.headers.accept ?? "").includes("text/html");
-      if (acceptsHtml) {
-        // Fall through to static file server below — serves index.html.
-      } else {
-        void handleUseCases(root, req, res);
-        return;
-      }
-    }
-
-    if (url === ACTORS_URL || url.startsWith(ACTORS_URL + "?")) {
-      void handleActors(root, req, res);
-      return;
-    }
-
-    if (url === ALPHAS_URL || url.startsWith(ALPHAS_URL + "?")) {
-      void handleAlphas(root, docPath, req, res);
-      return;
-    }
-
-    if (url === TRACE_FILE_URL || url.startsWith(TRACE_FILE_URL + "?")) {
-      void handleTraceFile(root, req, res);
-      return;
-    }
-
-    if (url === TRACES_URL || url.startsWith(TRACES_URL + "?")) {
-      void handleTraces(root, req, res);
-      return;
-    }
-
-    if (url === TRACE_URL || url.startsWith(TRACE_URL + "?")) {
-      void handleTrace(root, docPath, req, res);
       return;
     }
 

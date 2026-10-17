@@ -27,13 +27,13 @@
 
 Your architecture lives in **plain YAML**. You edit it through a **CLI**, a **validator** rejects drift before it merges, and a **live canvas** renders it in the browser. AI agents — Claude Code, or anything that speaks MCP — read the same YAML as the map of your system, so they reason about structure instead of guessing from filenames.
 
-One chain runs from a stakeholder request to a passing test, and every link is checked mechanically:
+archik focuses on code **structure**: which parts exist, how they nest, which way dependencies flow, and whether the code still agrees:
 
 ```
-Actor → Use case → Slice → Tests → Sequence diagram → Nodes → Source
+Nodes → Nesting (parentId, sub-files) → Edges → Source code
 ```
 
-Nothing in that chain can quietly fall out of sync with the code.
+Every link is checked against the code, so the map can't quietly fall out of sync.
 
 ## Install
 
@@ -70,8 +70,7 @@ Day to day:
 | You type | You get |
 | --- | --- |
 | `/archik:suggest <feature>` | A staged diagram change, shown as a green/red diff on the canvas — accept or reject |
-| `/archik:usecase <name>` | A use case with flows, slices, and test paths |
-| `/archik:trace` | The coverage matrix — "are we done?" |
+| `/archik:evolve [area]` | A proposed cleaner refactor, backed by drift and smells |
 
 Already have docker-compose or Mermaid? Bootstrap from it instead of a blank canvas:
 
@@ -110,12 +109,9 @@ There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk
 | Layer | File | Captures |
 | --- | --- | --- |
 | Structure | `.archik/main.archik.yaml` | Services, databases, queues, agents, LLMs, edges |
-| Actors | `*.archik.actors.yaml` | Who initiates use cases |
-| Requirements | `.archik/usecases/*.archik.uc.yaml` | Flows and slices that name **test paths** |
-| Behaviour | `*.archik.seq.yaml` | UML-subset sequence diagrams |
-| Progress | `*.archik.alphas.yaml` | Essence/SEMAT alphas, machine-verified |
+| Sub-architecture | `.archik/*.archik.yaml` | A node's internals, linked via `archikFile` |
 
-Full schema: `npx archik schema` (also `schema seq | uc | actors`).
+Full schema: `npx archik schema`.
 
 ## Keeping the model honest
 
@@ -123,14 +119,14 @@ A set of commands prove the diagram still matches reality, at every altitude:
 
 ```bash
 npx archik validate            # schema + cross-file integrity + governance constraints
-npx archik drift               # nodes/tests vs the source tree
+npx archik drift               # nodes vs the source tree
 npx archik drift --edges       # edges vs the TS/JS import graph (shadow + phantom edges)
-npx archik affected --since main --run   # changed files → nodes → slices → run their tests
-npx archik trace --fail-on partial       # coverage matrix; gate CI on incomplete traceability
+npx archik smells              # folder import loops + oversized files, read from the code
+npx archik affected --since main         # changed files → nodes → dependents
 npx archik otel check --graph deps.json  # edges vs a production service-dependency graph
 ```
 
-`validate` proves the model is internally consistent, `drift` that it matches the code, and `otel check` that it matches production traffic. Gate every commit locally:
+`validate` proves the model is internally consistent, `drift` that it matches the code, and `otel check` that it matches production traffic. `smells` needs no model: it reports folder loops with the real imports as evidence (only relative imports are resolved, so every loop is real) and points at the cheapest import to cut. Gate every commit locally:
 
 ```bash
 npx archik hooks install       # pre-commit: archik validate
@@ -142,7 +138,7 @@ Large models stay readable: `archik complexity` flags over-large files, hub node
 
 **Claude Code.** `archik init` installs a skill that enforces one rule — *Claude talks to archik only through the CLI*, never by editing YAML directly. Reads go through `archik q`, writes through `archik suggest set`, and you approve every structural change on the canvas.
 
-**Everything else (MCP).** `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — tools for schema, queries, trace, validate, drift, and the suggestion lifecycle, plus resources (`archik://schema`, `archik://stats`, `archik://trace`) and prompts that encode the same loop:
+**Everything else (MCP).** `archik mcp` runs a stdio [Model Context Protocol](https://modelcontextprotocol.io) server exposing the same contract — tools for schema, queries, validate, drift, smells, and the suggestion lifecycle, plus resources (`archik://schema`, `archik://stats`, `archik://smells`) and prompts that encode the same loop:
 
 ```jsonc
 // .cursor/mcp.json, claude_desktop_config.json, etc.
@@ -176,7 +172,7 @@ Intentional exceptions are grandfathered by id in an `except` list — visible i
 
 ## CI
 
-Run the commands directly, or use the GitHub Action, which validates, checks drift and traceability, and posts a sticky PR comment with the architecture diff against the base branch:
+Run the commands directly, or use the GitHub Action, which validates, checks drift, reports smells, and posts a sticky PR comment with the architecture diff against the base branch:
 
 ```yaml
 # .github/workflows/archik.yml
@@ -192,10 +188,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: bacharSalleh/archik@main
         with:
-          trace-fail-on: partial   # optional gate; omit for report-only
+          smells-fail: true   # optional gate; omit for report-only
 ```
 
-Inputs: `path`, `working-directory`, `validate`, `drift`, `trace-fail-on`, `compare-ref`, `comment`, `github-token`, `version`.
+Inputs: `path`, `working-directory`, `validate`, `drift`, `smells-fail`, `compare-ref`, `comment`, `github-token`, `version`.
 
 ## Self-evolution
 
@@ -211,16 +207,15 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik dev` / `start` / `stop` / `status` | Live canvas lifecycle (foreground / detached) |
 | `archik validate [path]` | Schema + cross-file + constraints (exit 1 on error) |
 | `archik complexity [path]` | Flag over-large files, hub nodes, deep nesting (`--fail-on-warn` to gate) |
-| `archik render --out <svg>` | Headless SVG render (`--seq <path>`, `--focus <id>`, `--hide-structural`) |
+| `archik smells [dir]` | Folder import loops + oversized source files, from the code (`--max-file-lines`, `--fail-on-warn`) |
+| `archik render --out <svg>` | Headless SVG render (`--focus <id>`, `--hide-structural`) |
 | `archik watch` | Re-render SVG on every change |
-| `archik q <sub>` | Query: `describe` `deps` `dependents` `neighbors` `impact` `list` `edges` `stats` `usecases` `describe-usecase` `actors` `sequences` |
+| `archik q <sub>` | Query: `describe` `deps` `dependents` `neighbors` `impact` `list` `edges` `stats` |
 | `archik diff <a> [b]` | Diff two files **or git refs**; one arg = that ref vs working tree |
-| `archik affected` | Changed files → nodes, slices, tests (`--since <ref>`, `--files`, `--run`) |
-| `archik trace` | Coverage matrix (`--fail-on partial\|none` for CI) |
-| `archik drift` | sourcePath / test-path gaps (`--edges` verifies edges vs the import graph) |
+| `archik affected` | Changed files → nodes, dependents, model files, unmapped (`--since <ref>`, `--files`) |
+| `archik drift` | sourcePath gaps (`--edges` verifies edges vs the import graph) |
 | `archik otel check --graph <f>` | Verify edges against a production service-dependency graph |
 | `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` |
-| `archik alpha <sub>` | Essence alphas: `show`, `promote`, `demote` |
 | `archik evolution <sub>` | Self-evolution loop: `enable` `reflect` `proposals` `approve` `reject` `report` |
 | `archik patterns <sub>` | Pattern library: `list` `show <id>` `apply <id>` |
 | `archik import compose\|mermaid [file]` | Bootstrap from docker-compose or a Mermaid flowchart |
@@ -228,23 +223,23 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik hooks install` | Pre-commit hook running `archik validate` (`--with-drift` optional) |
 | `archik owners sync\|check` | Keep CODEOWNERS in step with node owners |
 | `archik mcp` | MCP server over stdio for non-Claude-Code agents |
-| `archik schema [seq\|uc\|actors]` | Print the document schemas |
+| `archik schema` | Print the document schema |
 | `archik upgrade` | Upgrade + refresh installed skill/commands |
 
 Default file resolution: `.archik/main.archik.yaml`, falling back to the legacy `architecture.archik.yaml` (both present is an error).
 
 ## When to use it
 
-Reach for archik when a project has more than a handful of components, ships with an AI agent you want reasoning about structure, needs "are we done?" to be mechanically answerable, or wants CI to fail on architectural drift. Skip it for one-file scripts, slide-deck diagrams (use Mermaid), or projects with no build or CI.
+Reach for archik when a project has more than a handful of components, ships with an AI agent you want reasoning about structure, wants folder loops caught with real import evidence, or wants CI to fail on architectural drift. Skip it for one-file scripts, slide-deck diagrams (use Mermaid), or projects with no build or CI.
 
 |  | archik | Mermaid / PlantUML | Structurizr |
 | --- | --- | --- | --- |
 | Source format | Plain YAML | Custom DSL | Structurizr DSL |
 | AI-editor integration | **Skill + MCP** | None | None |
-| Use cases / test traceability | **Mechanical** | No | No |
+| Structural smells from code | **Yes** | No | No |
 | Drift detection | **Yes** | No | No |
 | Governance constraints | **Yes** | No | No |
-| Validator | **Schema + cross-file + ECB** | Syntax only | Syntax only |
+| Validator | **Schema + cross-file + constraints** | Syntax only | Syntax only |
 
 ## Contributing
 

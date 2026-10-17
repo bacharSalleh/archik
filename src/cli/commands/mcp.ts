@@ -30,8 +30,8 @@ import { evolutionCommand } from "./evolution.ts";
 import { patternsCommand } from "./patterns.ts";
 import { qCommand } from "./q.ts";
 import { schemaCommand } from "./schema.ts";
+import { smellsCommand } from "./smells.ts";
 import { suggestCommand } from "./suggest.ts";
-import { traceCommand } from "./trace.ts";
 import { validateCommand } from "./validate.ts";
 import { readLearned } from "../../io/evolution-log.ts";
 import { pkgVersion } from "../paths.ts";
@@ -129,23 +129,9 @@ function buildTools(): ToolDef[] {
     {
       name: "archik_schema",
       description:
-        "Get the archik document schema (node kinds, relationships, fields, validation rules). ALWAYS read this before authoring a draft. Variants: arch (default), seq, uc, actors.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          variant: {
-            type: "string",
-            enum: ["arch", "seq", "uc", "actors"],
-            description: "which schema to print (default arch)",
-          },
-        },
-      },
-      run: (args) => {
-        const variant = opt(args, "variant");
-        return capture(async () =>
-          schemaCommand(opts([variant === "arch" ? undefined : variant])),
-        );
-      },
+        "Get the archik document schema (node kinds, relationships, fields, validation rules). ALWAYS read this before authoring a draft.",
+      inputSchema: { type: "object", properties: {} },
+      run: () => capture(async () => schemaCommand(opts([]))),
     },
     qTool(
       "archik_describe",
@@ -221,69 +207,10 @@ function buildTools(): ToolDef[] {
       { type: "object", properties: {} },
       () => opts(["stats"]),
     ),
-    qTool(
-      "archik_usecases",
-      "List use cases, optionally filtered to those involving an actor.",
-      {
-        type: "object",
-        properties: { actor: str("actor id (primary or secondary)") },
-      },
-      (a) => opts(["usecases"], { actor: opt(a, "actor") }),
-    ),
-    qTool(
-      "archik_describe_usecase",
-      "One use case in detail: actors, flows, slices, tests, realizations.",
-      {
-        type: "object",
-        properties: { id: str("use case id") },
-        required: ["id"],
-      },
-      (a) => opts(["describe-usecase", opt(a, "id")]),
-    ),
-    qTool(
-      "archik_actors",
-      "List every actor in the actor index.",
-      { type: "object", properties: {} },
-      () => opts(["actors"]),
-    ),
-    qTool(
-      "archik_sequences",
-      "List sequence diagram files, optionally filtered to flows involving a node.",
-      {
-        type: "object",
-        properties: { node: str("architecture node id") },
-      },
-      (a) => opts(["sequences"], { node: opt(a, "node") }),
-    ),
-    {
-      name: "archik_trace",
-      description:
-        "The coverage matrix: use case × slice × tests × seq realization × ECB stereotypes. Answers 'are we done?' with evidence.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          useCase: str("filter to one use case id"),
-          actor: str("filter to use cases involving this actor"),
-          status: str("slice status filter: active | proposed | deprecated"),
-          coverage: str("coverage filter: full | partial | none"),
-        },
-      },
-      run: (args) =>
-        capture(() =>
-          traceCommand(
-            opts([], {
-              "use-case": opt(args, "useCase"),
-              actor: opt(args, "actor"),
-              status: opt(args, "status"),
-              coverage: opt(args, "coverage"),
-            }),
-          ),
-        ),
-    },
     {
       name: "archik_validate",
       description:
-        "Validate the project's archik documents: schema, cross-file references, sourcePath existence, use case/actor/seq integrity, ECB rules, governance constraints. Run after EVERY change.",
+        "Validate the project's archik documents: schema, cross-file references, sourcePath existence, governance constraints. Run after EVERY change.",
       inputSchema: {
         type: "object",
         properties: { path: str("explicit document path (default: auto-resolve)") },
@@ -293,14 +220,32 @@ function buildTools(): ToolDef[] {
     {
       name: "archik_drift",
       description:
-        "Detect drift between the diagram and the source tree: orphan nodes (sourcePath gone), unmapped code, missing slice test files.",
+        "Detect drift between the diagram and the source tree: orphan nodes (sourcePath gone), unmapped code.",
       inputSchema: { type: "object", properties: {} },
       run: () => capture(() => driftCommand(opts([]))),
     },
     {
+      name: "archik_smells",
+      description:
+        "Structural smells read from the code (no model needed): folder import loops between sibling folders, with file→import evidence, and oversized files.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          dir: str("directory to scan (default: project root)"),
+          maxFileLines: str("line limit per file (default 500)"),
+        },
+      },
+      run: (args) =>
+        capture(() =>
+          smellsCommand(
+            opts([opt(args, "dir")], { "max-file-lines": opt(args, "maxFileLines") }),
+          ),
+        ),
+    },
+    {
       name: "archik_affected",
       description:
-        "Map changed files back onto the model: affected nodes, use case slices, tests to run, seq diagrams to re-check, unmapped files. Defaults to the git working tree vs HEAD.",
+        "Map changed files back onto the model: affected nodes, the nodes that depend on them, unmapped files. Defaults to the git working tree vs HEAD.",
       inputSchema: {
         type: "object",
         properties: {
@@ -489,10 +434,10 @@ function buildResources(): ResourceDef[] {
       run: () => capture(() => qCommand(opts(["stats"]))),
     },
     {
-      uri: "archik://trace",
-      name: "Trace matrix",
-      description: "Use case × slice × tests × seq realization coverage — the 'are we done?' view.",
-      run: () => capture(() => traceCommand(opts([]))),
+      uri: "archik://smells",
+      name: "Structural smells",
+      description: "Folder import loops and oversized files, read from the code.",
+      run: () => capture(() => smellsCommand(opts([]))),
     },
     {
       uri: "archik://validate",
@@ -503,7 +448,7 @@ function buildResources(): ResourceDef[] {
     {
       uri: "archik://drift",
       name: "Drift report",
-      description: "Diagram vs source tree: orphan nodes, unmapped code, missing slice tests.",
+      description: "Diagram vs source tree: orphan nodes, unmapped code.",
       run: () => capture(() => driftCommand(opts([]))),
     },
     {
@@ -579,7 +524,7 @@ function buildPrompts(): PromptDef[] {
         [
           "Review this project's architecture model with archik tools (read-only).",
           "",
-          "1. Call archik_stats, archik_trace, archik_drift, and archik_validate.",
+          "1. Call archik_stats, archik_smells, archik_drift, and archik_validate.",
           "2. For the 3 most-connected nodes (archik_impact / archik_dependents), judge: single responsibility? missing port/gateway? god node?",
           "3. Report findings ordered by risk, each with: the evidence (tool output), why it matters, and the smallest next action (a specific archik command or /archik:* step).",
           "4. Do NOT stage any change — this is an assessment. End with the one improvement you'd make first.",

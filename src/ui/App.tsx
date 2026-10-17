@@ -31,10 +31,8 @@ import { FileSwitcher, type FileEntry } from "./FileSwitcher.tsx";
 import {
   densityToLayoutOptions,
   loadDensity,
-  loadShowStereotypeBands,
   loadViewMode,
   saveDensity,
-  saveShowStereotypeBands,
   saveViewMode,
 } from "./LayoutControls.tsx";
 import type { ViewMode } from "../layout/types.ts";
@@ -171,7 +169,6 @@ export function App(): React.ReactElement {
   // user sees WHY the save failed rather than an opaque "error".
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [seqHighlight, setSeqHighlight] = useState(false);
   // Pending Claude-authored suggestion sidecar. Banner shows when
   // present; user picks Review (opens server-rendered diff in a new
   // tab), Accept (POST → main becomes sidecar), or Reject (DELETE).
@@ -206,23 +203,9 @@ export function App(): React.ReactElement {
     setViewModeState(v);
     saveViewMode(v);
   };
-  const [showStereotypeBands, setShowStereotypeBandsState] = useState<boolean>(
-    () => loadShowStereotypeBands(),
-  );
-  const setShowStereotypeBands = (v: boolean): void => {
-    setShowStereotypeBandsState(v);
-    saveShowStereotypeBands(v);
-  };
   const layoutOptions = useMemo(
     () => ({ ...densityToLayoutOptions(density), viewMode }),
     [density, viewMode],
-  );
-  const seqNodeIds = useMemo(
-    () =>
-      state.status === "ready"
-        ? new Set(state.document.nodes.filter((n) => (n.seqFiles?.length ?? 0) > 0).map((n) => n.id))
-        : new Set<string>(),
-    [state],
   );
   const loadedOnceRef = useRef(false);
   const lastTextRef = useRef<string | null>(null);
@@ -1013,16 +996,11 @@ export function App(): React.ReactElement {
         onDensityChange={setDensity}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        showStereotypeBands={showStereotypeBands}
-        onToggleStereotypeBands={() => setShowStereotypeBands(!showStereotypeBands)}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
         onUndo={undo}
         onRedo={redo}
         getSvg={getSvg}
-        seqHighlight={seqHighlight}
-        onToggleSeqHighlight={() => setSeqHighlight((h) => !h)}
-        seqNodeCount={seqNodeIds.size}
         hideStructural={hideStructural}
         onToggleHideStructural={() => setHideStructural(!hideStructural)}
         onCollapseAll={() =>
@@ -1186,7 +1164,6 @@ export function App(): React.ReactElement {
               className="flex-1 archik-grid"
               layoutOptions={layoutOptions}
               viewMode={viewMode}
-              showStereotypeBands={showStereotypeBands}
               selectedNodeIds={selectedNodeIds}
               selectedEdgeIds={selectedEdgeIds}
               onSelectNode={handleSelectNode}
@@ -1200,7 +1177,6 @@ export function App(): React.ReactElement {
               viewKey={currentFile.docUrl}
               svgRef={canvasSvgRef}
               {...(reviewStatuses ? { diffStatuses: reviewStatuses } : {})}
-              {...(seqHighlight && seqNodeIds.size > 0 ? { glowNodeIds: seqNodeIds } : {})}
             />
           </div>
         </div>
@@ -1254,7 +1230,6 @@ export function App(): React.ReactElement {
                 onStartConnect={startConnect}
                 allNodes={renderDoc.nodes}
                 readOnly={reviewing}
-                viewKey={currentFile.archikFile ?? undefined}
               />
             ) : null}
           </div>

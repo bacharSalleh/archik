@@ -38,8 +38,8 @@ brief and start the DESIGN loop.
 
 1. Confirm with the user once before writing anything:
    > "I see this is a fresh project. I'll scaffold archik, then ask
-   > for a one-paragraph brief so I can model the actors and your
-   > first use case. Sound right?"
+   > for a one-paragraph brief so I can model the first piece you
+   > should ship. Sound right?"
 2. On confirmation, run:
    ```sh
    npx archik@latest init
@@ -48,9 +48,8 @@ brief and start the DESIGN loop.
    and skip step 4. Otherwise:
 4. **Ask for the brief**, in this exact shape (so the user knows
    what fields you actually need). The closing line is the load-
-   bearing one — it commits the conversation to actors-first +
-   pick-exactly-one + ship-it-with-tests, which is the framing
-   that makes the rest of the loop work:
+   bearing one — it commits the conversation to pick-exactly-one,
+   which is the framing that makes the rest of the loop work:
    > "Send me a project brief in this shape (skip any line that
    > doesn't apply):
    >
@@ -60,18 +59,15 @@ brief and start the DESIGN loop.
    > **Constraints:** budget, deadline, team size, hard-no's.
    > **Out of scope:** things you explicitly DON'T want.
    >
-   > **Then end with:** *'Start by modelling the actors and the
-   > first use case I should ship.'* — that single line is what
-   > forces priorities into the open before any code lands. The
-   > use case names its test paths from message one; slices start
-   > `status: proposed` (because the tests don't exist on disk
-   > yet) and flip to `status: active` automatically when the
-   > tests land in BUILD. The commitment lives in the YAML, not
-   > in the chat log."
+   > **Then end with:** *'Start by modelling the smallest structure
+   > for the first thing I should ship.'* — that single line is what
+   > forces priorities into the open before any code lands. New
+   > nodes start `status: proposed` (the code doesn't exist on disk
+   > yet) and flip to `status: active` when the code lands in BUILD.
+   > The commitment lives in the YAML, not in the chat log."
 5. When the brief lands, run the standard DESIGN loop:
-   `/archik:actor` (if needed) → `/archik:usecase` → `/archik:suggest`
-   (structural sidecar) → behavioural seq files. Stop at each
-   inline-review gate; don't barrel through.
+   `/archik:suggest` (structural sidecar) → `/archik:accept` →
+   BUILD. Stop at each inline-review gate; don't barrel through.
 
 ### B. No `.archik/` yet, but source code exists (existing project)
 
@@ -94,8 +90,8 @@ diagram, then iterate from honest ground truth.
    `.claude/commands/archik/spawn.md` for the steps. Don't
    duplicate them here.
 4. After the user accepts the spawn sidecar, suggest the natural
-   follow-up: "Want to author the first use case for what you're
-   actively working on right now? `/archik:usecase <name>`."
+   follow-up: "Want to check the code for structural smells?
+   `npx archik smells` finds folder loops and oversized files."
 
 ### C. `.archik/` exists but the diagram is empty or near-empty
 
@@ -113,19 +109,20 @@ Skip the `init` step in both — the file already exists.
 The project is already running the loop. Don't re-bootstrap. Surface
 the current state and let the user pick the next move:
 
-1. Run two queries to ground the user in where they are:
+1. Run three checks to ground the user in where they are:
    ```sh
    npx archik q stats
-   npx archik trace
+   npx archik drift
+   npx archik smells
    ```
-2. Translate the trace totals into one sentence: "X full slices,
-   Y partial, Z untraced." Name the worst-case slice if any.
+2. Sum it up in one sentence: "X nodes, Y drift findings, Z
+   smells." Name the worst finding if any.
 3. Suggest the next action based on state:
-   - **All traced** → "Ready to ship. Want to add a feature?
-     `/archik:suggest <feature>`. Or start a new use case?
-     `/archik:usecase <name>`."
-   - **Partial / untraced** → "The biggest gap is `<slice-id>`
-     — it's missing `<thing>`. Want me to fix it?"
+   - **Clean** → "Ready to ship. Want to add a feature?
+     `/archik:suggest <feature>`."
+   - **Drift or smells** → "The biggest gap is `<finding>` — the
+     evidence is `<file imports "specifier">` (or the drift line).
+     Want me to fix it?"
 
 ## Notes
 
@@ -137,7 +134,7 @@ the current state and let the user pick the next move:
 - Don't skip `init` if it's needed. The slash commands rely on
   `npx archik` being callable from the project root, and `init`
   also makes sure the skill + slash commands are installed.
-- **Do not** start writing actors / use cases / sidecars before
+- **Do not** start writing sidecars or code before
   the user replies to your "sound right?" check. Bootstrap is the
   one place where confirming-before-acting is more important than
   speed — the user is still calibrating what archik will do.

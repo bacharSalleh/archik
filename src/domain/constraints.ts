@@ -46,9 +46,6 @@ function matches(
 ): boolean {
   if (sel.id !== undefined && node.id !== sel.id) return false;
   if (sel.kind !== undefined && node.kind !== sel.kind) return false;
-  if (sel.stereotype !== undefined && node.stereotype !== sel.stereotype) {
-    return false;
-  }
   const ancestors = ancestry.get(node.id) ?? new Set<string>();
   if (sel.parent !== undefined && !ancestors.has(sel.parent)) return false;
   if (sel.notParent !== undefined && ancestors.has(sel.notParent)) {

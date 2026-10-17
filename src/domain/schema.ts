@@ -5,29 +5,6 @@ import { RelationshipSchema } from "./relationships.ts";
 export const NodeStatusSchema = z.enum(["proposed", "active", "deprecated"]);
 
 /**
- * ECB stereotype — Jacobson's robustness-analysis classification of an
- * analysis class. Optional on every node; when both endpoints of a
- * message in a `realizes`-bound sequence diagram have a stereotype,
- * the validator enforces the classical ECB transition rules:
- *
- *   - boundary → control          ✓
- *   - control  → boundary | control | entity  ✓
- *   - entity   → control | entity ✓
- *   - boundary → boundary         ✗ (boundaries don't talk to each other)
- *   - boundary → entity           ✗ (must go via a control)
- *   - entity   → boundary         ✗ (entities don't drive UIs)
- *
- * The rule applies only inside seq diagrams that carry a `realizes`
- * block — robustness analysis is per-use-case in OOSE. Nodes without
- * a stereotype are exempt from the check, so adoption is incremental:
- * tag the obvious ones first, leave the rest until you're ready.
- *
- * The canvas uses the stereotype to colour-band nodes when the user
- * filters to a use case's realised sequence (the "robustness view").
- */
-export const StereotypeSchema = z.enum(["boundary", "control", "entity"]);
-
-/**
  * Relative path from project root to a node's source code.
  * Constraints: no leading `/`, no `..`, forward slashes only.
  */
@@ -79,23 +56,6 @@ export const ArchikFilePathSchema = z
     message: "archikFile must end in `.archik.yaml`",
   });
 
-export const SeqFilePathSchema = z
-  .string()
-  .min(1)
-  .refine((p) => !p.startsWith("/") && !/^[a-zA-Z]:[\\/]/.test(p), {
-    message: "seqFile must be a relative path",
-  })
-  .refine((p) => !p.includes("\\"), {
-    message: "seqFile must use forward slashes",
-  })
-  .refine(
-    (p) => !p.split("/").some((seg) => seg === ".."),
-    { message: "seqFile must not contain `..` segments" },
-  )
-  .refine((p) => p.endsWith(".archik.seq.yaml"), {
-    message: "seqFile must end in `.archik.seq.yaml`",
-  });
-
 export const InterfaceSchema = z.strictObject({
   name: z.string().min(1),
   protocol: z.string().min(1),
@@ -124,9 +84,6 @@ export const NodeSchema = z.strictObject({
    *  node's internal architecture. The canvas shows a "↓ open" affordance
    *  on the node and navigates to that file when the user opens it. */
   archikFile: ArchikFilePathSchema.optional(),
-  /** Sequence diagram files linked to this node. Each entry is a relative
-   *  path to a `.archik.seq.yaml` file describing a flow involving this node. */
-  seqFiles: z.array(SeqFilePathSchema).min(1).optional(),
   /** Relative path to this node's source code on disk. Used by
    *  `archik drift` to detect when the diagram diverges from reality. */
   sourcePath: SourcePathSchema.optional(),
@@ -135,10 +92,6 @@ export const NodeSchema = z.strictObject({
    *  Validation also exempts proposed/deprecated from the required
    *  sourcePath rule — they're explicitly "code may not exist" states. */
   status: NodeStatusSchema.optional(),
-  /** Optional ECB stereotype — boundary | control | entity. Used by
-   *  `checkSeqEcbRules` to enforce robustness-analysis transitions
-   *  inside `realizes`-bound seq diagrams. See StereotypeSchema docs. */
-  stereotype: StereotypeSchema.optional(),
   /** Owning team or person (free text — match your CODEOWNERS /
    *  org vocabulary). Surfaced by `q describe` / `q list --owner`
    *  so "who do I talk to about this?" is one query, and usable in
@@ -190,13 +143,12 @@ export const NodeSelectorSchema = z
     /** Matches when the named node is NOT on the parentId chain —
      *  "everything outside this context". */
     notParent: IdSchema.optional(),
-    stereotype: StereotypeSchema.optional(),
   })
   .refine(
     (s) => Object.values(s).some((v) => v !== undefined),
     {
       message:
-        "selector must set at least one of id / kind / parent / notParent / stereotype",
+        "selector must set at least one of id / kind / parent / notParent",
     },
   );
 

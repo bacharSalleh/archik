@@ -1,7 +1,6 @@
 import {
   ArrowUpRight,
   ChevronDown,
-  GitBranch,
   Info,
   StickyNote,
 } from "lucide-react";
@@ -140,96 +139,6 @@ export function SubArchIcon({
           strokeWidth={2.2}
         />
       </g>
-    </g>
-  );
-}
-
-/**
- * Clickable badge shown on a node whose `seqFiles` list points at one
- * or more sequence diagrams. Same visual treatment as SubArchIcon
- * (filled circle, accent colour) but uses a distinct status colour so
- * it doesn't read as "drill into a sub-architecture." A single icon
- * stands in for ALL linked seq files; the optional `count` overlays a
- * small badge on the top-right when there are multiple. Click opens
- * the first seq file (the rest are reachable via NodeInspector). The
- * tooltip lists every file name so hover-discovery still works.
- */
-export function SeqIcon({
-  cx,
-  cy,
-  files,
-  count,
-  size = 14,
-}: {
-  cx: number;
-  cy: number;
-  files: ReadonlyArray<{ path: string; label: string }>;
-  count?: number;
-  size?: number;
-}): React.ReactElement {
-  const tooltip =
-    files.length === 1
-      ? `Open sequence diagram → ${files[0]!.label} (${files[0]!.path})`
-      : `${files.length} sequence diagrams on this node:\n` +
-        files.map((f) => `  • ${f.label}`).join("\n") +
-        `\nClick to open the first; the rest live in the inspector.`;
-  return (
-    <g
-      transform={`translate(${cx - size / 2}, ${cy - size / 2})`}
-      style={{ cursor: "pointer" }}
-    >
-      <title>{tooltip}</title>
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={size / 2 + 0.5}
-        fill="var(--archik-status-proposed)"
-        fillOpacity={0.16}
-        stroke="var(--archik-status-proposed)"
-        strokeOpacity={0.5}
-        strokeWidth={1}
-      />
-      <g transform={`translate(1, 1)`} pointerEvents="none">
-        <GitBranch
-          size={size - 2}
-          color="var(--archik-status-proposed)"
-          strokeWidth={2.2}
-        />
-      </g>
-      {count !== undefined && count > 1 && (
-        <g pointerEvents="none">
-          {/* Notification-style pill positioned ABOVE the icon (top-
-              centre) so it doesn't stretch horizontally into the
-              neighbouring tray slot — the previous top-right placement
-              extended 7px past the icon edge while tray slots are only
-              18px apart, causing a 3px overlap with whatever icon sat
-              to the right (e.g. sub-arch). Vertically the badge sits
-              just above the icon body; for the rare case where the
-              tray is at the very top of a node, SVG won't clip it. */}
-          <circle
-            cx={size / 2}
-            cy={-3}
-            r={5.5}
-            fill="var(--archik-canvas)"
-          />
-          <circle
-            cx={size / 2}
-            cy={-3}
-            r={4.5}
-            fill="var(--archik-status-proposed)"
-          />
-          <text
-            x={size / 2}
-            y={-0.5}
-            fontSize={7.5}
-            fontWeight={700}
-            fill="#ffffff"
-            textAnchor="middle"
-          >
-            {count}
-          </text>
-        </g>
-      )}
     </g>
   );
 }

@@ -36,9 +36,8 @@ shaped*.
 ## Side effects at the edges
 
 - Push effects (I/O, network, DB, randomness, time) to the boundary of the
-  system; keep the interior pure. This maps directly onto the archik ECB
-  model: **boundary** code performs effects, **control** code is pure
-  orchestration, **entity** code is pure data + transitions.
+  system; keep the interior pure. Edge code performs effects, the core
+  is pure orchestration, and data modules are pure data + transitions.
 - Make effects explicit and injected — pass the clock, the fetcher, the
   writer in, rather than reaching for globals. This is what makes the pure
   core testable.

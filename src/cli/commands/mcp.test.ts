@@ -171,7 +171,7 @@ describe("createMcpHandler", () => {
     })) as { result: { resources: Array<{ uri: string }> } };
     const uris = list.result.resources.map((r) => r.uri);
     expect(uris).toContain("archik://stats");
-    expect(uris).toContain("archik://trace");
+    expect(uris).toContain("archik://smells");
 
     const read = (await handle({
       jsonrpc: "2.0",

@@ -1,14 +1,12 @@
 /**
- * Affected-set analysis — the reverse lookup over the Jacobson chain.
+ * Affected-set analysis — the reverse lookup over the structure model.
  * Given a list of changed source files (usually from `git diff
- * --name-only <ref>`), walk every mapping the model already declares
- * and answer "what does this change touch?":
+ * --name-only <ref>`), walk the mappings the model declares and
+ * answer "what does this change touch?":
  *
- *   changed file ──▶ node.sourcePath   ──▶ affected nodes
- *   changed file ──▶ slice.tests[]     ──▶ affected slices (direct)
- *   affected node ─▶ seq participants  ──▶ affected slices (via realization)
- *   affected node ─▶ seq participants  ──▶ stale seq diagrams
- *   affected slices ▶ slice.tests[]    ──▶ tests to run
+ *   changed file  ──▶ node.sourcePath ──▶ affected nodes
+ *   affected node ◀── edges           ◀── dependents (nodes that
+ *                                         depend on an affected node)
  *
  * Files that match nothing are reported as `unmapped` — the same
  * signal `archik drift` gives, but scoped to the current change set
@@ -20,8 +18,6 @@
  * formatting.
  */
 import type { LoadedDoc } from "../io/discovery.ts";
-import type { LoadedSeqDoc } from "../io/seq-discovery.ts";
-import type { LoadedUseCaseDoc } from "../io/usecase-discovery.ts";
 import { isUnderPath } from "./validate.ts";
 import type { Node } from "./types.ts";
 
@@ -34,43 +30,28 @@ export type AffectedNode = {
   files: string[];
 };
 
-export type AffectedSlice = {
-  useCase: string;
-  useCaseName: string;
-  slice: string;
-  /** How the slice got pulled in:
-   *    test  — a changed file IS one of the slice's test paths
-   *    node  — a changed file touched a node participating in the
-   *            slice's realization seq
-   *    seq   — the slice's realization seq file itself changed */
-  via: Array<"test" | "node" | "seq">;
-  tests: string[];
-};
-
-export type StaleSeq = {
-  seqFile: string;
-  seqName: string;
-  /** Affected node ids that participate in this seq. */
-  nodes: string[];
+export type Dependent = {
+  id: string;
+  kind: string;
+  name: string;
+  /** Affected node ids this node has an outgoing edge to. */
+  dependsOn: string[];
 };
 
 export type AffectedReport = {
   nodes: AffectedNode[];
-  slices: AffectedSlice[];
-  staleSeqs: StaleSeq[];
-  /** Union of test paths across affected slices — "what should I run?". */
-  testsToRun: string[];
+  /** Nodes outside the change set with an edge INTO an affected node —
+   *  the code most likely to break. */
+  dependents: Dependent[];
   /** Changed archik model files (any *.archik*.yaml). */
   modelFiles: string[];
-  /** Changed files that matched no node sourcePath, no slice test,
-   *  and aren't model files — the model has no opinion about them. */
+  /** Changed files that matched no node sourcePath and aren't
+   *  model files — the model has no opinion about them. */
   unmapped: string[];
   summary: {
     changedFiles: number;
     nodes: number;
-    useCases: number;
-    slices: number;
-    staleSeqs: number;
+    dependents: number;
     unmapped: number;
   };
 };
@@ -88,8 +69,6 @@ function isModelFile(p: string): boolean {
 export function buildAffectedReport(
   changedFiles: string[],
   archDocs: LoadedDoc[],
-  ucDocs: LoadedUseCaseDoc[],
-  seqDocs: LoadedSeqDoc[],
 ): AffectedReport {
   const changed = [...new Set(changedFiles.map(normalize).filter((f) => f.length > 0))];
 
@@ -116,79 +95,35 @@ export function buildAffectedReport(
     affectedNodeIds.add(node.id);
   }
 
-  // Seq diagrams whose participants include an affected node — the
-  // documented flow may no longer match the code that just changed.
-  // Keyed by NORMALISED path so lookups via slice.realization.seqFile
-  // (user-authored, may carry a ./ prefix) still hit.
-  const staleSeqs: StaleSeq[] = [];
-  const staleByRel = new Map<string, StaleSeq>();
-  for (const { relPath, doc } of seqDocs) {
-    const nodes = [
-      ...new Set(
-        doc.participants
-          .map((p) => p.nodeId)
-          .filter((id) => affectedNodeIds.has(id)),
-      ),
-    ];
-    if (nodes.length === 0) continue;
-    const entry: StaleSeq = { seqFile: relPath, seqName: doc.name, nodes };
-    staleSeqs.push(entry);
-    staleByRel.set(normalize(relPath), entry);
+  // Upstream dependents: any edge whose target is an affected node.
+  const byId = new Map(allNodes.map((n) => [n.id, n]));
+  const dependsOn = new Map<string, Set<string>>();
+  for (const edge of archDocs.flatMap((d) => d.doc.edges)) {
+    if (!affectedNodeIds.has(edge.to) || affectedNodeIds.has(edge.from)) continue;
+    if (!byId.has(edge.from)) continue;
+    const set = dependsOn.get(edge.from) ?? new Set<string>();
+    set.add(edge.to);
+    dependsOn.set(edge.from, set);
   }
+  const dependents: Dependent[] = [...dependsOn].map(([id, targets]) => {
+    const n = byId.get(id)!;
+    return { id, kind: n.kind, name: n.name, dependsOn: [...targets].sort() };
+  });
 
-  // Slices: pulled in by a changed test file, a changed realization
-  // seq file, or an affected participant node.
-  const changedSet = new Set(changed);
-  const slices: AffectedSlice[] = [];
-  for (const { doc } of ucDocs) {
-    for (const slice of doc.slices) {
-      if ((slice.status ?? "active") === "deprecated") continue;
-      const via: AffectedSlice["via"] = [];
-      const tests = slice.tests ?? [];
-      if (tests.some((t) => changedSet.has(normalize(t)))) via.push("test");
-      if (slice.realization !== undefined) {
-        const seqRel = normalize(slice.realization.seqFile);
-        if (changedSet.has(seqRel)) via.push("seq");
-        if (staleByRel.has(seqRel)) via.push("node");
-      }
-      if (via.length === 0) continue;
-      slices.push({
-        useCase: doc.id,
-        useCaseName: doc.name,
-        slice: slice.id,
-        via,
-        tests,
-      });
-    }
-  }
-
-  const testsToRun = [...new Set(slices.flatMap((s) => s.tests))];
-
-  // Classify leftovers. A changed file counts as "covered" when any
-  // node or any slice test claimed it.
-  const coveredByTests = new Set(
-    ucDocs.flatMap((u) =>
-      u.doc.slices.flatMap((s) => (s.tests ?? []).map(normalize)),
-    ),
-  );
   const modelFiles = changed.filter(isModelFile);
   const unmapped = changed.filter(
-    (f) => !isModelFile(f) && !claimedByNode.has(f) && !coveredByTests.has(f),
+    (f) => !isModelFile(f) && !claimedByNode.has(f),
   );
 
   return {
     nodes: affectedNodes,
-    slices,
-    staleSeqs,
-    testsToRun,
+    dependents,
     modelFiles,
     unmapped,
     summary: {
       changedFiles: changed.length,
       nodes: affectedNodes.length,
-      useCases: new Set(slices.map((s) => s.useCase)).size,
-      slices: slices.length,
-      staleSeqs: staleSeqs.length,
+      dependents: dependents.length,
       unmapped: unmapped.length,
     },
   };

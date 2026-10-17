@@ -1,6 +1,6 @@
 {
   "name": "archik",
-  "description": "The shared vocabulary between you and Claude Code, at the engineering level. Plain-YAML architecture diagrams + Jacobson use cases / actors / sequence diagrams / alphas, all CLI-mediated and validated.",
+  "description": "The shared vocabulary between you and Claude Code, at the engineering level. Plain-YAML architecture diagrams of code structure (nesting, dependency flow, drift, structural smells), all CLI-mediated and validated.",
   "author": {
     "name": "Bashar",
     "email": "welcomebachar@gmail.com"
@@ -12,10 +12,6 @@
     "architecture",
     "diagram",
     "yaml",
-    "jacobson",
-    "use-case",
-    "ecb",
-    "essence",
     "documentation"
   ]
 }

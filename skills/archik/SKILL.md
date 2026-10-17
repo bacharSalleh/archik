@@ -10,7 +10,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 - **The YAML is the source of truth.** `.archik/main.archik.yaml` (and any `*.archik.yaml` sub-files) describe the system the user is building. The browser canvas is just a stateless projection of that file.
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
-- **Actors first, one use case to ship.** When a user hands you a brief on a fresh project, the right opening move is *model the actors, then propose the first use case to ship* — never "let me sketch your whole system." Actors-first because you can't validate a use case without knowing who initiates it. Pick exactly one because forcing priorities into the open before any code lands is the entire point of the loop. "To ship" because the use case names its test paths from message one — slices start `status: proposed` (the tests don't exist on disk yet) and flip to `status: active` automatically when the tests land in BUILD. The project's commitments live in the YAML, not in the chat log.
+- **One change to ship, not the whole system.** When a user hands you a brief on a fresh project, never say "let me sketch your whole system." Propose the smallest structure that delivers the first piece of value. New code-bearing nodes start `status: proposed` (the code doesn't exist on disk yet) and flip to `status: active` when the code lands in BUILD. The project's commitments live in the YAML, not in the chat log.
 - **Read the learned overlay at session start.** If `.archik/evolution/learned.md` exists, read it (with the Read tool — it is docs, not an archik YAML) before your first archik action and treat every note as binding guidance. Each note is a lesson this project's evolution loop gathered from real usage and a human approved. After a suggestion of yours is rejected, run `npx archik evolution reflect` — repeated rejections become proposals the user can review.
 
 ## Command surfaces
@@ -21,7 +21,7 @@ These are the user's entry points. They're triggered by the user typing `/archik
 
 | Slash command                     | What the user is asking for                                       |
 | --------------------------------- | ----------------------------------------------------------------- |
-| `/archik:bootstrap`               | **Start here on a new project.** Detect state (fresh / has-code / already-modelled) and route to the right next action — ask for a brief, suggest `/archik:spawn`, or surface trace status. |
+| `/archik:bootstrap`               | **Start here on a new project.** Detect state (fresh / has-code / already-modelled) and route to the right next action — ask for a brief, suggest `/archik:spawn`, or surface drift and smells. |
 | `/archik:spawn`                   | Mirror the source tree as a first-pass diagram (descriptive)      |
 | `/archik:evolve`                  | Propose a cleaner bounded-context refactor (prescriptive)         |
 | `/archik:suggest <…>`             | Apply one feature-sized change from a description (targeted)      |
@@ -29,10 +29,6 @@ These are the user's entry points. They're triggered by the user typing `/archik
 | `/archik:dev`                     | Open the live canvas                                              |
 | `/archik:accept`                  | Apply the pending sidecar suggestion                              |
 | `/archik:reject`                  | Discard the pending sidecar suggestion                            |
-| `/archik:actor <id>`              | Add or update an actor in the actor index (direct-write)          |
-| `/archik:usecase <name>`          | Author a use case — flows + slices + tests (direct-write)         |
-| `/archik:trace`                   | Coverage matrix + concrete next action                            |
-| `/archik:alpha [show \| promote]` | Read or move project alphas with a machine-checked criteria       |
 | `/archik:self-evolving <idea>`    | Design a self-evolving architecture for the user's idea, using the pattern library |
 
 The full protocol for each lives at `commands/<name>.md` in the repo (or `.claude/commands/archik/<name>.md` once installed in a project). Follow it when invoked.
@@ -48,22 +44,15 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Look up one node                  | `npx archik q describe <id>`                  |
 | Find dependencies / impact        | `npx archik q deps \| dependents \| impact <id>` |
 | See one node + its neighbors      | `npx archik q neighbors <id> [--depth N]`     |
-| List use cases (filter by actor)  | `npx archik q usecases [--actor <id>]`        |
-| Describe one use case             | `npx archik q describe-usecase <id>`          |
-| List actors                       | `npx archik q actors`                         |
-| List concrete run traces          | `npx archik q traces [--usecase <id>] [--slice <id>]` |
-| Use case coverage matrix          | `npx archik trace [--json] [--fail-on partial\|none]` |
 | Map changed files onto the model  | `npx archik affected [--since <ref>] [--files <list>] [--json]` |
-| Run the tests a change touches    | `npx archik affected --run [--runner '<cmd>']` |
 | Verify edges against the code     | `npx archik drift --edges [--json]`           |
-| Alpha state snapshot              | `npx archik alpha show [--json]`              |
-| Promote / demote an alpha state   | `npx archik alpha promote\|demote <alpha> <state>` |
 | Validate a file                   | `npx archik validate <path>`                  |
 | Spot over-complex files / hubs    | `npx archik complexity [--fail-on-warn]`      |
+| Find folder loops / oversized files | `npx archik smells [dir] [--json] [--fail-on-warn]` |
 | Stage a proposed change           | `npx archik suggest set --note '…' - <<'YAML' … YAML` |
 | Show / accept / reject pending    | `npx archik suggest show \| accept \| reject` |
 | Render an SVG                     | `npx archik render --out diagram.svg`         |
-| Render a slice / drop weak edges  | `npx archik render --focus <id>` / `--hide-structural` |
+| Render one area / drop weak edges | `npx archik render --focus <id>` / `--hide-structural` |
 | Diff two files or git refs        | `npx archik diff a.yaml b.yaml` / `npx archik diff origin/main` |
 | Detect drift vs source tree       | `npx archik drift`                            |
 | Open the live canvas (foreground) | `npx archik dev`                              |
@@ -79,12 +68,6 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 You MUST NOT use `Read`, `Write`, or `Edit` against any file under `.archik/`, any `*.archik.yaml`, any sidecar (`*.archik.suggested.yaml`), or `architecture.archik.yaml`. The CLI owns reads, writes, validation, schema, and lifecycle.
 
 If `npx archik` is unreachable (offline, sandboxed, missing), STOP and tell the user. Do NOT fall back to reading or editing YAML by hand.
-
-**Exception:** four file types have **no sidecar workflow** — create or edit them directly with `Write` / `Edit`, then validate via `npx archik validate`:
-- `*.archik.seq.yaml` — sequence diagrams (see "Sequence diagrams" below)
-- `*.archik.actors.yaml` — actor definitions (see "Actors" below)
-- `*.archik.uc.yaml` — use cases (see "Use cases and slices" below)
-- `*.archik.alphas.yaml` — Essence alpha snapshot (see "Alpha state" below)
 
 ## The engineering loop (how archik fits into delivering work)
 
@@ -117,11 +100,11 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
 
 | Phase    | Driver        | Tool you reach for                                  |
 | -------- | ------------- | --------------------------------------------------- |
-| Discover | Claude        | `npx archik q ...` + `q usecases` + `q actors` + `npx archik affected` + `ls` |
-| Design   | Claude → User | actors / uc files (direct-write) + sidecar via `suggest set` |
+| Discover | Claude        | `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` |
+| Design   | Claude → User | sidecar via `suggest set`                           |
 | Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate)    |
 | Build    | Claude → User | numbered plan (HITL approval), then small commits   |
-| Verify   | Claude        | `npx archik validate` + `archik trace` + tests + `drift` + SVG regen |
+| Verify   | Claude        | `npx archik validate` + tests + `drift` + `smells` + SVG regen |
 
 **Two non-obvious feedback edges:**
 
@@ -205,14 +188,15 @@ The CLI parses, schema-validates, checks cross-file references, stamps `metadata
 ```bash
 npx archik validate .archik/main.archik.yaml   # schema + cross-file + constraints
 npx archik drift                                # diagram vs source tree
-npx archik affected --json                      # what did this change touch? which tests?
+npx archik affected --json                      # what did this change touch? who depends on it?
+npx archik smells                               # folder loops + oversized files, from the code
 npx archik render --out docs/architecture.svg  # if the project commits an SVG
 ```
 
 `affected` is also the right opener in DISCOVER when work starts from
 an existing branch: `npx archik affected --since origin/main --json`
-tells you which nodes, use case slices, and tests the branch already
-touches — ground your plan in that instead of re-deriving it.
+tells you which nodes, and which dependents of those nodes, the branch
+already touches — ground your plan in that instead of re-deriving it.
 
 ### 4. Sub-architecture (a brand-new `archikFile`)
 
@@ -246,46 +230,12 @@ YAML
 
 When you auto-accept the sub-file, **narrate the rationale** so the user can tell you're not bypassing their `/archik:accept` review on the main draft. The main draft is always left as a sidecar.
 
-### 5. Sequence diagrams (direct-write, no sidecar)
-
-Sequence diagrams live in `.archik/` as `*.archik.seq.yaml` files and document a specific runtime flow at the call level. They are the **only** archik file mode you write directly.
-
-```bash
-# 1. Write the seq file directly with the Write tool
-# 2. Validate (this also checks every seqFiles reference)
-npx archik validate .archik/main.archik.yaml
-
-# 3. Link it from an architecture node via `suggest set` (sidecar workflow)
-npx archik suggest set --note "link login-flow seq diagram to api-gateway" - <<'YAML'
-version: "1.0"
-name: My Architecture
-nodes:
-  - id: api-gateway
-    ...
-    seqFiles:
-      - .archik/login-flow.archik.seq.yaml
-  ... (every other node)
-edges: [ ... ]
-YAML
-
-# 4. Render to SVG (optional, useful for CI / docs)
-npx archik render --seq .archik/login-flow.archik.seq.yaml --out login-flow.svg
-```
-
-`seqFiles` is a non-empty array of relative paths from project root. The validator checks each path exists.
-
-The seq schema (UML subset) is documented at the bottom of this file under "Sequence diagram schema reference".
-
 ## File modes — two modes, picked by filename
 
 | Suffix                      | Mode          | When to use                                                                         |
 | --------------------------- | ------------- | ----------------------------------------------------------------------------------- |
 | `*.archik.yaml`             | **normal**    | The canonical architecture of code that exists.                                     |
 | `*.archik.suggested.yaml`   | **suggested** | A pending change to a normal file. Owned by `suggest set`. Becomes normal on accept. |
-| `*.archik.seq.yaml`         | **sequence**  | A runtime flow diagram. Direct-write. No sidecar.                                   |
-| `*.archik.actors.yaml`      | **actors**    | Who acts on the system (human / external-system / time / device). Direct-write.     |
-| `*.archik.uc.yaml`          | **use case**  | One use case: flows + slices + test paths. Lives under `.archik/usecases/`. Direct-write. |
-| `*.archik.alphas.yaml`      | **alphas**    | Project-wide Essence alpha state snapshot. Direct-write.                            |
 
 There is no separate "discussion" file mode. Greenfield / exploratory work is expressed via `status: proposed` on the affected nodes and edges (see Lifecycle below). The diagram stays canonical.
 
@@ -325,18 +275,6 @@ Both **nodes and edges** carry an optional `status`. Same enum, same defaults, s
 
 For edges, `status: proposed` expresses "this dependency is planned" (e.g. *"orders-api will start subscribing to `payments.completed` next sprint"*). `archik drift` and the validator both respect lifecycle so proposed nodes don't trigger missing-source warnings before they're built.
 
-### Node stereotype — ECB classification
-
-Nodes that participate in a use case flow may carry an optional `stereotype` field:
-
-```yaml
-stereotype: boundary   # accepts requests from actors / external systems
-stereotype: control    # orchestrates; implements the use case logic
-stereotype: entity     # stores data; domain model
-```
-
-The validator enforces the ECB transition rules on **seq diagrams that carry a `realizes` block**: actors call boundaries, boundaries call controls, controls call entities or other controls. Direct actor→entity or entity→boundary messages are errors. Untagged nodes are silently skipped so adoption is incremental.
-
 ### Node owner — who to talk to
 
 Nodes may carry `owner: <team-or-person>` (free text — match the
@@ -373,7 +311,7 @@ constraints:
     maxDependencies: { node: { kind: service }, max: 6 }
 ```
 
-- Selectors: `{ id?, kind?, parent?, notParent?, stereotype? }` — all
+- Selectors: `{ id?, kind?, parent?, notParent? }` — all
   set fields must match; `parent`/`notParent` walk the whole parentId
   chain.
 - Exactly one rule per constraint: `forbidEdge`, `requireOwner`,
@@ -405,10 +343,10 @@ Run a candidate through this checklist before staging a sidecar. Each item is a 
 - **Bounded contexts.** Name the context this change belongs to. A change spanning two contexts usually means a missing third (orchestrator, port, gateway).
 - **Async at context boundaries.** Default cross-context coupling to `publishes` / `subscribes` over a stream/queue. `http_call` across contexts is allowed but should be justified (sync-required RPC, query for read-side data).
 - **Composition over sprawl.** Group related nodes under a `module` parent via `parentId`. Flat top-level lists past ~8 nodes are a smell. Run `npx archik complexity` to catch this objectively — it flags over-large files, over-stuffed containers, hub nodes, and deep nesting, each with a concrete fix.
+- **No folder loops.** Dependencies between sibling folders should flow one way. Run `npx archik smells` — it reads the code (no model needed) and reports folder loops with the real `file imports "specifier"` lines as evidence, plus the cheapest import to cut. Name smells by that evidence; don't invent labels.
 - **Ports & adapters at the edge.** External integrations sit behind an `external` node, never inline in a service. Port (interface) + adapter (concrete) is preferred when the integration could swap.
 - **Public traffic → gateway/auth upstream.** Anything user-facing routes through a `gateway`/`auth` node, not directly to a service.
 - **Failure modes.** Async producers imply DLQ/retry on the consumer; `http_call` implies timeout + circuit. Don't draw the happy path alone.
-- **Use case participation → ECB classification.** If a node appears in any active use case slice (check `npx archik q usecases` or trace output), it needs a `stereotype: boundary | control | entity` before the seq diagram is authored. An unclassified node in a `realizes`-linked seq passes structurally but defeats ECB rule enforcement. Classify now; the validator will catch violations at seq-authoring time, not at code-review time.
 - **Lifecycle honesty.** Code-bearing node without code on disk → `status: proposed`. About to be removed → `status: deprecated`.
 
 ## Keep views small
@@ -417,7 +355,7 @@ A big model isn't read by staring at one giant map — it's read one question at
 
 - **Answer questions with a query, not the whole diagram.** "What does X talk to?" → `npx archik q neighbors X` (or `q describe X`). Don't render the full map to answer a local question.
 - **Let `complexity` tell you when to split.** Run `npx archik complexity` (advisory; `--fail-on-warn` for CI/hooks). When it flags a file or container, decompose: move a subsystem into its own `archikFile`, or group nodes under a `module` parent via `parentId`. Strict default limits — 15 nodes/file, 20 edges/file, 6 children/container, degree 6, nesting depth 3. These are hints, not blockers.
-- **Slice when rendering.** `npx archik render --focus <id> [--depth N]` renders only a node's neighborhood; `--hide-structural` (or `--hide-rel`/`--only-rel`) drops weak edges (`uses`, `depends_on`, `has_a`, `implements`, `extends`) so the runtime shape stands out.
+- **Focus when rendering.** `npx archik render --focus <id> [--depth N]` renders only a node's neighborhood; `--hide-structural` (or `--hide-rel`/`--only-rel`) drops weak edges (`uses`, `depends_on`, `has_a`, `implements`, `extends`) so the runtime shape stands out.
 - **For humans on the canvas:** the live canvas has matching controls — collapse/expand containers, hide weak edges, and focus mode (select a node → "Focus on this node", with a depth stepper, Esc to exit). These are view-only and never change the YAML.
 
 ## When to propose, when to defer
@@ -472,211 +410,6 @@ The loop is self-contained, but these sharpen specific phases when the user has 
 |         | `superpowers:requesting-code-review`           |
 | Verify  | `superpowers:verification-before-completion`   |
 
-## Actors
-
-Actors live in `.archik/actors.archik.actors.yaml` (one file per project). Direct-write — no sidecar. Schema: `npx archik schema actors`.
-
-```yaml
-version: "1.0"
-actors:
-  - id: customer
-    kind: human              # human | external-system | time | device
-    description: End-user buying products.
-    goals: [place-orders, view-history]   # optional free text
-  - id: payments-gw
-    kind: external-system
-    description: Stripe — charges cards and issues refunds.
-```
-
-Use cases reference actors by `id`. The validator rejects a use case whose `primaryActor` isn't in the actor index.
-
-## Use cases and slices
-
-One file per use case under `.archik/usecases/<id>.archik.uc.yaml`. Direct-write — no sidecar. Schema: `npx archik schema uc`.
-
-```yaml
-version: "1.0"
-id: place-order
-kind: useCase
-name: Place an order
-status: active
-primaryActor: customer
-secondaryActors: [payments-gw]
-goal: Customer pays for items in cart and receives confirmation.
-flows:
-  basic:
-    steps:
-      - Customer submits cart.
-      - System reserves inventory.
-      - System charges payment method.
-      - System persists order and emits OrderPlaced.
-  alternates:
-    - id: payment-declined
-      branchFrom: basic.3
-      steps: [Payment gateway returns decline, System releases inventory.]
-slices:
-  - id: happy-path
-    description: Full successful purchase.
-    flows: [basic]
-    tests: [tests/e2e/place-order.happy.spec.ts]   # must exist on disk for active slices
-    realization:
-      seqFile: .archik/place-order.happy.archik.seq.yaml
-  - id: declined
-    description: Payment gateway declines.
-    flows: [basic, payment-declined]
-    tests: [tests/e2e/place-order.declined.spec.ts]
-```
-
-**Validation rules:**
-- `primaryActor` and `secondaryActors` must resolve in the actor index.
-- Active slice `tests` paths must exist on disk (same discipline as `sourcePath`).
-- If `realization.seqFile` is set, the named seq file must exist AND carry a matching `realizes` block (bidirectional).
-- `flows.basic` is required; `alternates[].branchFrom` must reference an existing flow + step number.
-
-Query: `npx archik q usecases [--actor <id>]` | `npx archik q describe-usecase <id>`
-
-## Concrete run traces
-
-A sequence diagram is the **abstract** flow (boxes and arrows, no values). A **concrete trace** is one real run of a slice with the **actual data at each step** — captured from the slice's tests and shown on the canvas as an expandable dataflow **timeline** (each step's real in/out values, expandable to the full JSON). It's the concrete counterpart to the slice's abstract seq diagram (a bound trace links to that diagram; it doesn't redraw onto it). Use it when someone asks to *see a real example of a use case running, with the data at each step*.
-
-- **Tests record it via the `archik/trace` recorder** (a zero-dep import archik ships). Add it to the slice's test:
-  ```ts
-  import { trace } from "archik/trace";
-  const t = trace({
-    useCase: "place-order",
-    slice: "happy-path",
-    seqFile: ".archik/place-order.happy.archik.seq.yaml", // optional → binds to the diagram
-  });
-  t.step({ id: "m1", from: "browser", to: "api", label: "POST /orders", in: cart, out: res });
-  t.step({ id: "m2", from: "api", to: "db", label: "insert order", in: order });
-  // auto-flushes on process exit → .archik/traces/place-order.happy-path.archik.trace.json
-  ```
-  When `seqFile` is set, `id`/`from`/`to` must match the diagram's message + participant ids (so the run is checked against the declared flow); omit `seqFile` for a standalone trace.
-- **Passive — archik never runs your tests.** Run them however you like (`npm test`, `archik affected --run`); the recorder writes the file, archik only reads it. The canvas shows a "Concrete run" affordance on each slice that has one.
-- **Query / shape:** `npx archik q traces [--usecase <id>] [--slice <id>]` lists captured runs; `npx archik schema trace` prints the schema (the file is JSON, machine-generated — never hand-author it).
-- **Validated:** `npx archik validate` checks each trace — its use case/slice resolves, and (when bound) its step ids + participants exist in the seq diagram; seq steps the run didn't exercise are reported informationally, not as errors.
-
-**Two different "trace"s — don't confuse them:** `npx archik trace` is the use-case **coverage matrix** (use case × slice × test × seq). **Concrete run traces** are `*.archik.trace.json` files captured by the recorder and listed by `npx archik q traces`.
-
-## Alpha state
-
-One file per project: `<name>.archik.alphas.yaml`. Direct-write. Tracks four Essence alphas that archik can directly evidence: **stakeholders**, **requirements**, **softwareSystem**, **work**.
-
-```yaml
-version: "1.0"
-alphas:
-  stakeholders:
-    state: represented     # conceived | recognised | represented | involved | in-agreement | satisfied
-    evidence: ["developer (human) + claude (external-system) in actors file"]
-  requirements:
-    state: acceptable      # conceived | bounded | coherent | acceptable | addressed | fulfilled
-    note: "All active slices test-backed; rejected slice still needs a realization seq."
-  softwareSystem:
-    state: usable          # architecture-selected | demonstrable | usable | ready | operational | retired
-  work:
-    state: under-control   # initiated | prepared | started | under-control | concluded | closed
-```
-
-Manage states with:
-```bash
-npx archik alpha show                              # verification badges: ✓ verified | ✗ over-claimed | ? subjective
-npx archik alpha promote requirements addressed    # runs machine check before writing
-npx archik alpha demote softwareSystem usable      # no check on demote
-```
-
-The validator checks machine-checkable states (e.g. `requirements.acceptable` requires every active slice to have on-disk tests). Over-claimed states are flagged `✗` — downgrade or fix the artifacts.
-
-## Sequence diagram schema reference
-
-```yaml
-version: "1.0"          # required, literal
-name: "Login flow"      # required, non-empty
-description: "..."      # optional
-
-realizes:               # optional — links this seq to a use case slice
-  useCase: place-order  # use case id (must exist in .archik/usecases/)
-  slice: happy-path     # slice id within that use case
-                        # validator enforces bidirectional integrity:
-                        # the slice's realization.seqFile must name THIS file
-
-participants:           # required, at least one
-  - id: browser         # participant ref id (used in steps)
-    nodeId: frontend    # architecture node id this participant maps to
-                        # node's kind drives the participant header icon/color
-    label: Browser      # optional display label (defaults to nodeId)
-    status: proposed    # optional — proposed | active | deprecated
-
-steps:                  # ordered list of messages, notes, groups
-  # --- message ---
-  - type: message
-    id: m1
-    from: browser       # participant id
-    to: api             # participant id
-    label: POST /login
-    arrow: sync         # sync | async | return | create | destroy
-    activate: true      # optional — draws activation box on receiver
-    status: proposed    # optional
-
-  # --- note ---
-  - type: note
-    id: n1
-    position: over      # over | left_of | right_of
-    participants: [api] # list of participant ids the note spans
-    text: "JWT issued here"
-    status: proposed    # optional
-
-  # --- group (alt / opt / loop / par / break / ref) ---
-  - type: group
-    id: g1
-    kind: alt
-    condition: "[authenticated]"   # optional — shown in group header
-    branches:
-      - label: "[success]"         # optional branch label
-        steps:
-          - type: message
-            id: m2
-            from: api
-            to: browser
-            label: "200 OK"
-            arrow: return
-      - label: "[failure]"
-        steps:
-          - type: message
-            id: m3
-            from: api
-            to: browser
-            label: "401 Unauthorized"
-            arrow: return
-    status: proposed               # optional
-
-  # --- ref group (drill-down to another seq file) ---
-  - type: group
-    id: g2
-    kind: ref
-    label: "checkout flow"
-    seqFile: .archik/checkout-flow.archik.seq.yaml
-                                   # makes the frame clickable in the UI
-    branches: []                   # required (can be empty for ref)
-```
-
-**Arrow types:**
-
-| arrow     | meaning                                                     |
-| --------- | ----------------------------------------------------------- |
-| `sync`    | synchronous call (solid line, filled arrowhead)             |
-| `async`   | fire-and-forget (solid line, open arrowhead)                |
-| `return`  | return value (dashed line, open arrowhead)                  |
-| `create`  | object creation (dashed line, filled arrowhead + `«create»`) |
-| `destroy` | object destruction (solid line, × marker at target)         |
-
-**Group kinds:** `alt` (conditional), `opt` (optional), `loop`, `par` (parallel), `break`, `ref` (reference)
-
-**Validator checks for seq diagrams:**
-- All seq files referenced in `seqFiles` exist on disk.
-- Each seq file parses as valid YAML and matches the seq schema.
-- Participant `nodeId` fields reference real node ids from the architecture.
-- No duplicate step ids within a seq file.
-
 ## Full CLI reference
 
 Run `npx archik <cmd> --help` for the per-command surface.
@@ -684,31 +417,11 @@ Run `npx archik <cmd> --help` for the per-command surface.
 ```
 npx archik schema                       # the document shape (start here when authoring)
                   --json                #   structured shape for piping into jq
-                  --seq                 #   seq diagram schema instead of arch schema
-                  uc                    #   use case schema
-                  actors                #   actors schema
-                  trace                 #   concrete run-trace schema
 
 npx archik q describe <id> | deps <id> | dependents <id>
                   list | edges | impact <id> | stats
                   neighbors <id> [--depth <n>]   # node + everything within N hops (default 1)
-                  sequences [--node <id>]   # list seq diagrams; --node filters to flows involving a node
-                  usecases [--actor <id>]   # list use cases; filter by actor
-                  describe-usecase <id>     # one use case in detail
-                  actors                    # list actors
-                  traces [--usecase <id>] [--slice <id>]  # concrete run traces (.archik.trace.json)
                   --json                #   stable machine-readable shape
-
-npx archik trace [--json]               # coverage matrix: use case × slice × test × seq × ECB
-                  --use-case <id>       #   filter to one use case
-                  --actor <id>          #   filter by actor
-                  --status active|proposed|deprecated
-                  --coverage full|partial|none
-                  --fail-on partial|none    # exit 1 for CI gates
-
-npx archik alpha show [--json]          # alpha state snapshot with verification badges
-              alpha promote <alpha> <state> [--note <text>]   # runs machine check first
-              alpha demote <alpha> <state>
 
 npx archik validate <path> [--json]     # schema + cross-file + governance constraints
                                         #   prints an advisory complexity-hint count (never fails on it)
@@ -716,16 +429,18 @@ npx archik complexity [path] [--json]   # advisory report: over-large files, hub
                   [--fail-on-warn]      #   exit 1 if any finding (CI / pre-commit gate)
                   [--max-nodes N] [--max-edges N] [--max-children N]
                   [--max-degree N] [--max-depth N]   # override the strict defaults
+npx archik smells [dir] [--json]        # folder loops + oversized files, read from TS/JS code
+                  [--max-file-lines N]  #   line limit per file (default 500)
+                  [--fail-on-warn]      #   exit 1 if any smell (CI gate)
 npx archik render --out diagram.svg --theme light|dark
-              render --seq <path> --out seq.svg --theme light|dark
               render --focus <id> [--depth N]        # render only a node's neighborhood
               render --hide-structural | --hide-rel <a,b> | --only-rel <a,b>   # filter edges
 npx archik diff <a> [b] [--out diff.svg] [--json]
                                         # each side: YAML file OR git ref;
                                         # one arg = that ref vs working tree
 npx archik affected [--since <ref>] [--files <list>] [--json]
-                                        # changed files → nodes / slices / tests
-                    [--run] [--runner '<cmd>']  # …and execute those tests
+                                        # changed files → nodes / dependents /
+                                        #   model files / unmapped
 npx archik drift [--json] [--ignore <file>]   # diagram vs source tree
                  [--edges]              # + verify edges vs the TS/JS import
                                         #   graph (shadow / phantom edges)

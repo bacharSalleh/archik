@@ -11,18 +11,6 @@ import type {
 
 export type { NodeKind } from "./taxonomy.ts";
 export type { Relationship } from "./relationships.ts";
-export type {
-  SeqArrow,
-  SeqBranch,
-  SeqDocument,
-  SeqGroup,
-  SeqGroupKind,
-  SeqMessage,
-  SeqNote,
-  SeqNotePosition,
-  SeqParticipant,
-  SeqStep,
-} from "./seq-types.ts";
 
 export type Interface = z.infer<typeof InterfaceSchema>;
 export type NodeSelector = z.infer<typeof NodeSelectorSchema>;

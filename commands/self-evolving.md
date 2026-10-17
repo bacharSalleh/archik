@@ -35,8 +35,9 @@ Never `Read`/`Write`/`Edit` files under `.archik/`.
    No feedback signal = no evolution loop; help them find one first.
 
 3. **Ground in the current diagram** (`npx archik q stats`, `q list`).
-   If the project is empty, model the *base system* first — actors,
-   then one use case to ship, per the normal archik opening move.
+   If the project is empty, model the *base system* first — the
+   smallest structure for one thing to ship, per the normal archik
+   opening move.
 
 4. **Map the idea onto the loop.** For each stage, name the concrete
    component in THEIR system:
@@ -56,10 +57,9 @@ Never `Read`/`Write`/`Edit` files under `.archik/`.
    - Tailored: author the full end-state and stage via
      `npx archik suggest set --note '…' - <<'YAML' … YAML`.
 
-6. **Wire the requirements.** Author a use case for the loop itself
-   (`/archik:usecase` conventions): slices like "corrections are
-   recorded", "insights become proposals", "approved change applies",
-   each naming test paths.
+6. **Wire the tests.** Name one test per loop step: "corrections are
+   recorded", "insights become proposals", "approved change applies".
+   Add them to the build plan after accept.
 
 7. **Hand over.** Show the canvas URL, summarize which patterns you
    used and why, and point at `npx archik evolution enable` if they

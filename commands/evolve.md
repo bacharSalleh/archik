@@ -45,26 +45,15 @@ any file under `.archik/`.
    — there's nothing meaningful to evolve. Suggest `/archik:spawn`
    first.
 
-   Also check the Jacobson-chain artifacts so you can surface
-   ECB and coverage smells alongside structural ones:
+   Also read the code-level smells, so your proposal rests on real
+   imports and not only on the diagram:
    ```
-   npx archik q actors
-   npx archik q usecases
-   npx archik trace --json
+   npx archik smells --json
    ```
-   (These are non-fatal if no UC/actor files exist — note that
-   and skip the UC smells below; focus on structural smells only.)
-
-   **Identify nodes at risk of seq breakage.** As you read the
-   node list, mentally note which nodes you're likely to remove,
-   split, or merge. For each such node, run:
-   ```
-   npx archik q sequences --node <id>
-   ```
-   This returns the seq files whose participants reference that
-   node ID. Collect these — you'll need the list in step 6 to
-   warn the user. If the list is empty for all affected nodes,
-   no seq diagrams are at risk.
+   It reports folder loops (sibling folders that import each other,
+   with each `file imports "specifier"` as evidence and the cheapest
+   import to cut) and oversized files. It needs no model, so it
+   works even when the diagram is thin.
 
 3. **Identify smells and missing structure.** Don't propose change
    for change's sake — every modification should fix one of:
@@ -85,30 +74,12 @@ any file under `.archik/`.
      introduce a `port` (the abstract contract) and an `adapter`
      (the concrete impl), with `implements` between them.
    - **Cyclic dependencies** between modules — should be inverted
-     (events) or broken (extract shared kernel).
+     (events) or broken (extract shared kernel). Use the folder loops
+     from `archik smells` as evidence: quote the imports, and start
+     with the "cheapest to cut" edge.
    - **Anaemic queues.** Two services connected by `http_call`
      for what's clearly an async fire-and-forget → introduce a
      `queue` or `topic` and rewire to `publishes` / `subscribes`.
-   - **Missing ECB stereotypes.** Only applies when actor/UC files
-     exist (`npx archik q usecases` returns results). Nodes that
-     appear in active UC slices (visible in `archik trace` output),
-     or that have user-facing relationships (`http_call` from a
-     gateway, `writes`/`reads` to a domain DB) but no `stereotype`
-     field → classify each as `boundary`, `control`, or `entity`.
-     This is a prerequisite for ECB validation on seq diagrams.
-     Evolve may **add** a stereotype to nodes spawn left blank, but
-     only when this smell is triggered. Never invent stereotypes on
-     a pure structural diagram with no UC files.
-   - **UC coverage gaps.** Only applies when UC files exist and
-     `archik trace --json` returns rows. Active slices that are
-     `partial` (tests exist but no seq realization) usually signal
-     a missing seq diagram or a missing port/adapter in the
-     structural model. Active slices that are `none` (no tests, no
-     realization) signal untested behaviour — propose a test
-     scaffold or a seq diagram, and flag any architectural gap that
-     makes the slice hard to realize (e.g. missing adapter for an
-     external call). If trace output is empty or all slices are
-     `full`, skip this smell.
 
    Aim for 3–8 changes — enough to be meaningful, few enough that
    the user can reason about each. If you'd need more, propose
@@ -144,7 +115,7 @@ any file under `.archik/`.
      ids, never rename. Renames break diff and require the user to
      manually re-link references in code.
    - Don't drop `description`, `responsibilities`, `notes`,
-     `sourcePath`, or `stereotype` fields the user authored. Carry
+     `owner`, or `sourcePath` fields the user authored. Carry
      them over verbatim.
    - Every new code-bearing node (`service`, `function`, `worker`,
      `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,
@@ -160,9 +131,6 @@ any file under `.archik/`.
      until the code lands.
    - Every node MUST have a non-empty `description` explaining
      what it does. Don't introduce a node without one.
-   - When adding a `stereotype` to address the ECB smell, use only
-     `boundary`, `control`, or `entity`. Don't add `stereotype` to
-     purely infra nodes (`database`, `queue`, `external`, `cloud`).
    - Every change should be motivated by step 3, not by aesthetics.
 
    If `suggest set` reports validation errors, re-run with the
@@ -176,13 +144,7 @@ any file under `.archik/`.
       grouped by motivation (e.g. *"1. Extract a `payments`
       bounded context from `orders`. Why: payment logic was leaking
       into order placement…"*). Keep each item to 2–3 sentences.
-   c. **Seq diagram impact warning** — if any seq file discovered
-      in step 2 references a node that this proposal removes or
-      renames, list them explicitly:
-      *"⚠️ These seq diagrams reference nodes this refactor
-      changes — they will need updating after accept: `<list>`."*
-      If no seq files are affected, skip this bullet.
-   d. An explicit invitation: *"Tell me what you'd like to keep,
+   c. An explicit invitation: *"Tell me what you'd like to keep,
       drop, or rework before you accept. I can re-stage with
       changes — `/archik:accept` is whenever you're ready."*
 

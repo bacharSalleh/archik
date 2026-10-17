@@ -18,7 +18,6 @@ import { statusCommand } from "./commands/status.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { suggestCommand } from "./commands/suggest.ts";
 import { driftCommand } from "./commands/drift.ts";
-import { traceCommand } from "./commands/trace.ts";
 import { affectedCommand } from "./commands/affected.ts";
 import { mergeDriverCommand } from "./commands/mergeDriver.ts";
 import { mcpCommand } from "./commands/mcp.ts";
@@ -26,11 +25,11 @@ import { importCommand } from "./commands/import.ts";
 import { hooksCommand } from "./commands/hooks.ts";
 import { ownersCommand } from "./commands/owners.ts";
 import { otelCommand } from "./commands/otel.ts";
-import { alphaCommand } from "./commands/alpha.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
 import { evolutionCommand } from "./commands/evolution.ts";
 import { patternsCommand } from "./commands/patterns.ts";
 import { complexityCommand } from "./commands/complexity.ts";
+import { smellsCommand } from "./commands/smells.ts";
 import { parseOptions, type ParsedOptions } from "./options.ts";
 import { pkgVersion } from "./paths.ts";
 import { UNOBSERVED, flagNames, recordRun } from "./observe.ts";
@@ -118,26 +117,15 @@ COMMANDS
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
                     --edges          verify edges against the TS/JS import graph
                                      (shadow + phantom edge detection)
-  affected          Map changed files back onto the model — affected nodes,
-                                     use case slices, tests to run, stale seq diagrams
+  smells [dir]      Structural smells from code: folder import loops,
+                                     oversized files (no model needed)
+                    --max-file-lines <n>  line limit (default 500)
+                    --json           structured output
+  affected          Map changed files back onto the model — affected nodes
+                                     and the nodes that depend on them
                     --since <ref>    git ref to diff against (default: HEAD)
                     --files <list>   comma-separated file list (skips git)
-                    --run            execute the affected tests (runner auto-detected)
-                    --runner <cmd>   override the test runner command
                     --json           structured output for agents
-  trace             Use case x slice x test x seq x node coverage matrix
-                    --use-case <id>  filter to one use case
-                    --actor <id>     filter to use cases involving an actor
-                    --status <s>     filter slices by status
-                    --coverage <l>   filter rows by coverage (full/partial/none)
-                    --fail-on <l>    exit 1 if any row meets that level (partial or none)
-                    --json           structured output for agents
-  alpha <sub>       Essence alpha state tracker (Stakeholders, Requirements,
-                                     Software System, Work)
-                    show             render claimed states + verification badges
-                    promote <a> <s>  walk UP the ladder; runs machine check
-                                     --note '<text>'  attach a note
-                    demote <a> <s>   walk DOWN the ladder (no check)
   evolution <sub>   Self-evolution loop: observe → reflect → propose →
                                      validate → apply (gated) → measure
                     status           counts + whether observation is on
@@ -261,8 +249,6 @@ async function dispatch(
       return suggestCommand(opts);
     case "drift":
       return driftCommand(opts);
-    case "trace":
-      return traceCommand(opts);
     case "affected":
       return affectedCommand(opts);
     case "merge-driver":
@@ -277,14 +263,14 @@ async function dispatch(
       return ownersCommand(opts);
     case "otel":
       return otelCommand(opts);
-    case "alpha":
-      return alphaCommand(opts);
     case "evolution":
       return evolutionCommand(opts);
     case "patterns":
       return patternsCommand(opts);
     case "complexity":
       return complexityCommand(opts);
+    case "smells":
+      return smellsCommand(opts);
     case "upgrade":
       return upgradeCommand(opts);
     case "--version":

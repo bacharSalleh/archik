@@ -28,8 +28,6 @@ type Props = {
   className?: string | undefined;
   layoutOptions?: LayoutOptions;
   viewMode?: ViewMode;
-  /** Toggle for the ECB stereotype band overlay. Forwarded to DiagramSvg. */
-  showStereotypeBands?: boolean;
   selectedNodeIds?: ReadonlySet<string>;
   selectedEdgeIds?: ReadonlySet<string>;
   onSelectNode?:
@@ -91,7 +89,6 @@ export function Canvas({
   className,
   layoutOptions,
   viewMode = "detailed",
-  showStereotypeBands = true,
   selectedNodeIds,
   selectedEdgeIds,
   onSelectNode,
@@ -356,7 +353,6 @@ export function Canvas({
           positioned={positioned}
           zoom={zoom}
           viewMode={viewMode}
-          showStereotypeBands={showStereotypeBands}
           svgRef={svgRef}
           dragGhost={
             drag.type === "dragging"

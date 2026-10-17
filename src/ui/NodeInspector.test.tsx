@@ -304,30 +304,6 @@ describe("NodeInspector", () => {
     });
   });
 
-  it("shows sequence diagrams section when node has seqFiles", () => {
-    const node = {
-      id: "gw",
-      kind: "gateway" as const,
-      name: "API Gateway",
-      description: "Routes traffic.",
-      seqFiles: [".archik/flows/login.archik.seq.yaml"],
-    };
-    render(<NodeInspector node={node} dispatch={() => {}} />);
-    expect(screen.getByText("Sequence Diagrams")).not.toBeNull();
-    expect(screen.getByText("login")).not.toBeNull();
-  });
-
-  it("does not show sequence diagrams section when no seqFiles", () => {
-    const node = {
-      id: "gw",
-      kind: "gateway" as const,
-      name: "API Gateway",
-      description: "Routes traffic.",
-    };
-    render(<NodeInspector node={node} dispatch={() => {}} />);
-    expect(screen.queryByText("Sequence Diagrams")).toBeNull();
-  });
-
   describe("collapse toggle", () => {
     const containerNode: Node = {
       id: "platform",

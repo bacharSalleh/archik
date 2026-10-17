@@ -10,10 +10,9 @@ shaped*.
 
 - One module, one reason to change. A file that mixes HTTP parsing,
   business rules, and persistence is three modules wearing one name.
-- Map concerns onto the ECB stereotypes already in the archik model:
-  **boundary** code handles I/O and translation, **control** code holds
-  use-case logic, **entity** code owns state and invariants. Don't let a
-  boundary make business decisions or an entity reach for the network.
+- Keep I/O and translation at the edge, business rules in the middle,
+  and state with its invariants in its own module. Don't let edge code
+  make business decisions or a data module reach for the network.
 - A function does one thing at one level of abstraction. If you need "and"
   to describe it, split it.
 

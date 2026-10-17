@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 import {
-  checkArchNodeSeqFilePaths,
   checkCrossFileReferences,
   checkSourcePaths,
   formatErrors,
@@ -11,24 +10,6 @@ import {
   type ValidationError,
 } from "../../domain/validate.ts";
 import { discoverDocs } from "../../io/discovery.ts";
-import { discoverSeqDocs } from "../../io/seq-discovery.ts";
-import { discoverUseCaseDocs } from "../../io/usecase-discovery.ts";
-import { discoverActorDocs } from "../../io/actor-discovery.ts";
-import { discoverTraceDocs } from "../../io/trace-discovery.ts";
-import { checkTraces } from "../../domain/trace-validate.ts";
-import {
-  checkSeqEcbRules,
-  checkSeqNodeBackrefs,
-  checkSeqNodeRefs,
-  checkSeqRealizesIntegrity,
-} from "../../domain/seq-validate.ts";
-import {
-  buildActorIndex,
-  buildUseCaseIndex,
-  checkUseCaseActorRefs,
-  checkUseCaseRealizationPaths,
-  checkUseCaseTestPaths,
-} from "../../domain/usecase-validate.ts";
 import { archikFileMode } from "../../domain/suggestion.ts";
 import { checkConstraints } from "../../domain/constraints.ts";
 import { analyzeComplexity, DEFAULT_LIMITS } from "../../domain/complexity.ts";
@@ -140,126 +121,6 @@ export async function validateCommand(
     return 1;
   }
 
-  // Validate .archik.seq.yaml files
-  const allNodeIds = new Set(discovery.docs.flatMap((d) => d.doc.nodes.map((n) => n.id)));
-
-  // Check seqFiles paths on architecture nodes
-  const seqFilePathErrors: ValidationError[] = [];
-  for (const { doc: archDoc } of discovery.docs) {
-    seqFilePathErrors.push(...checkArchNodeSeqFilePaths(archDoc, fileExists));
-  }
-  if (seqFilePathErrors.length > 0) {
-    if (json) {
-      emitJson({ ok: false, file, errors: seqFilePathErrors });
-    } else {
-      console.error(`✗ seqFiles path errors:`);
-      for (const e of seqFilePathErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
-    }
-    return 1;
-  }
-
-  const seqDiscovery = await discoverSeqDocs(root);
-  let seqErrorCount = 0;
-  for (const e of seqDiscovery.errors) {
-    if (!json) console.error(`✗ ${e.relPath}: ${e.message}`);
-    seqErrorCount++;
-  }
-  for (const { relPath, doc: seqDoc } of seqDiscovery.docs) {
-    const refErrors = checkSeqNodeRefs(seqDoc, allNodeIds);
-    if (refErrors.length > 0) {
-      if (!json) {
-        console.error(`✗ ${relPath}`);
-        for (const e of refErrors) console.error(`  ✗ ${e.path}: ${e.message}`);
-      }
-      seqErrorCount += refErrors.length;
-    }
-  }
-  if (seqErrorCount > 0) {
-    if (json) emitJson({ ok: false, file, errors: [{ path: "<seq>", message: `${seqErrorCount} sequence diagram error(s)` }] });
-    return 1;
-  }
-
-  // Use cases + actors (Milestone 1 of Jacobson alignment).
-  // Discover both, build indexes, then run cross-file checks:
-  //   • duplicate use case ids / actor ids across files
-  //   • use case actor refs resolve in actor index
-  //   • slice test paths exist on disk
-  //   • slice realization.seqFile points at a discovered seq file
-  //   • seq `realizes` block is bidirectional with the use case slice
-  // Each check produces ValidationError[]; we accumulate and emit
-  // them with the same shape as the structural errors above.
-  const ucDiscovery = await discoverUseCaseDocs(root);
-  const actorDiscovery = await discoverActorDocs(root);
-  const ucActorErrors: ValidationError[] = [];
-  for (const e of ucDiscovery.errors) {
-    ucActorErrors.push({ path: e.relPath, message: e.message });
-  }
-  for (const e of actorDiscovery.errors) {
-    ucActorErrors.push({ path: e.relPath, message: e.message });
-  }
-  if (ucActorErrors.length === 0) {
-    const actorIndex = buildActorIndex(actorDiscovery.docs);
-    ucActorErrors.push(...actorIndex.errors);
-    const ucIndex = buildUseCaseIndex(ucDiscovery.docs);
-    ucActorErrors.push(...ucIndex.errors);
-    if (ucActorErrors.length === 0) {
-      ucActorErrors.push(
-        ...checkUseCaseActorRefs(ucDiscovery.docs, actorIndex.index),
-      );
-      ucActorErrors.push(
-        ...checkUseCaseTestPaths(ucDiscovery.docs, fileExists),
-      );
-      ucActorErrors.push(
-        ...checkUseCaseRealizationPaths(
-          ucDiscovery.docs,
-          seqDiscovery.docs,
-        ),
-      );
-      ucActorErrors.push(
-        ...checkSeqRealizesIntegrity(seqDiscovery.docs, ucDiscovery.docs),
-      );
-      // ECB transition rules — only fire on `realizes`-bound seqs;
-      // skip when either endpoint lacks a stereotype (gradual adoption).
-      ucActorErrors.push(
-        ...checkSeqEcbRules(seqDiscovery.docs, discovery.docs),
-      );
-      // Structural-side discoverability: every node participating in a
-      // realised seq diagram must list that seq in its `seqFiles` so
-      // the canvas can surface the flow. Catches the "Claude wrote
-      // the seq + use case but forgot the node backref" failure mode.
-      ucActorErrors.push(
-        ...checkSeqNodeBackrefs(seqDiscovery.docs, discovery.docs),
-      );
-    }
-  }
-  if (ucActorErrors.length > 0) {
-    if (json) emitJson({ ok: false, file, errors: ucActorErrors });
-    else {
-      console.error(`✗ ${file}`);
-      console.error(formatErrors(ucActorErrors));
-    }
-    return 1;
-  }
-
-  // Concrete-trace validation — discover all *.archik.trace.json files
-  // and check each one against the already-loaded use-case + seq docs.
-  const traceDiscovery = await discoverTraceDocs(root);
-  const traceErrors: ValidationError[] = traceDiscovery.errors.map((e) => ({ path: e.relPath, message: e.message }));
-  let traceInfo: string[] = [];
-  if (traceErrors.length === 0) {
-    const traceCheck = checkTraces(traceDiscovery.docs, ucDiscovery.docs, seqDiscovery.docs);
-    traceErrors.push(...traceCheck.errors);
-    traceInfo = traceCheck.info;
-  }
-  if (traceErrors.length > 0) {
-    if (json) emitJson({ ok: false, file, errors: traceErrors });
-    else {
-      console.error(`✗ ${file}`);
-      console.error(formatErrors(traceErrors));
-    }
-    return 1;
-  }
-
   // Governance constraints — checked against the merged diagram so
   // cross-file edges can't dodge a rule by living in a sub-file.
   const constraintErrors = checkConstraints(discovery.docs);
@@ -272,11 +133,6 @@ export async function validateCommand(
     return 1;
   }
 
-  const totalActors = actorDiscovery.docs.reduce(
-    (acc, d) => acc + d.doc.actors.length,
-    0,
-  );
-  const totalUseCases = ucDiscovery.docs.length;
   const complexityHints = analyzeComplexity(discovery.docs, DEFAULT_LIMITS).length;
   if (json) {
     emitJson({
@@ -284,8 +140,6 @@ export async function validateCommand(
       file,
       nodes: validated.value.nodes.length,
       edges: validated.value.edges.length,
-      useCases: totalUseCases,
-      actors: totalActors,
       complexityHints,
     });
   } else {
@@ -299,17 +153,14 @@ export async function validateCommand(
     );
     const fileCount = discovery.docs.length;
     const suffix = fileCount > 1 ? ` (${fileCount} files)` : "";
-    const uc = totalUseCases > 0 ? `, ${totalUseCases} use case${totalUseCases === 1 ? "" : "s"}` : "";
-    const actors = totalActors > 0 ? `, ${totalActors} actor${totalActors === 1 ? "" : "s"}` : "";
     console.log(
-      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges${uc}${actors}`,
+      `✓ ${file}${suffix} — ${totalNodes} nodes, ${totalEdges} edges`,
     );
     if (complexityHints > 0) {
       console.log(
         `ⓘ ${complexityHints} complexity hint${complexityHints === 1 ? "" : "s"} — run \`archik complexity\` to see them`,
       );
     }
-    for (const line of traceInfo) console.log(`ⓘ ${line}`);
   }
   return 0;
 }

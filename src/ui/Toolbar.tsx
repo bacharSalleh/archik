@@ -1,7 +1,6 @@
 import {
   Crosshair,
   EyeOff,
-  GitBranch,
   LayoutGrid,
   Maximize2,
   Minimize2,
@@ -10,7 +9,6 @@ import {
   Plus,
   Redo2,
   Rows3,
-  Stamp,
   Undo2,
   X,
 } from "lucide-react";
@@ -18,7 +16,6 @@ import { Fragment } from "react";
 import type { Document, NodeKind } from "../domain/types.ts";
 import type { ViewMode } from "../layout/types.ts";
 import { AddNodeForm } from "./AddNodeForm.tsx";
-import { AlphasPanel } from "./AlphasPanel.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
@@ -26,7 +23,6 @@ import { Logo } from "./Logo.tsx";
 import { Popover } from "./Popover.tsx";
 import { SearchBox } from "./SearchBox.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
-import { UseCasesPanel } from "./UseCasesPanel.tsx";
 import { useMediaQuery } from "./useMediaQuery.ts";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -51,20 +47,12 @@ type Props = {
   onDensityChange?: (value: number) => void;
   viewMode?: ViewMode;
   onViewModeChange?: (value: ViewMode) => void;
-  /** Current state of the ECB stereotype band overlay. When `undefined`
-   *  the toggle button is hidden — embedders that don't expose ECB
-   *  controls just don't pass it. */
-  showStereotypeBands?: boolean;
-  onToggleStereotypeBands?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
   /** Returns the live canvas <svg> for SVG / PNG export. */
   getSvg?: () => SVGSVGElement | null;
-  seqHighlight?: boolean;
-  onToggleSeqHighlight?: () => void;
-  seqNodeCount?: number;
   /** Canvas view: hide structural (weak) edges. When the toggle handler
    *  is undefined the button is hidden. */
   hideStructural?: boolean;
@@ -109,16 +97,11 @@ export function Toolbar({
   onDensityChange,
   viewMode,
   onViewModeChange,
-  showStereotypeBands,
-  onToggleStereotypeBands,
   canUndo = false,
   canRedo = false,
   onUndo,
   onRedo,
   getSvg,
-  seqHighlight,
-  onToggleSeqHighlight,
-  seqNodeCount,
   hideStructural,
   onToggleHideStructural,
   onCollapseAll,
@@ -170,8 +153,6 @@ export function Toolbar({
   );
   const panels = (
     <>
-      <UseCasesPanel />
-      <AlphasPanel />
       <Legend />
       <ExportMenu
         document={document}
@@ -209,38 +190,6 @@ export function Toolbar({
           ) : (
             <Rows3 size={14} strokeWidth={1.8} />
           )}
-        </button>
-      ),
-    });
-  }
-  if (showStereotypeBands !== undefined && onToggleStereotypeBands !== undefined) {
-    secondary.push({
-      key: "ecb",
-      label: "ECB stereotype bands",
-      node: (
-        <button
-          type="button"
-          onClick={onToggleStereotypeBands}
-          title={
-            showStereotypeBands
-              ? "Hide ECB stereotype bands"
-              : "Show ECB stereotype bands (boundary / control / entity)"
-          }
-          aria-label="Toggle ECB stereotype bands"
-          aria-pressed={showStereotypeBands}
-          className="archik-btn"
-          style={{
-            padding: "5px 8px",
-            ...(showStereotypeBands
-              ? {
-                  background: "var(--archik-stereotype-control)",
-                  borderColor: "var(--archik-stereotype-control)",
-                  color: "white",
-                }
-              : {}),
-          }}
-        >
-          <Stamp size={14} strokeWidth={1.8} />
         </button>
       ),
     });
@@ -414,32 +363,6 @@ export function Toolbar({
       key: "density",
       label: "Spacing",
       node: <LayoutControls density={density} onChange={onDensityChange} />,
-    });
-  }
-  if (onToggleSeqHighlight !== undefined && (seqNodeCount ?? 0) > 0) {
-    secondary.push({
-      key: "seq-highlight",
-      label: "Sequence highlights",
-      node: (
-        <button
-          type="button"
-          onClick={onToggleSeqHighlight}
-          title={seqHighlight ? "Hide sequence diagram highlights" : `Show ${seqNodeCount} node${seqNodeCount === 1 ? "" : "s"} with sequence diagrams`}
-          aria-label="Toggle sequence diagram highlights"
-          aria-pressed={seqHighlight}
-          className="archik-btn"
-          style={{
-            padding: "5px 8px",
-            ...(seqHighlight ? {
-              background: "var(--archik-status-proposed)",
-              borderColor: "var(--archik-status-proposed)",
-              color: "white",
-            } : {}),
-          }}
-        >
-          <GitBranch size={14} strokeWidth={1.8} />
-        </button>
-      ),
     });
   }
   return (

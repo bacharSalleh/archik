@@ -36,21 +36,33 @@ describe("migration registry", () => {
     expect(byId(1).applies(createWorkspace(dir))).toBe(false);
   });
 
-  it("#2 flags missing use cases as needsJudgment without changing files", async () => {
+  it("#2 is retired and never applies", async () => {
     await mkdir(path.join(dir, ".archik"), { recursive: true });
     await writeFile(path.join(dir, ".archik/main.archik.yaml"), "DOC");
-    const ws = createWorkspace(dir);
-    const m2 = byId(2);
-    expect(m2.applies(ws)).toBe(true);
-    const r = m2.run(ws);
-    expect(r.changed).toEqual([]);
-    expect(r.needsJudgment.join(" ")).toMatch(/use case/i);
+    expect(byId(2).applies(createWorkspace(dir))).toBe(false);
   });
 
-  it("#2 does not apply when use cases already exist", async () => {
-    await mkdir(path.join(dir, ".archik/usecases"), { recursive: true });
-    await writeFile(path.join(dir, ".archik/main.archik.yaml"), "DOC");
-    await writeFile(path.join(dir, ".archik/usecases/x.archik.uc.yaml"), "UC");
-    expect(byId(2).applies(createWorkspace(dir))).toBe(false);
+  it("#3 strips stereotype and seqFiles from nodes in all model files", async () => {
+    await mkdir(path.join(dir, ".archik/sub"), { recursive: true });
+    await writeFile(
+      path.join(dir, ".archik/main.archik.yaml"),
+      `# keep me\nnodes:\n  - id: a\n    description: ${"word ".repeat(40).trim()}\n    stereotype: control\n    seqFiles: [x.archik.seq.yaml]\n    name: A\n`,
+    );
+    await writeFile(
+      path.join(dir, ".archik/sub/b.archik.yaml"),
+      "nodes:\n  - id: b\n    stereotype: entity\n",
+    );
+    const ws = createWorkspace(dir);
+    const m3 = byId(3);
+    expect(m3.applies(ws)).toBe(true);
+    const r = m3.run(ws);
+    expect(r.changed.sort()).toEqual([".archik/main.archik.yaml", ".archik/sub/b.archik.yaml"]);
+    const main = ws.read(".archik/main.archik.yaml");
+    expect(main).toContain("# keep me");
+    expect(main).toContain("name: A");
+    expect(main).toContain(`description: ${"word ".repeat(40).trim()}\n`);
+    expect(main).not.toMatch(/stereotype|seqFiles/);
+    expect(ws.read(".archik/sub/b.archik.yaml")).not.toMatch(/stereotype/);
+    expect(m3.applies(ws)).toBe(false);
   });
 });

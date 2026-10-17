@@ -2,11 +2,7 @@ import type { PositionedNode, ViewMode } from "../layout/types.ts";
 import { ServiceNode } from "./nodes/ServiceNode.tsx";
 import { QueueNode } from "./nodes/QueueNode.tsx";
 import { ExternalNode } from "./nodes/ExternalNode.tsx";
-import {
-  DatabaseNode,
-  TOP_ELLIPSE_RY,
-  cylinderPath,
-} from "./nodes/DatabaseNode.tsx";
+import { DatabaseNode } from "./nodes/DatabaseNode.tsx";
 import { CloudNode } from "./nodes/CloudNode.tsx";
 import { CustomNode } from "./nodes/CustomNode.tsx";
 import { CompactNode } from "./nodes/CompactNode.tsx";
@@ -14,7 +10,6 @@ import {
   CrossFileIcon,
   InfoIcon,
   NotesIcon,
-  SeqIcon,
   SubArchIcon,
   iconAnchorsFor,
   trayCenters,
@@ -123,12 +118,6 @@ type Props = {
   viewMode?: ViewMode;
   /** Container nesting depth — 0 for roots, +1 per container ancestor. */
   depth?: number;
-  /** When true (default), render the 4px ECB stereotype band along the
-   *  top of stereotyped nodes. The toolbar toggle flips this off so
-   *  the canvas stays uncluttered when ECB tagging isn't relevant to
-   *  what the user is reviewing. The `data-archik-stereotype` attr
-   *  on the wrapper is unaffected — only the visible band toggles. */
-  showStereotypeBands?: boolean;
 };
 
 export function NodeRenderer({
@@ -141,7 +130,6 @@ export function NodeRenderer({
   crossFileByNode,
   viewMode = "detailed",
   depth = 0,
-  showStereotypeBands = true,
 }: Props): React.ReactElement {
   const isSelected = selectedNodeIds?.has(node.id) ?? false;
   const isGlowed = glowNodeIds?.has(node.id) ?? false;
@@ -165,9 +153,6 @@ export function NodeRenderer({
       {...(node.status !== undefined && node.status !== "active"
         ? { "data-archik-status": node.status }
         : {})}
-      {...(node.stereotype !== undefined
-        ? { "data-archik-stereotype": node.stereotype }
-        : {})}
       transform={`translate(${node.x}, ${node.y})`}
       {...(handleClick !== undefined ? { onClick: handleClick } : {})}
       style={onSelectNode ? { cursor: "pointer" } : undefined}
@@ -188,38 +173,10 @@ export function NodeRenderer({
       )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
 
-      {/* ECB stereotype band — 4px coloured stripe flush against the node's
-          top border. Painted after Shape so the band isn't buried under the
-          node fill; clipped to the node's body so it follows the actual
-          shape. For the database cylinder we clip to the cylinder path so
-          the band sits ON the curved top ellipse — the previous rect-with-
-          rx=8 clip overflowed past the lid. Selection stroke's outer half
-          (above y=0) remains visible because nothing in the node overlay
-          can paint above the node's own bounds. */}
-      {node.stereotype !== undefined && showStereotypeBands && (
-        <>
-          <clipPath id={`archik-nclip-${node.id}`}>
-            {node.kind === "database" ? (
-              <path d={cylinderPath(node.width, node.height, TOP_ELLIPSE_RY)} />
-            ) : (
-              <rect width={node.width} height={node.height} rx={8} ry={8} />
-            )}
-          </clipPath>
-          <rect
-            className="archik-stereotype-band"
-            x={0}
-            y={0}
-            width={node.width}
-            height={4}
-            clipPath={`url(#archik-nclip-${node.id})`}
-            style={{ pointerEvents: "none" }}
-          />
-        </>
-      )}
       {viewMode === "detailed" && (() => {
         // Containers (module / custom with children) used to be skipped
-        // entirely, but they CAN carry seqFiles and a sub-arch link —
-        // hiding the affordance on them was a discoverability gap.
+        // entirely, but they CAN carry a sub-arch link — hiding the
+        // affordance on them was a discoverability gap.
         // The container anchor in iconAnchorsFor places the tray below
         // the KIND tag area so it doesn't overlap header content.
         const hasNotes =
@@ -230,21 +187,15 @@ export function NodeRenderer({
         const crossFileList: string[] = crossFilePaths
           ? Array.from(crossFilePaths).sort()
           : [];
-        const seqList: string[] = node.seqFiles ?? [];
         type TrayKind =
           | "info"
           | "notes"
           | "subarch"
-          | { type: "crossfile"; path: string }
-          | { type: "seq"; paths: string[] };
+          | { type: "crossfile"; path: string };
         const trayItems: TrayKind[] = [];
         // Order: rightmost (most discoverable) → leftmost.
         // Sub-arch first — drilling in is the heaviest action.
         if (hasArchikFile) trayItems.push("subarch");
-        // ONE seq icon stands in for all linked diagrams; a count
-        // badge on top-right indicates multi when length > 1. Avoids
-        // the icon-pile problem when a node has 3+ seq files.
-        if (seqList.length > 0) trayItems.push({ type: "seq", paths: seqList });
         // Then one cross-file icon per unique referenced file.
         for (const p of crossFileList) trayItems.push({ type: "crossfile", path: p });
         if (hasDescription) trayItems.push("info");
@@ -261,30 +212,6 @@ export function NodeRenderer({
           <>
             {trayItems.map((kind, i) => {
               const slot = slots[i]!;
-              if (typeof kind === "object" && kind.type === "seq") {
-                const files = kind.paths.map((p) => ({
-                  path: p,
-                  label: p.split("/").pop()!.replace(/\.archik\.seq\.yaml$/, ""),
-                }));
-                // Click navigates to the FIRST file. Tooltip lists the
-                // rest; full discovery via NodeInspector. Plain <a> so
-                // middle-click opens a new tab.
-                const firstHref = `/__archik/seq?path=${encodeURIComponent(files[0]!.path)}`;
-                return (
-                  <a
-                    key="seq"
-                    href={firstHref}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <SeqIcon
-                      cx={slot.x}
-                      cy={slot.y}
-                      files={files}
-                      count={files.length}
-                    />
-                  </a>
-                );
-              }
               if (typeof kind === "object" && kind.type === "crossfile") {
                 const filePath = kind.path;
                 const fileLabel = filePath
@@ -373,7 +300,6 @@ export function NodeRenderer({
           node={child}
           viewMode={viewMode}
           depth={childDepth}
-          showStereotypeBands={showStereotypeBands}
           {...(selectedNodeIds !== undefined ? { selectedNodeIds } : {})}
           {...(glowNodeIds !== undefined ? { glowNodeIds } : {})}
           {...(onSelectNode !== undefined ? { onSelectNode } : {})}

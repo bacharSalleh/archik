@@ -29,31 +29,9 @@ done at step 1 — the diagram changed; the code probably hasn't.
    non-code-bearing kind, description-only edit, pure metadata),
    skip steps 3–6 and jump straight to step 7.
 
-3. **BUILD — behavioral model first, then plan (HITL).**
+3. **BUILD — plan (HITL).**
 
-   **Before writing the plan**, check whether any new or modified
-   slice has behavior that warrants a seq diagram. A slice needs
-   one when it involves branching, async fan-out, cross-context
-   interaction, or three or more nodes in a single user-visible
-   action. Run:
-   ```
-   npx archik q usecases
-   ```
-   For each active slice without a `realization.seqFile` that meets
-   the above criteria:
-   - Author the `.archik.seq.yaml` now (direct-write), including a
-     `realizes: { useCase, slice }` block.
-   - Run `npx archik validate` — catches ECB violations, broken
-     `nodeId` refs, and duplicate step ids.
-   - Show the seq YAML inline and wait for confirmation before
-     writing the plan.
-
-   A slice without a seq diagram has no traceable spec — the build
-   plan for it is guesswork. Author the seq first; trace it in the
-   plan. If the slice is genuinely simple (single node, no
-   branching), skip the seq and note why.
-
-   **Then** translate the diagram delta into a numbered file-level
+   Translate the diagram delta into a numbered file-level
    plan and present it for approval **before** touching code:
    - Each new code-bearing node (`service`, `function`, `worker`,
      `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,
@@ -62,13 +40,6 @@ done at step 1 — the diagram changed; the code probably hasn't.
    - Each new edge that requires code → the corresponding code
      change (a new `http_call` needs a client; `subscribes` needs a
      consumer handler; `writes` needs a repository method; etc).
-   - Each seq diagram that realizes a slice → trace it: every
-     message in the seq must map to a concrete function call in this
-     plan. This is the traceability requirement — the seq is the
-     spec, the plan is the contract, the code is the proof.
-   - Each slice's `tests` paths → include scaffolding those test
-     files in the plan; they must exist on disk before the slice
-     can be marked active.
    - Any node still `status: proposed` → flag it; code must land
      before flipping to `active`.
    - Default to **tests-first** when behaviour is clearly bounded.
@@ -106,15 +77,13 @@ done at step 1 — the diagram changed; the code probably hasn't.
    ```
    npx archik drift
    ```
-   Catches both missing `sourcePath` directories and missing slice
-   test files on disk.
-   If the project has use cases, run the coverage matrix:
+   Catches missing `sourcePath` directories on disk.
    ```
-   npx archik trace
+   npx archik smells
    ```
-   No active slice should be untraced at ship time. Partial is a
-   warning; untraced is a gap — add the missing test path or
-   realization seq before declaring the milestone done.
+   Catches folder loops and oversized files, with the real imports
+   as evidence. A new loop is a gap — cut the cheapest import (or
+   queue a `/archik:suggest`) before declaring the milestone done.
    `superpowers:verification-before-completion` when available.
    If `docs/architecture.svg` is committed, regenerate it:
    ```
@@ -128,12 +97,3 @@ done at step 1 — the diagram changed; the code probably hasn't.
    - *"Want me to schedule a drift check in two weeks?"*
    - *"This left `payments-worker` as `status: proposed` — flip it
      to `active` once deployed."*
-   - If this milestone completed a significant chunk of work, check
-     whether any alpha state can be promoted:
-     ```
-     npx archik alpha show
-     ```
-     If a state is verified and the next rung's criteria are met,
-     offer to promote: *"Requirements is at `acceptable` and all
-     active slices now have tests — want me to promote it to
-     `addressed`?"*

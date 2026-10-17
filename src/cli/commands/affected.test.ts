@@ -10,7 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { affectedCommand, detectRunner } from "./affected.ts";
+import { affectedCommand } from "./affected.ts";
 
 /**
  * End-to-end coverage for `archik affected`. The pure mapping is
@@ -27,51 +27,19 @@ const archYaml = [
   "    name: API",
   "    description: x",
   "    sourcePath: src/api",
+  "  - id: web",
+  "    kind: frontend",
+  "    name: Web",
+  "    description: x",
   "  - id: db",
   "    kind: database",
   "    name: DB",
   "    description: x",
-  "edges: []",
-  "",
-].join("\n");
-
-const ucYaml = [
-  'version: "1.0"',
-  "id: place-order",
-  "name: Place order",
-  "primaryActor: customer",
-  "goal: x",
-  "flows:",
-  "  basic:",
-  "    steps: [a]",
-  "slices:",
-  "  - id: happy",
-  "    description: Happy path.",
-  "    flows: [basic]",
-  "    tests: [tests/happy.spec.ts]",
-  "    realization:",
-  "      seqFile: .archik/flow.archik.seq.yaml",
-  "",
-].join("\n");
-
-const seqYaml = [
-  'version: "1.0"',
-  "name: Flow",
-  "realizes:",
-  "  useCase: place-order",
-  "  slice: happy",
-  "participants:",
-  "  - id: a",
-  "    nodeId: api",
-  "  - id: d",
-  "    nodeId: db",
-  "steps:",
-  "  - type: message",
-  "    id: m1",
-  "    from: a",
-  "    to: d",
-  "    label: write",
-  "    arrow: sync",
+  "edges:",
+  "  - id: web-api",
+  "    from: web",
+  "    to: api",
+  "    relationship: invokes",
   "",
 ].join("\n");
 
@@ -90,16 +58,9 @@ describe("affectedCommand", () => {
 
   beforeEach(async () => {
     cwd = await mkdtemp(path.join(tmpdir(), "archik-affected-"));
-    await mkdir(path.join(cwd, ".archik/usecases"), { recursive: true });
+    await mkdir(path.join(cwd, ".archik"), { recursive: true });
     await mkdir(path.join(cwd, "src/api"), { recursive: true });
-    await mkdir(path.join(cwd, "tests"), { recursive: true });
     await writeFile(path.join(cwd, ".archik/main.archik.yaml"), archYaml);
-    await writeFile(
-      path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
-      ucYaml,
-    );
-    await writeFile(path.join(cwd, ".archik/flow.archik.seq.yaml"), seqYaml);
-    await writeFile(path.join(cwd, "tests/happy.spec.ts"), "");
     await writeFile(path.join(cwd, "src/api/routes.ts"), "export {};\n");
     originalCwd = process.cwd();
     process.chdir(cwd);
@@ -122,8 +83,8 @@ describe("affectedCommand", () => {
       expect(code).toBe(0);
       const out = output();
       expect(out).toContain("api");
-      expect(out).toContain("place-order/happy");
-      expect(out).toContain("tests/happy.spec.ts");
+      expect(out).toContain("DEPENDENTS");
+      expect(out).toContain("web");
     });
 
     it("emits a stable JSON shape", async () => {
@@ -137,11 +98,9 @@ describe("affectedCommand", () => {
       expect(parsed.ok).toBe(true);
       expect(parsed.nodes).toHaveLength(1);
       expect(parsed.nodes[0].id).toBe("api");
-      expect(parsed.slices[0]).toMatchObject({
-        useCase: "place-order",
-        slice: "happy",
-      });
-      expect(parsed.testsToRun).toEqual(["tests/happy.spec.ts"]);
+      expect(parsed.dependents).toEqual([
+        { id: "web", kind: "frontend", name: "Web", dependsOn: ["api"] },
+      ]);
       expect(parsed.unmapped).toEqual(["other.txt"]);
       expect(parsed.summary.changedFiles).toBe(2);
     });
@@ -171,7 +130,7 @@ describe("affectedCommand", () => {
       expect(code).toBe(0);
       const out = output();
       expect(out).toContain("api");
-      expect(out).toContain("place-order/happy");
+      expect(out).toContain("web");
     });
 
     it("includes untracked files", async () => {
@@ -197,77 +156,13 @@ describe("affectedCommand", () => {
       expect(err).toContain("git");
     });
 
-    it("runs affected tests via --run with an explicit runner", async () => {
-      // Point the slice's test at a real node:test file so we can use
-      // `node --test` as the runner without any package dependency.
-      await writeFile(
-        path.join(cwd, "tests/happy.test.mjs"),
-        'import { test } from "node:test";\ntest("ok", () => {});\n',
-      );
-      await writeFile(
-        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
-        ucYaml.replace("tests/happy.spec.ts", "tests/happy.test.mjs"),
-      );
-      const code = await affectedCommand({
-        _: [],
-        files: "src/api/routes.ts",
-        run: "true",
-        runner: "node --test",
-      });
-      expect(code).toBe(0);
-    });
-
-    it("propagates a failing runner exit code", async () => {
-      await writeFile(
-        path.join(cwd, "tests/happy.test.mjs"),
-        'import { test } from "node:test";\nimport assert from "node:assert";\ntest("fails", () => { assert.equal(1, 2); });\n',
-      );
-      await writeFile(
-        path.join(cwd, ".archik/usecases/place-order.archik.uc.yaml"),
-        ucYaml.replace("tests/happy.spec.ts", "tests/happy.test.mjs"),
-      );
-      const code = await affectedCommand({
-        _: [],
-        files: "src/api/routes.ts",
-        run: "true",
-        runner: "node --test",
-      });
-      expect(code).not.toBe(0);
-    });
-
-    it("--run with no affected tests is a no-op success", async () => {
-      const code = await affectedCommand({
-        _: [],
-        files: "docs/readme.md",
-        run: "true",
-        runner: "node --test",
-      });
-      expect(code).toBe(0);
-      expect(output()).toContain("no tests to run");
-    });
-
-    it("errors helpfully when no runner can be detected", async () => {
-      const code = await affectedCommand({
-        _: [],
-        files: "src/api/routes.ts",
-        run: "true",
-      });
-      expect(code).toBe(2);
-      const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-      expect(err).toContain("--runner");
-    });
-
-    // (placement note: these --run cases use --files, so no repo is
-    // initialised; they live here only to share the project fixture)
     it("resolves paths correctly when the project sits below the git toplevel", async () => {
       // Monorepo layout: git root one level up, archik project in app/.
       const top = await mkdtemp(path.join(tmpdir(), "archik-mono-"));
       const app = path.join(top, "app");
-      await mkdir(path.join(app, ".archik/usecases"), { recursive: true });
+      await mkdir(path.join(app, ".archik"), { recursive: true });
       await mkdir(path.join(app, "src/api"), { recursive: true });
-      await mkdir(path.join(app, "tests"), { recursive: true });
       await writeFile(path.join(app, ".archik/main.archik.yaml"), archYaml);
-      await writeFile(path.join(app, "tests/happy.spec.ts"), "");
       await writeFile(path.join(app, "src/api/routes.ts"), "export {};\n");
       gitIn(top, "init", "-q");
       gitIn(top, "config", "user.email", "t@t");
@@ -296,29 +191,5 @@ describe("affectedCommand", () => {
         await rm(top, { recursive: true, force: true });
       }
     });
-  });
-});
-
-describe("detectRunner", () => {
-  it("picks the first known runner from dependencies", () => {
-    expect(detectRunner({ devDependencies: { vitest: "^3" } })).toEqual([
-      "npx",
-      "--no-install",
-      "vitest",
-      "run",
-    ]);
-    expect(
-      detectRunner({ dependencies: { jest: "^29" } })?.slice(-1),
-    ).toEqual(["jest"]);
-    expect(
-      detectRunner({ devDependencies: { "@playwright/test": "^1" } })?.includes(
-        "playwright",
-      ),
-    ).toBe(true);
-  });
-
-  it("returns undefined when nothing matches", () => {
-    expect(detectRunner({})).toBeUndefined();
-    expect(detectRunner({ devDependencies: { typescript: "^6" } })).toBeUndefined();
   });
 });

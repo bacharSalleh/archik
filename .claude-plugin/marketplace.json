@@ -11,10 +11,10 @@
         "source": "github",
         "repo": "bacharSalleh/archik"
       },
-      "description": "Plain-YAML architecture diagrams + Jacobson use cases / actors / sequence diagrams / alphas, all CLI-mediated and validated. The skill enforces CLI-only access; the slash commands wrap the loop.",
+      "description": "Plain-YAML architecture diagrams of code structure (nesting, dependency flow, drift, structural smells), all CLI-mediated and validated. The skill enforces CLI-only access; the slash commands wrap the loop.",
       "homepage": "https://github.com/bacharSalleh/archik#readme",
       "license": "MIT",
-      "keywords": ["architecture", "diagram", "yaml", "jacobson", "ecb"]
+      "keywords": ["architecture", "diagram", "yaml"]
     }
   ]
 }

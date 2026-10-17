@@ -87,29 +87,11 @@ archik suggest set` stages it.
    - **Frontends**: `apps/web`, `apps/mobile`, `client/`,
      `packages/ui` apps that ship a UI → `frontend`.
 
-5. **Choose the kind and ECB stereotype for each node.** Default
+5. **Choose the kind for each node.** Default
    kind: `service`. Use the taxonomy from the skill — `function`
    for serverless, `worker` for background consumers, `agent` for
    LLM-driven agents, etc. When unsure, pick the closest fit and
    add a `notes:` entry explaining the inference.
-
-   For every node that faces a user or external system, also infer
-   its ECB `stereotype`:
-   - `stereotype: boundary` — accepts requests from actors / external
-     systems: API handlers, gateways, adapters, webhook endpoints,
-     BFF layers. Rule of thumb: the first thing an actor touches.
-   - `stereotype: control` — orchestrates use-case logic: services
-     that coordinate domain objects, use-case handlers, workflow
-     engines. Rule of thumb: knows *what* to do but delegates *how*.
-   - `stereotype: entity` — stores or represents domain data:
-     repositories, domain models, DB-backed modules, caches.
-     Rule of thumb: knows the data and its invariants.
-
-   If a node's role is purely infrastructure (`database`, `queue`,
-   `external`, `cloud`, etc.) or genuinely ambiguous, omit
-   `stereotype` — don't guess. The field is optional and the
-   validator only enforces ECB transition rules on seq diagrams
-   that carry a `realizes` block.
 
 6. **Attach `sourcePath` to every code-bearing node.** This is
    non-negotiable in a normal/suggested file — the validator rejects
@@ -223,27 +205,18 @@ archik suggest set` stages it.
      `/archik:evolve` after accepting if you want a cleaner
      bounded-context version."
 
-   **Offer the Jacobson-chain follow-up at the end of this step**
-   (not after accept — you won't be there). Check what's missing
-   before framing the offer:
+   **Offer a smells check at the end of this step** (not after
+   accept — you won't be there). Run it now so the offer is concrete:
    ```
-   npx archik q actors
-   npx archik q usecases
+   npx archik smells
    ```
-   Then close with one of these follow-up lines, whichever fits:
-   - No actors, diagram has boundary nodes / user-facing components:
-     *"Once you accept, ask me to author a `*.archik.actors.yaml`
-     — that's the starting point for use-case coverage."*
-   - Actors exist but no use cases:
-     *"Once you accept, ask me to stub `*.archik.uc.yaml` files for
-     the key flows."*
-   - Both exist already:
-     *"Run `/archik:evolve` after accepting for ECB and coverage
-     gap suggestions."*
+   If it finds folder loops or oversized files, close with:
+   *"Once you accept, want me to look at the folder loop between
+   `<a>` and `<b>`? The cheapest cut is `<file imports "specifier">`."*
+   If it finds none, skip this line.
 
-   Do NOT author actors or use cases here — that requires the
-   structural diagram to be accepted first and is a separate ask
-   from the user. This note is a prompt, not an action.
+   Do NOT fix smells here — spawn is descriptive, and the fix is a
+   separate ask from the user. This note is a prompt, not an action.
 
 ## Notes
 
