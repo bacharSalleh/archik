@@ -31,6 +31,11 @@ done at step 1 — the diagram changed; the code probably hasn't.
 
 3. **BUILD — plan (HITL).**
 
+   **Two-way door shortcut:** if `/archik:suggest` already showed the
+   build plan with this sidecar (two-way door), the accept you just
+   ran approved it — go straight to step 4. One-way doors always get
+   their own plan approval here.
+
    Translate the diagram delta into a numbered file-level
    plan and present it for approval **before** touching code:
    - Each new code-bearing node (`service`, `function`, `worker`,
@@ -42,6 +47,10 @@ done at step 1 — the diagram changed; the code probably hasn't.
      consumer handler; `writes` needs a repository method; etc).
    - Any node still `status: proposed` → flag it; code must land
      before flipping to `active`.
+   - If the accepted decision record has `crossCutting`, each
+     promise becomes a plan item: the security control, the signal
+     (log / metric / alert) and the rollback path (flag, revert,
+     migration down-step).
    - Default to **tests-first** when behaviour is clearly bounded.
    - If `superpowers:writing-plans` is available, use it; else
      inline.
@@ -84,6 +93,11 @@ done at step 1 — the diagram changed; the code probably hasn't.
    Catches folder loops and oversized files, with the real imports
    as evidence. A new loop is a gap — cut the cheapest import (or
    queue a `/archik:suggest`) before declaring the milestone done.
+   With a committed baseline (`.archik/smells-baseline.json`) only
+   findings marked **NEW** count; known debt is not this change's job.
+
+   For a one-way door, confirm each `crossCutting` promise from the
+   decision record is in the code before flipping nodes to `active`.
    `superpowers:verification-before-completion` when available.
    If `docs/architecture.svg` is committed, regenerate it:
    ```

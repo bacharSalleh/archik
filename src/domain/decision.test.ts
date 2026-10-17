@@ -88,6 +88,34 @@ describe("formatDecisionRecord", () => {
     expect(md).toContain("Model change (`.archik/main.archik.yaml`): 1 node added, 1 edge added");
     expect(md).toContain("- added node `payments-port` (port)");
     expect(md).toContain("- added edge `checkout → payments-port` (invokes)");
+    expect(md).toContain("- Reversibility: two-way door");
+    expect(md).not.toContain("## Cross-cutting concerns");
+  });
+
+  it("renders reversibility and cross-cutting concerns for a one-way door", () => {
+    const withDb: Document = {
+      ...after,
+      nodes: [...after.nodes, { id: "orders-db", kind: "database", name: "DB", description: "x" }],
+    };
+    const md = formatDecisionRecord({
+      number: 2,
+      title: "t",
+      date: "2026-10-17",
+      modelFile: "m.archik.yaml",
+      decision: {
+        ...decision,
+        crossCutting: {
+          security: "Only the orders service has DB credentials.",
+          observability: "Query latency and error rate on the service dashboard.",
+          rollback: "Feature flag; the DB is additive and can be dropped.",
+        },
+      },
+      before: after,
+      after: withDb,
+    });
+    expect(md).toContain("- Reversibility: one-way door (adds database `orders-db`)");
+    expect(md).toContain("## Cross-cutting concerns\n\n- Security: Only the orders service");
+    expect(md).toContain("- Rollback: Feature flag;");
   });
 
   it("says when the model did not change", () => {

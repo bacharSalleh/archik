@@ -114,6 +114,8 @@ There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk
 
 The diagram says *what*; decision records say *why*. Every staged change carries one under `metadata.suggestion.decision` — `suggest set` refuses a draft without it — and accepting the change writes it as a numbered markdown record with the node and edge changes listed as evidence. Records are never edited; a later decision that changes course lists the old numbers in `supersedes`.
 
+Each change is also labelled by how hard it is to undo. A **one-way door** — a new data store, queue, external system, gateway, LLM or top-level module, a removal, or a boundary move — gets its own canvas review before the build plan; if it adds data, an outside system or public traffic, its record must say how it is secured, observed and rolled back. A **two-way door** goes through one combined review of model and plan.
+
 Full schema: `npx archik schema`.
 
 ## Keeping the model honest
@@ -129,7 +131,7 @@ npx archik affected --since main         # changed files → nodes → dependent
 npx archik otel check --graph deps.json  # edges vs a production service-dependency graph
 ```
 
-`validate` proves the model is internally consistent, `drift` that it matches the code, and `otel check` that it matches production traffic. `smells` needs no model: it reports folder loops with the real imports as evidence (only relative imports are resolved, so every loop is real) and points at the cheapest import to cut. Gate every commit locally:
+`validate` proves the model is internally consistent, `drift` that it matches the code, and `otel check` that it matches production traffic. `smells` needs no model: it reports folder loops with the real imports as evidence (only relative imports are resolved, so every loop is real) and points at the cheapest import to cut. On existing code, `archik smells --update-baseline` saves today's findings as known debt, so `--fail-on-warn` fails only on new loops and growing files. Gate every commit locally:
 
 ```bash
 npx archik hooks install       # pre-commit: archik validate
@@ -191,7 +193,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: bacharSalleh/archik@main
         with:
-          smells-fail: true   # optional gate; omit for report-only
+          smells-fail: true   # optional gate; with a committed baseline, fails only on new smells
 ```
 
 Inputs: `path`, `working-directory`, `validate`, `drift`, `smells-fail`, `compare-ref`, `comment`, `github-token`, `version`.
@@ -210,7 +212,7 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik dev` / `start` / `stop` / `status` | Live canvas lifecycle (foreground / detached) |
 | `archik validate [path]` | Schema + cross-file + constraints (exit 1 on error) |
 | `archik complexity [path]` | Flag over-large files, hub nodes, deep nesting (`--fail-on-warn` to gate) |
-| `archik smells [dir]` | Folder import loops + oversized source files, from the code (`--max-file-lines`, `--fail-on-warn`) |
+| `archik smells [dir]` | Folder import loops + oversized source files, from the code (`--max-file-lines`, `--fail-on-warn`, `--update-baseline`) |
 | `archik render --out <svg>` | Headless SVG render (`--focus <id>`, `--hide-structural`) |
 | `archik watch` | Re-render SVG on every change |
 | `archik q <sub>` | Query: `describe` `deps` `dependents` `neighbors` `impact` `list` `edges` `stats` |

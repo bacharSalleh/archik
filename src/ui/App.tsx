@@ -25,6 +25,7 @@ import type { Edge } from "../domain/types.ts";
 import { useUIStore, type SelectionItem } from "./store.ts";
 import { DecisionPanel } from "./DecisionPanel.tsx";
 import type { Decision } from "../domain/decision.ts";
+import { classifyChange, type DoorClassification } from "../domain/door.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -183,6 +184,7 @@ export function App(): React.ReactElement {
         changed: number;
         note?: string | undefined;
         decision?: Decision | undefined;
+        door: DoorClassification;
         // Cache the parsed sidecar so Review can render instantly
         // without re-parsing or hitting the network.
         doc: Document;
@@ -426,6 +428,7 @@ export function App(): React.ReactElement {
           removed: diff.nodes.removed.length + diff.edges.removed.length,
           changed: diff.nodes.changed.length + diff.edges.changed.length,
           doc: sidecarDoc,
+          door: classifyChange(currentDoc, sidecarDoc),
           ...(sidecarDoc.metadata?.suggestion?.note !== undefined
             ? { note: sidecarDoc.metadata.suggestion.note }
             : {}),
@@ -1039,6 +1042,7 @@ export function App(): React.ReactElement {
           changed={suggestion.changed}
           note={suggestion.note}
           decision={suggestion.decision}
+          door={suggestion.door}
           reviewing={reviewing}
           onReview={toggleReview}
           onAccept={() => void acceptSuggestion()}
@@ -1322,6 +1326,7 @@ function SuggestionBanner({
   changed,
   note,
   decision,
+  door,
   reviewing,
   onReview,
   onAccept,
@@ -1332,6 +1337,7 @@ function SuggestionBanner({
   changed: number;
   note?: string | undefined;
   decision?: Decision | undefined;
+  door: DoorClassification;
   reviewing: boolean;
   onReview: () => void;
   onAccept: () => void;
@@ -1363,6 +1369,24 @@ function SuggestionBanner({
         }}
       >
         📝 SUGGESTION PENDING
+      </span>
+      <span
+        title={
+          door.oneWay
+            ? `Hard to undo: ${door.reasons.map((r) => r.text).join("; ")}. Review the diff and the Why carefully.`
+            : "Easy to undo: no new data store, outside system, public entry point, removal or boundary move."
+        }
+        style={{
+          padding: "2px 8px",
+          borderRadius: 10,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          border: `1px solid ${door.oneWay ? "var(--archik-warning)" : "var(--archik-border)"}`,
+          color: door.oneWay ? "var(--archik-warning)" : "var(--archik-fg-muted)",
+        }}
+      >
+        {door.oneWay ? "ONE-WAY DOOR" : "TWO-WAY DOOR"}
       </span>
       <span style={{ color: "var(--archik-fg)" }}>
         {total === 0 ? (

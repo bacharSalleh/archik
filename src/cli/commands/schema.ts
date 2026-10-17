@@ -230,7 +230,7 @@ function buildSchema(): SchemaSpec {
         required: true,
         type: "Decision",
         notes:
-          "REQUIRED by suggest set. { context, decision, alternatives: string[] (≥1), consequences, supersedes?: [\"0003\"] } — the WHY of the change. Written to .archik/decisions/NNNN-<slug>.md on accept and never edited after; a later record that changes course lists the old numbers in supersedes.",
+          "REQUIRED by suggest set. { context, decision, alternatives: string[] (≥1), consequences, crossCutting?: { security, observability, rollback }, supersedes?: [\"0003\"] }. crossCutting is REQUIRED when the change adds a data store, queue/stream, external system, gateway/auth/cdn, cloud or llm node, or a new edge to an existing external node (a one-way door with operational risk). — the WHY of the change. Written to .archik/decisions/NNNN-<slug>.md on accept and never edited after; a later record that changes course lists the old numbers in supersedes.",
       },
     ],
     kinds: NODE_KINDS,

@@ -15,6 +15,7 @@
  */
 import { z } from "zod";
 import { diffDocuments } from "./diff.ts";
+import { classifyChange } from "./door.ts";
 import type { Document } from "./types.ts";
 
 const Text = z.string().trim().min(1);
@@ -28,6 +29,16 @@ export const DecisionSchema = z.strictObject({
   alternatives: z.array(Text).min(1),
   /** What becomes easier or harder because of this choice. */
   consequences: Text,
+  /** How the change is secured, observed and undone. Required by
+   *  `suggest set` when the change adds data, an outside system or
+   *  public traffic (see door.ts). */
+  crossCutting: z
+    .strictObject({
+      security: Text,
+      observability: Text,
+      rollback: Text,
+    })
+    .optional(),
   /** Earlier record numbers this one replaces, e.g. ["0003"]. */
   supersedes: z
     .array(z.string().regex(/^\d{4}$/, "supersedes entries are 4-digit record numbers, e.g. 0003"))
@@ -112,9 +123,13 @@ export function formatDecisionRecord(input: {
   const { decision: d } = input;
   const num = String(input.number).padStart(4, "0");
   const change = modelChangeLines(input.before, input.after);
+  const door = classifyChange(input.before, input.after);
   const meta = [
     "- Status: Accepted",
     `- Date: ${input.date}`,
+    door.oneWay
+      ? `- Reversibility: one-way door (${door.reasons.map((r) => r.text).join("; ")})`
+      : "- Reversibility: two-way door",
     ...(d.supersedes ? [`- Supersedes: ${d.supersedes.join(", ")}`] : []),
   ];
   return [
@@ -138,6 +153,16 @@ export function formatDecisionRecord(input: {
     "",
     d.consequences,
     "",
+    ...(d.crossCutting
+      ? [
+          "## Cross-cutting concerns",
+          "",
+          `- Security: ${d.crossCutting.security}`,
+          `- Observability: ${d.crossCutting.observability}`,
+          `- Rollback: ${d.crossCutting.rollback}`,
+          "",
+        ]
+      : []),
     "## Evidence",
     "",
     `Model change (\`${input.modelFile}\`): ${change.summary}`,

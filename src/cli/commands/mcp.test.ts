@@ -136,6 +136,10 @@ describe("createMcpHandler", () => {
       "      decision: Add a database.",
       "      alternatives: [Keep it in memory]",
       "      consequences: Data survives restarts.",
+      "      crossCutting:",
+      "        security: Private network only.",
+      "        observability: Error rate alert.",
+      "        rollback: Additive; drop it.",
       "",
     ].join("\n");
     const res = (await handle({

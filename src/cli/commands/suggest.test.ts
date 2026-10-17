@@ -48,6 +48,10 @@ metadata:
         - Keep orders in memory
         - Write orders to JSON files
       consequences: Orders survive restarts; we now run and back up a database.
+      crossCutting:
+        security: Only the API holds DB credentials; no public port.
+        observability: Query errors and latency on the API dashboard.
+        rollback: The table is additive; revert the API and drop it.
 `.trimStart();
 
 /** Same draft without a decision record. */
@@ -164,6 +168,24 @@ describe("suggestCommand set", () => {
     await expect(
       readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
     ).rejects.toThrow();
+  });
+
+  it("refuses a one-way door without cross-cutting notes", async () => {
+    const noCross = draftBody.slice(0, draftBody.indexOf("      crossCutting:"));
+    await writeFile(path.join(cwd, "draft.yaml"), noCross);
+    expect(await suggestCommand({ _: ["set", "draft.yaml"] })).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toContain("adds database `db`");
+    expect(err).toContain("crossCutting");
+  });
+
+  it("does not ask for cross-cutting notes on a two-way door", async () => {
+    const twoWay = mainBody.replace("HTTP API for orders", "HTTP API that serves orders") +
+      "metadata:\n  suggestion:\n    decision:\n      context: c\n      decision: d\n      alternatives: [a]\n      consequences: e\n";
+    await writeFile(path.join(cwd, "draft.yaml"), twoWay);
+    expect(await suggestCommand({ _: ["set", "draft.yaml"] })).toBe(0);
+    const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(out).toContain("two-way door");
   });
 
   it("keeps the decision record in the staged sidecar", async () => {
@@ -377,6 +399,8 @@ describe("suggestCommand show", () => {
     expect(out).toMatch(/add db/i);
     expect(out).toMatch(/suggestion/i);
     expect(out).toContain("Decision record:");
+    expect(out).toContain("ONE-WAY DOOR — adds database `db`");
+    expect(out).toContain("rollback:");
     expect(out).toContain("Write orders to JSON files");
   });
 
@@ -484,6 +508,8 @@ describe("suggestCommand accept", () => {
     expect(record).toContain("- Write orders to JSON files");
     expect(record).toContain("- added node `db` (database)");
     expect(record).toContain("- added edge `api → db` (writes)");
+    expect(record).toContain("- Reversibility: one-way door (adds database `db`)");
+    expect(record).toContain("- Security: Only the API holds DB credentials");
 
     // A second accepted change gets the next number.
     await writeFile(path.join(cwd, "draft.yaml"), draftBody.replace("name: DB", "name: Orders DB"));

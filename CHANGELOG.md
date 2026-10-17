@@ -8,11 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Smells baseline**: `archik smells --update-baseline` saves today's findings to `.archik/smells-baseline.json`. With a baseline, the report marks findings NEW or `(baseline)`, lists what was fixed, and `--fail-on-warn` fails only on new loops, new oversized files and files that grew. `--baseline <file>` picks another file. The GitHub Action comment lists new findings.
+- **One-way vs two-way doors**: `suggest set`, `suggest show`, decision records and the canvas review banner label each change by how hard it is to undo (new data store / queue / external system / gateway / auth / cdn / cloud / LLM, new edge to an external system, new top-level module, removal, boundary move).
+- **Cross-cutting concerns** in decision records (`crossCutting: { security, observability, rollback }`), shown in the record and on the canvas under **Why**.
 - **Decision records**: every staged change carries a short decision record (context, decision, alternatives, consequences, optional `supersedes`) under `metadata.suggestion.decision`. Accepting it — from the CLI, the canvas or MCP — writes `.archik/decisions/NNNN-<slug>.md`, with the node and edge changes listed as evidence. Records are never edited. The canvas review banner shows the record under **Why**. `patterns apply` and `evolution approve` generate one from their own data.
 
 ### Changed
 - **BREAKING**: `archik suggest set` refuses a draft without a decision record, and accept (CLI and canvas) refuses a sidecar without one. Drafts no longer need `metadata.suggestion.from` / `at` — the CLI stamps them.
 - The engineering loop template, the Claude skill and the slash commands teach the decision record as part of DESIGN, and reading past records as part of DISCOVER.
+- **BREAKING**: `suggest set` refuses a change that adds data, an outside system or public traffic unless its decision record has `crossCutting`.
+- The loop matches gates to reversibility: one-way doors keep separate canvas and plan gates; two-way doors get one combined review. New projects model the first milestone in detail and later areas as coarse placeholders. VERIFY checks that `crossCutting` promises landed in the code.
 
 ### Fixed
 -

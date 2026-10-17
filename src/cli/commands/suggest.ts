@@ -8,6 +8,7 @@ import {
 } from "../../domain/suggestion.ts";
 import { checkConstraintsWithDraft } from "../../domain/constraints.ts";
 import { diffDocuments } from "../../domain/diff.ts";
+import { classifyChange, type DoorClassification } from "../../domain/door.ts";
 import { discoverDocs } from "../../io/discovery.ts";
 import {
   checkCrossFileReferences,
@@ -100,9 +101,11 @@ async function show(
   const mainExists = await exists(mainPath);
   let totals = { added: 0, removed: 0, changed: 0 };
   let diff = null as ReturnType<typeof diffDocuments> | null;
+  let door: DoorClassification = classifyChange(EMPTY_DOC, sidecarDoc);
   if (mainExists) {
     const mainDoc = parseYaml(await readFile(mainPath, "utf-8"));
     diff = diffDocuments(mainDoc, sidecarDoc);
+    door = classifyChange(mainDoc, sidecarDoc);
     totals = {
       added: diff.nodes.added.length + diff.edges.added.length,
       removed: diff.nodes.removed.length + diff.edges.removed.length,
@@ -120,6 +123,7 @@ async function show(
           main: path.basename(mainPath),
           mainExists,
           suggestion: suggestionMeta ?? null,
+          door,
           totals,
           diff,
         },
@@ -143,11 +147,18 @@ async function show(
       console.log(`  decision:      ${d.decision}`);
       for (const a of d.alternatives) console.log(`  alternative:   ${a}`);
       console.log(`  consequences:  ${d.consequences}`);
+      if (d.crossCutting) {
+        console.log(`  security:      ${d.crossCutting.security}`);
+        console.log(`  observability: ${d.crossCutting.observability}`);
+        console.log(`  rollback:      ${d.crossCutting.rollback}`);
+      }
       if (d.supersedes) console.log(`  supersedes:    ${d.supersedes.join(", ")}`);
     } else {
       console.log("  (no decision record — accept will refuse)");
     }
   }
+  console.log("");
+  console.log(formatDoor(door));
   console.log("");
   if (!mainExists) {
     console.log(
@@ -408,6 +419,28 @@ async function set(opts: ParsedOptions): Promise<number> {
         "It is written to .archik/decisions/ when the suggestion is accepted.",
     );
   }
+  let before: Document = EMPTY_DOC;
+  if (await exists(mainPath)) {
+    try {
+      before = parseYaml(await readFile(mainPath, "utf-8"));
+    } catch {
+      before = EMPTY_DOC;
+    }
+  }
+  const door = classifyChange(before, doc);
+  if (door.needsCrossCutting && decision.crossCutting === undefined) {
+    const why = door.reasons.filter((r) => r.crossCutting).map((r) => `  - ${r.text}`).join("\n");
+    return fail(
+      json,
+      "This change adds data, an outside system or public traffic:\n" +
+        why +
+        "\nAdd decision.crossCutting to the draft:\n" +
+        "  crossCutting:\n" +
+        "    security: <who can reach it, secrets, data exposure>\n" +
+        "    observability: <how you will see it working or failing>\n" +
+        "    rollback: <how to undo it safely>",
+    );
+  }
   const noteFlag = getString(opts, "note");
   const existingNote = doc.metadata?.suggestion?.note;
   const note = noteFlag !== undefined ? noteFlag : existingNote;
@@ -445,6 +478,7 @@ async function set(opts: ParsedOptions): Promise<number> {
           sidecar: path.relative(process.cwd(), sidecar) || sidecar,
           main: fromRel,
           note: note ?? null,
+          door,
           nodes: stamped.nodes.length,
           edges: stamped.edges.length,
         },
@@ -459,6 +493,7 @@ async function set(opts: ParsedOptions): Promise<number> {
     console.log(
       `  ${stamped.nodes.length} nodes, ${stamped.edges.length} edges${note ? ` — ${note}` : ""}`,
     );
+    console.log(`  ${formatDoor(door)}`);
     console.log("");
     console.log("Review:  archik suggest show");
     console.log("Apply:   archik suggest accept");
@@ -479,4 +514,11 @@ async function readStdin(): Promise<string> {
     chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks).toString("utf-8");
+}
+
+const EMPTY_DOC: Document = { version: "1.0", name: "", nodes: [], edges: [] };
+
+function formatDoor(door: DoorClassification): string {
+  if (!door.oneWay) return "Reversibility: two-way door — easy to undo";
+  return `Reversibility: ONE-WAY DOOR — ${door.reasons.map((r) => r.text).join("; ")}`;
 }

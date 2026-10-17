@@ -269,7 +269,7 @@ function buildTools(): ToolDef[] {
     {
       name: "archik_suggest_set",
       description:
-        "Validate a draft architecture YAML (the FULL proposed end-state — every node and edge, not a delta) and stage it as the suggestion sidecar for human review. The draft MUST carry a decision record under metadata.suggestion.decision { context, decision, alternatives: [..], consequences, supersedes?: [\"0003\"] } — it is written to .archik/decisions/ on accept. Read archik_schema first.",
+        "Validate a draft architecture YAML (the FULL proposed end-state — every node and edge, not a delta) and stage it as the suggestion sidecar for human review. The draft MUST carry a decision record under metadata.suggestion.decision { context, decision, alternatives: [..], consequences, crossCutting?: { security, observability, rollback }, supersedes?: [\"0003\"] } — crossCutting is required when the change adds data, an external system or public traffic — it is written to .archik/decisions/ on accept. Read archik_schema first.",
       inputSchema: {
         type: "object",
         properties: {

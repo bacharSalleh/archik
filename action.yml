@@ -23,7 +23,7 @@ inputs:
     description: "Run `archik drift` (diagram vs source tree)."
     default: "true"
   smells-fail:
-    description: "Fail when `archik smells` finds folder import loops or oversized files. Default: report only."
+    description: "Fail when `archik smells` finds folder import loops or oversized files. With a committed .archik/smells-baseline.json (`archik smells --update-baseline`), fails only on NEW findings. Default: report only."
     default: "false"
   compare-ref:
     description: "Git ref to diff the architecture against. Default: the PR base branch (pull_request events only)."
@@ -186,7 +186,11 @@ runs:
           if (smells !== undefined && smells.summary !== undefined) {
             const s = smells.summary;
             const badge = failures.includes("smells") ? "❌" : s.total === 0 ? "✅" : "⚠️";
-            lines.push(`${badge} **smells** — ${s.folderLoops} folder loop(s), ${s.oversizedFiles} oversized file(s)`);
+            const b = smells.baseline;
+            lines.push(`${badge} **smells** — ${s.folderLoops} folder loop(s), ${s.oversizedFiles} oversized file(s)` +
+              (b ? ` — ${b.newFolderLoops.length + b.newOversizedFiles.length} new since baseline` : ""));
+            for (const f of (b?.newFolderLoops ?? [])) lines.push(`- **new** loop: ${f.map((x) => `\`${x}\``).join(" ↔ ")}`);
+            for (const f of (b?.newOversizedFiles ?? [])) lines.push(`- **new** oversized file: \`${f}\``);
             for (const loop of (smells.folderLoops ?? []).slice(0, 5)) {
               lines.push(`- loop: ${loop.folders.map((f) => `\`${f}\``).join(" ↔ ")}`);
             }

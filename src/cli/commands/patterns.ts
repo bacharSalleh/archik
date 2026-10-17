@@ -202,6 +202,11 @@ async function applyCommand(opts: ParsedOptions): Promise<number> {
           ],
           consequences:
             "The nodes start as proposed; rename ids, add sourcePaths and flip them to active as each piece is built. Read the pattern's trade-offs before accepting.",
+          crossCutting: {
+            security: `Follow the safety rules in \`archik patterns show ${id}\`; fill in specifics before the nodes go active.`,
+            observability: "Decide how each new node reports success and failure before it goes active.",
+            rollback: "Nothing is built yet — reject the sidecar, or remove the proposed nodes later.",
+          },
         },
       },
     },

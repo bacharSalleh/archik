@@ -299,6 +299,18 @@ DECISION RECORD
           alternatives: [<option not chosen>, ...]   # at least one
           consequences: <what gets easier / harder>
           supersedes: ["0003"]                       # optional
+          crossCutting:                              # required for risky one-way doors
+            security: <who can reach it, secrets, data exposure>
+            observability: <how you will see it work or fail>
+            rollback: <how to undo it safely>
+
+  ONE-WAY vs TWO-WAY DOORS: set and show classify every change. A
+  change is a one-way door (hard to undo) when it adds a data store,
+  queue/stream, external system, gateway/auth/cdn, cloud or llm node,
+  a new edge to an external system, a top-level module, or when it
+  removes a built node or moves one to another parent. Changes that
+  add data, an outside system or public traffic MUST carry
+  crossCutting. Everything else is a two-way door.
 
   Records are never edited after accept. To change course, stage a
   new decision that lists the old record numbers in supersedes.
@@ -716,11 +728,15 @@ EXAMPLES
 
 USAGE
   archik smells [dir] [--max-file-lines <n>] [--json] [--fail-on-warn]
+  archik smells [dir] --update-baseline
 
 FLAGS
   --max-file-lines <n>  line limit per source file (default 500)
   --json                structured output for agents / CI
-  --fail-on-warn        exit 1 when any smell is found (CI gate)
+  --fail-on-warn        exit 1 when a smell is found — only NEW smells
+                        when a baseline exists (CI gate)
+  --update-baseline     save today's findings as the baseline
+  --baseline <file>     baseline path (default <dir>/.archik/smells-baseline.json)
 
 DESCRIPTION
   Reads the TS/JS source tree directly — no archik model needed.
@@ -729,6 +745,12 @@ DESCRIPTION
                     through a chain. Each edge shows real imports
                     (file → specifier) as evidence.
     OVERSIZED FILE  a source file longer than --max-file-lines.
+
+  BASELINE (ratchet for existing code): run --update-baseline once and
+  commit the file. After that the report marks known findings
+  "(baseline)" and new ones "NEW", and --fail-on-warn fails only on
+  new loops, new oversized files, or files that grew. Fixed findings
+  are listed so you can tighten the baseline.
 
   Only relative imports are resolved, so every loop reported is real
   (aliases like "@/x" are not followed yet). Skips node_modules, dist,

@@ -37,6 +37,9 @@ export function DecisionPanel({ decision }: { decision: Decision }): React.React
         </ul>,
       )}
       {row("Consequences", decision.consequences)}
+      {decision.crossCutting ? row("Security", decision.crossCutting.security) : null}
+      {decision.crossCutting ? row("Observability", decision.crossCutting.observability) : null}
+      {decision.crossCutting ? row("Rollback", decision.crossCutting.rollback) : null}
       {decision.supersedes ? row("Supersedes", decision.supersedes.join(", ")) : null}
     </div>
   );

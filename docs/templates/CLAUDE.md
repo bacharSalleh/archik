@@ -15,6 +15,13 @@ Two gate types:
 - **Canvas gate** — `/archik:accept` on the rendered diff. Used for the structural sidecar.
 - **Plan gate** — user replies "approve". Used for the build plan before any code edits.
 
+### Match gates to reversibility
+
+`archik suggest set` labels every change a **one-way door** (hard to undo) or a **two-way door** (easy to undo):
+
+- **One-way door** — adds a data store, queue/stream, external system, gateway/auth/cdn, cloud or LLM node, a new edge to an external system, a top-level module; or removes a built node or moves one to another parent. Two separate stops: canvas gate first, then the plan gate. If it adds data, an outside system or public traffic, the decision record must also say how it is **secured, observed and rolled back** (`crossCutting`) — `suggest set` refuses it otherwise.
+- **Two-way door** — everything else (an internal function, a new edge inside a module, a description, a lifecycle flip). One stop: stage the sidecar and show the build plan in the same message; `/archik:accept` approves both.
+
 ### Match ritual to scope
 
 Not every task needs the full loop. Skip the modeling phases and just edit when the change is:
@@ -45,7 +52,7 @@ I'd run the loop like this:
 
 1. **DISCOVER** — `npx archik q list`, `npx archik q describe auth-service`, peek at `src/auth/`. Find that an `auth-service` node already handles login.
 
-2. **DESIGN** — `npx archik suggest set` adding two `proposed` nodes under the `auth` module: a `reset-handler` and an `email-sender` that talks to the email provider (modelled as `external`). Two new edges: `reset-handler → email-sender (calls)`, `reset-handler → auth-service (writes)`. Dependencies flow one way — nothing in `auth-service` imports the handler. The draft's decision record: *context* — users who lose their password open support tickets; *decision* — self-service reset by emailed one-time link; *alternatives* — admin-only reset, SMS codes; *consequences* — we now depend on an email provider and must expire tokens. Wait for **`/archik:accept`** on the canvas; accept writes `.archik/decisions/0004-password-reset-by-email.md`.
+2. **DESIGN** — `npx archik suggest set` adding two `proposed` nodes under the `auth` module: a `reset-handler` and an `email-sender` that talks to the email provider (modelled as `external`). Two new edges: `reset-handler → email-sender (calls)`, `reset-handler → auth-service (writes)`. Dependencies flow one way — nothing in `auth-service` imports the handler. The draft's decision record: *context* — users who lose their password open support tickets; *decision* — self-service reset by emailed one-time link; *alternatives* — admin-only reset, SMS codes; *consequences* — we now depend on an email provider and must expire tokens. It adds an external system, so `suggest set` calls it a **one-way door** and the record also needs *crossCutting*: tokens are single-use and expire in 15 minutes, the provider key lives in the secret store (security); reset requests and send failures are counted and alerted (observability); a feature flag turns the reset link off (rollback). Wait for **`/archik:accept`** on the canvas; accept writes `.archik/decisions/0004-password-reset-by-email.md`.
 
 3. **BUILD plan** — `src/auth/resetHandler.ts` (request + verify), `src/auth/emailSender.ts` (provider client), `tests/auth/reset.happy.spec.ts`, `tests/auth/reset.expired.spec.ts`. Each new edge maps to a real call. Out of scope: rate limiting (next milestone). Wait for "approve".
 
@@ -70,20 +77,20 @@ The recommended opener is **`/archik:bootstrap`** (with or without an inline bri
 
 3. **Surface genuine ambiguities** — usually 2–4 questions about scope, target users, hard constraints, or non-obvious tradeoffs. Skip questions whose answers are in the brief.
 
-4. **Stage the structural model** via `npx archik suggest set` — every node the finished system needs, marked `status: proposed`, parented to a top-level `module`. Wait for **`/archik:accept`** on the canvas (formal gate).
+4. **Stage the structural model** via `npx archik suggest set` — the **first milestone in detail** (every node and edge it needs, `status: proposed`), and the rest of the system as a few coarse `module` placeholders (one per later area, `status: proposed`, one-line description). Wait for **`/archik:accept`** on the canvas (formal gate).
 
-5. **The whole architecture lives on day one as `proposed`.** Milestones flip subsets from `proposed` to `active` (with `sourcePath`) as code lands. The set of nodes a milestone flips IS the milestone.
+5. **Detail grows with the work.** Don't model what you can't yet know. Each milestone first details its own area (a sidecar that replaces the placeholder's insides), then flips those nodes from `proposed` to `active` (with `sourcePath`) as code lands. The set of nodes a milestone flips IS the milestone.
 
 ## Per-milestone rhythm
 
-Every milestone follows the same shape. Two gate types apply — **canvas gate** (`/archik:accept`) and **plan gate** ("approve"):
+Every milestone follows the same shape. Two gate types apply — **canvas gate** (`/archik:accept`) and **plan gate** ("approve") — merged into one stop for two-way doors:
 
-1. **Structural sidecar** — `/archik:suggest <feature>`. Stages the proposed end-state for this milestone via `npx archik suggest set` under the hood, with its decision record.
+1. **Structural sidecar** — `/archik:suggest <feature>`. Stages the proposed end-state for this milestone via `npx archik suggest set` under the hood, with its decision record. Note whether `suggest set` called it a one-way or two-way door.
 2. **`/archik:accept` on the structural diagram** — formal canvas gate.
-3. **BUILD plan** — one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan.
-4. **"approve" on the plan** — plan gate. Don't start editing files until approved.
+3. **BUILD plan** — one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan. For a one-way door with `crossCutting`, the plan also lands what it promised: the security control, the signal you will watch, the rollback path.
+4. **"approve" on the plan** — plan gate. Don't start editing files until approved. *Two-way door:* steps 1–4 collapse — show the plan together with the sidecar, and `/archik:accept` approves both.
 5. **Execute** — small commits, narrate non-obvious decisions, declare back-edges to DESIGN openly when they happen.
-6. **Verify** — project tests → lint → build → `npx archik drift` → `npx archik smells` → aesthetic eyeball (if UI). No new folder loop should close the milestone.
+6. **Verify** — project tests → lint → build → `npx archik drift` → `npx archik smells` → aesthetic eyeball (if UI). No **new** folder loop or oversized file should close the milestone (with a committed baseline, `smells` marks them NEW). For a one-way door, check the `crossCutting` promises exist in the code before the flip to `active`.
 7. **Stage the `proposed → active` sidecar** — `/archik:suggest "flip <list> to active"`. Flips nodes/edges with their `sourcePath` now on disk. Its decision record is short: what landed, and that drift now checks it.
 8. **Hand off** — list what to eyeball; wait for `/archik:accept` and (if there's a deploy) confirm deploy is green.
 9. **Commit + push** — only after the user confirms.
@@ -91,7 +98,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 ## Hard rules
 
 1. **Structure → plan → code. In that order.** The accepted diagram defines what to build. Code lands last.
-2. **Two gate types.** The structural model gets a **canvas gate** (`/archik:accept`). The build plan gets an **approval gate** ("approve"). Don't conflate them — `/archik:accept` only works on structural sidecars.
+2. **Gates match reversibility.** One-way doors get two stops: a **canvas gate** (`/archik:accept`) on the model, then an **approval gate** ("approve") on the plan. Two-way doors get one stop: sidecar and plan shown together, one `/archik:accept`. Never skip review of a one-way door to save time.
 3. **Dependencies flow one way.** Sibling folders must not import each other. `npx archik smells` reports folder loops with the real imports as evidence — fix them, don't invent labels for them.
 4. **Stop at every milestone boundary.** Summarize what shipped, run verifications (`archik drift` and `archik smells`), ask for the visual ack before continuing.
 5. **Boring underneath.** No experimental framework features unless explicitly requested. Match the stack the brief specifies.
@@ -115,6 +122,8 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 - 1–3 clarifying questions only when there's genuine ambiguity.
 - A sidecar staged via `npx archik suggest set --note "..."` containing the **full proposed end-state**.
 - A decision record in the draft (`metadata.suggestion.decision`): **context** (the problem and forces, not the solution), **decision**, **alternatives** (at least one real option not chosen), **consequences** (what gets easier *and* harder). `suggest set` refuses a draft without it.
+- For changes that add data, an outside system or public traffic: `crossCutting` with **security** (who can reach it, secrets, data exposure), **observability** (how you will see it work or fail) and **rollback** (how to undo it safely).
+- Model only what this milestone needs in detail; later areas stay coarse placeholders.
 - New code-bearing nodes use `status: proposed` and may omit `sourcePath`.
 - Containers via `parentId`; a big subsystem gets its own sub-file via `archikFile`.
 - `description` on every node explains *what it does*, not *what kind it is*.
@@ -141,10 +150,11 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 3. Build / typecheck — clean.
 4. `npx archik validate` — schema + cross-file + constraint checks clean.
 5. `npx archik drift` — structural model matches disk.
-6. `npx archik smells` — no new folder loops or oversized files. `--fail-on-warn` for CI gates.
-7. Aesthetic eyeball when there's a UI — share a screenshot, ask before declaring done.
-8. Stage the `proposed → active` sidecar — flip nodes/edges with `sourcePath`.
-9. Commit (with a Co-Authored-By line) and push — only after user confirms.
+6. `npx archik smells` — no **new** folder loops or oversized files. On existing code, run `npx archik smells --update-baseline` once and commit `.archik/smells-baseline.json`; `--fail-on-warn` then fails CI only on new findings. Tighten the baseline when findings are fixed.
+7. For one-way doors: the record's `crossCutting` promises (security control, signal, rollback path) exist in the code.
+8. Aesthetic eyeball when there's a UI — share a screenshot, ask before declaring done.
+9. Stage the `proposed → active` sidecar — flip nodes/edges with `sourcePath`.
+10. Commit (with a Co-Authored-By line) and push — only after user confirms.
 
 ## Archik commands I use
 

@@ -64,6 +64,8 @@ brief and start the DESIGN loop.
    > forces priorities into the open before any code lands. New
    > nodes start `status: proposed` (the code doesn't exist on disk
    > yet) and flip to `status: active` when the code lands in BUILD.
+   > Only the first milestone is modelled in detail; later areas stay
+   > coarse placeholders until their turn.
    > The commitment lives in the YAML, not in the chat log."
 5. When the brief lands, run the standard DESIGN loop:
    `/archik:suggest` (structural sidecar) → `/archik:accept` →
@@ -91,7 +93,9 @@ diagram, then iterate from honest ground truth.
    duplicate them here.
 4. After the user accepts the spawn sidecar, suggest the natural
    follow-up: "Want to check the code for structural smells?
-   `npx archik smells` finds folder loops and oversized files."
+   `npx archik smells` finds folder loops and oversized files — and
+   `--update-baseline` saves today's findings so CI fails only on new
+   ones."
 
 ### C. `.archik/` exists but the diagram is empty or near-empty
 

@@ -50,6 +50,7 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Validate a file                   | `npx archik validate <path>`                  |
 | Spot over-complex files / hubs    | `npx archik complexity [--fail-on-warn]`      |
 | Find folder loops / oversized files | `npx archik smells [dir] [--json] [--fail-on-warn]` |
+| Accept today's smells as known debt | `npx archik smells --update-baseline` (commit `.archik/smells-baseline.json`) |
 | Stage a proposed change           | `npx archik suggest set --note '…' - <<'YAML' … YAML` |
 | Show / accept / reject pending    | `npx archik suggest show \| accept \| reject` |
 | Render an SVG                     | `npx archik render --out diagram.svg`         |
@@ -103,8 +104,8 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
 | -------- | ------------- | --------------------------------------------------- |
 | Discover | Claude        | `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` + past records in `.archik/decisions/` |
 | Design   | Claude → User | sidecar via `suggest set`, with its decision record |
-| Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate)    |
-| Build    | Claude → User | numbered plan (HITL approval), then small commits   |
+| Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate) — one-way doors alone, two-way doors together with the plan |
+| Build    | Claude → User | numbered plan (own HITL approval for one-way doors), then small commits |
 | Verify   | Claude        | `npx archik validate` + tests + `drift` + `smells` + SVG regen |
 
 **Two non-obvious feedback edges:**
@@ -182,6 +183,10 @@ metadata:
         - Keep the inline call with a shorter timeout and retries
         - Call a payments service synchronously over HTTP
       consequences: Checkout no longer waits on Stripe; payment becomes eventually consistent, so the UI must show a "payment pending" state.
+      crossCutting:
+        security: The worker alone holds the Stripe key (secret store); events carry order ids, not card data.
+        observability: Consumer lag and failed-charge count on the payments dashboard, alert on lag over 5 minutes.
+        rollback: A flag switches checkout back to the inline call; the stream is additive.
 YAML
 ```
 
@@ -191,7 +196,12 @@ YAML
 - **decision** — what you chose, in one or two sentences.
 - **alternatives** — real options you weighed and did not choose. At least one. "Do nothing" counts when it was a real option.
 - **consequences** — what gets easier AND what gets harder. A record with only upsides is not finished.
+- **crossCutting** — required when the change adds data, an outside system or public traffic (the CLI tells you). **security**: who can reach it, secrets, data exposure. **observability**: the signal that shows it working or failing. **rollback**: how to undo it safely. Real answers — the build plan must land them.
 - **supersedes** (optional) — record numbers this one replaces, e.g. `["0003"]`. Old records are never edited.
+
+**One-way vs two-way doors.** `suggest set` and `suggest show` label each change. A **one-way door** (hard to undo) adds a data store, queue/stream, external system, gateway/auth/cdn, cloud or LLM node, a new edge to an external system or a top-level module, or removes a built node, or moves one to another parent. Hand it off alone and say why it is hard to undo; the build plan gets its own approval after accept. A **two-way door** is everything else — show the build plan in the same hand-off, and one `/archik:accept` approves both. Never skip review of a one-way door to save time.
+
+**Model only what you know.** On a new project, model the first milestone in detail and the rest as coarse `proposed` module placeholders; detail each area when its milestone starts.
 
 For a mechanical change (flip `proposed → active` after code lands), keep it short: context = what landed, decision = mark it active, alternative = keep it proposed until deploy, consequence = drift now checks it.
 
@@ -210,6 +220,7 @@ npx archik validate .archik/main.archik.yaml   # schema + cross-file + constrain
 npx archik drift                                # diagram vs source tree
 npx archik affected --json                      # what did this change touch? who depends on it?
 npx archik smells                               # folder loops + oversized files, from the code
+                                                # (with a baseline, only NEW findings count)
 npx archik render --out docs/architecture.svg  # if the project commits an SVG
 ```
 
@@ -456,6 +467,9 @@ npx archik complexity [path] [--json]   # advisory report: over-large files, hub
                   [--max-nodes N] [--max-edges N] [--max-children N]
                   [--max-degree N] [--max-depth N]   # override the strict defaults
 npx archik smells [dir] [--json]        # folder loops + oversized files, read from TS/JS code
+                  [--fail-on-warn]      #   exit 1 on findings (only NEW ones if a baseline exists)
+                  [--update-baseline]   #   save today's findings to .archik/smells-baseline.json
+                  [--baseline <file>]   #   use another baseline file
                   [--max-file-lines N]  #   line limit per file (default 500)
                   [--fail-on-warn]      #   exit 1 if any smell (CI gate)
 npx archik render --out diagram.svg --theme light|dark

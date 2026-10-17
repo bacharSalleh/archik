@@ -234,6 +234,12 @@ archik suggest set` stages it.
    `<a>` and `<b>`? The cheapest cut is `<file imports "specifier">`."*
    If it finds none, skip this line.
 
+   Existing code almost always has some debt. Also offer the
+   baseline so CI can gate on *new* smells from now on: *"Want me to
+   save today's findings as the baseline (`npx archik smells
+   --update-baseline`, commit `.archik/smells-baseline.json`)? Then
+   `--fail-on-warn` only fails on new loops or growing files."*
+
    Do NOT fix smells here — spawn is descriptive, and the fix is a
    separate ask from the user. This note is a prompt, not an action.
 

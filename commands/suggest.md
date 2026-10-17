@@ -121,6 +121,10 @@ start Build phase here; that's gated on accept.
          alternatives:
            - <a real option you weighed and did not choose>
          consequences: <what gets easier AND what gets harder>
+         # crossCutting:          # REQUIRED when the change adds data, an
+         #   security: ...        #   outside system or public traffic
+         #   observability: ...
+         #   rollback: ...
          # supersedes: ["0003"]   # only when this reverses an earlier record
    YAML
    ```
@@ -130,6 +134,17 @@ start Build phase here; that's gated on accept.
    `.archik/decisions/NNNN-<slug>.md`. Before writing it, read the
    past records for the area (`ls .archik/decisions/`, they are plain
    markdown). If your change reverses one, list it in `supersedes`.
+
+   `suggest set` prints whether the change is a **one-way door** (hard
+   to undo: a new data store, queue/stream, external system,
+   gateway/auth/cdn, cloud or LLM node, a new edge to an external
+   system, a new top-level module, a removal, a boundary move) or a
+   **two-way door**. If it adds data, an outside system or public
+   traffic it refuses the draft until `crossCutting` says how it is
+   **secured** (who can reach it, secrets, data exposure),
+   **observed** (the signal that shows it working or failing) and
+   **rolled back** (how to undo it safely). Write real answers, not
+   placeholders — the plan must later land what you promise here.
 
    If the command exits non-zero, re-run with the corrected YAML.
    Never write a draft file under `.archik/` and never edit the
@@ -153,6 +168,14 @@ start Build phase here; that's gated on accept.
    - "**Accept** to enter BUILD (plan → implement → self-review), or
      **reject** and tell me what didn't fit (boundary? relationship?
      scope? naming? composition? lifecycle?) so I can revise."
+
+   Match the gate to the door:
+   - **One-way door** — say so ("This is hard to undo: <reasons>")
+     and hand off the sidecar alone. The build plan comes after
+     accept, as its own approval gate.
+   - **Two-way door** — include the numbered build plan in this same
+     hand-off, and say that `/archik:accept` approves both the model
+     change and the plan.
 
    Do NOT pre-emptively start implementing. Wait for `/archik:accept`.
 
