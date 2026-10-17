@@ -229,7 +229,8 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik owners sync\|check` | Keep CODEOWNERS in step with node owners |
 | `archik mcp` | MCP server over stdio for non-Claude-Code agents |
 | `archik schema` | Print the document schema |
-| `archik upgrade` | Upgrade + refresh installed skill/commands |
+| `archik upgrade` | Upgrade + refresh installed skill/commands (`--migrate` also runs `archik migrate` with the new version) |
+| `archik migrate` | Bring the project's archik files up to the installed version — archives first, validates after (`--dry-run`) |
 
 Default file resolution: `.archik/main.archik.yaml`, falling back to the legacy `architecture.archik.yaml` (both present is an error).
 

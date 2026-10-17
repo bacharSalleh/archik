@@ -767,6 +767,35 @@ EXAMPLES
   archik smells --json
 `,
 
+  migrate: `archik migrate — bring this project's archik files up to the installed version
+
+USAGE
+  archik migrate [--dry-run] [--json]
+
+FLAGS
+  --dry-run          list the migrations that would run; write nothing
+  --json             structured MigrationRun; exit 1 if post-migration validate fails
+
+DESCRIPTION
+  1. Copies .archik/ (and a legacy root file) to .archik.archive/<time>/.
+  2. Runs every migration newer than the level in .archik/.version.
+  3. Validates the project; on success advances the stamp.
+  4. Lists what still needs a human — finish those with /archik:migrate.
+
+  From 0.19 and older this strips the retired stereotype / seqFiles node
+  fields, moves use-case, sequence, actor, alpha and trace files to
+  .archik/retired/, cleans pending suggestions, and flags code, CI
+  workflows and package scripts that still use removed features.
+
+  Safe to re-run: a project already at the latest level is a no-op.
+  \`archik upgrade --migrate\` runs this through the freshly installed
+  version, so the migrations always match the new release.
+
+EXIT CODES
+  0  migrated (or nothing to do)
+  1  post-migration validate failed — restore from the archive and fix
+`,
+
   upgrade: `archik upgrade — upgrade archik to latest and refresh Claude artifacts
 
 USAGE

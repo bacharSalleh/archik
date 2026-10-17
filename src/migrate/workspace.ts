@@ -5,6 +5,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -17,6 +18,7 @@ export type Workspace = {
   move(fromRel: string, toRel: string): void;
   remove(rel: string): void;
   list(dirRel: string): string[];
+  isDir(rel: string): boolean;
 };
 
 export function createWorkspace(root: string): Workspace {
@@ -42,6 +44,13 @@ export function createWorkspace(root: string): Workspace {
     list: (dirRel) => {
       const p = abs(dirRel);
       return existsSync(p) ? readdirSync(p) : [];
+    },
+    isDir: (rel) => {
+      try {
+        return statSync(abs(rel)).isDirectory();
+      } catch {
+        return false;
+      }
     },
   };
 }

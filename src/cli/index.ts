@@ -26,6 +26,7 @@ import { hooksCommand } from "./commands/hooks.ts";
 import { ownersCommand } from "./commands/owners.ts";
 import { otelCommand } from "./commands/otel.ts";
 import { upgradeCommand } from "./commands/upgrade.ts";
+import { migrateCommand } from "./commands/migrate.ts";
 import { evolutionCommand } from "./commands/evolution.ts";
 import { patternsCommand } from "./commands/patterns.ts";
 import { complexityCommand } from "./commands/complexity.ts";
@@ -163,6 +164,10 @@ COMMANDS
                     --migrate        run schema migrations after the refresh
                     --dry-run        preview what would migrate (nothing written)
                     --json           emit the MigrationRun as JSON; exit 1 if invalid
+  migrate           Bring this project's archik files up to the installed version
+                    (archive → migrations → validate → stamp)
+                    --dry-run        preview what would migrate (nothing written)
+                    --json           emit the MigrationRun as JSON; exit 1 if invalid
 
 Default file resolution (when no [path] is given):
   1. .archik/main.archik.yaml      (preferred new convention)
@@ -271,6 +276,8 @@ async function dispatch(
       return complexityCommand(opts);
     case "smells":
       return smellsCommand(opts);
+    case "migrate":
+      return migrateCommand(opts);
     case "upgrade":
       return upgradeCommand(opts);
     case "--version":

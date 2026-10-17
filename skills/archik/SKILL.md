@@ -497,6 +497,10 @@ npx archik suggest show [--json]
                   --json                # structured output
               suggest accept | reject   # accept writes .archik/decisions/NNNN-*.md
 
+npx archik migrate [--dry-run]          # bring this project's archik files up to the
+                                        #   installed version; if validate says a key
+                                        #   was "removed in archik 0.20", run this
+
 npx archik dev | start | stop | status  # canvas server lifecycle
 npx archik watch                        # re-render to SVG on save
 npx archik init                         # scaffold + install skill + slash commands

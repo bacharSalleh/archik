@@ -4,7 +4,8 @@ description: Finish a migration — check the result and fix what the migrator f
 
 # /archik:migrate — check what the deterministic migration did
 
-`archik upgrade --migrate` already ran the **deterministic** migration:
+`archik migrate` (or `archik upgrade --migrate`, which runs it through
+the newly installed version) already ran the **deterministic** migration:
 it archived the old project, ran each pending step, validated, and
 advanced `.archik/.version`. The current steps are:
 
@@ -12,6 +13,9 @@ advanced `.archik/.version`. The current steps are:
   `.archik/main.archik.yaml`.
 - **#3** — strip retired node fields (`stereotype`, `seqFiles`) from the
   model files.
+- **#4** — move retired use-case, sequence, actor, alpha and trace files
+  to `.archik/retired/`, strip retired fields from pending suggestions,
+  and flag code, CI and scripts that still use removed features.
 
 (#2, the old use-case back-fill, is retired and never runs.)
 
@@ -30,6 +34,23 @@ developer's only copy of the pre-migration project.
 
 1. **Read the migrator's output.** Any `ⓘ` line it printed is a task for
    you. If it printed none, the steps below are a quick check only.
+   The usual ones from 0.19 and older:
+   - **moved N retired files to `.archik/retired/`** — tell the user
+     they are kept only as history. Ask before deleting them. If a use
+     case explains *why* a structure exists, offer to capture that as a
+     decision record with the next `/archik:suggest` touching that area.
+   - **pending suggestion … has no decision record** — read it with
+     `npx archik suggest show`, then either re-stage it with a decision
+     record (`/archik:suggest`) or ask the user to reject it.
+   - **code imports `archik/trace`** — the recorder is gone. Remove the
+     `trace(...)` calls and the import from those test files; keep the
+     tests' real assertions. Run the tests afterwards.
+   - **workflow uses `trace-fail-on`** — replace it with
+     `smells-fail: true` (or drop it). On existing code, offer
+     `npx archik smells --update-baseline` first so CI fails only on
+     new smells.
+   - **package.json scripts call a removed command** — remove the
+     script or replace it (`archik smells`, `archik drift`).
 
 2. **Find the archived original.**
    ```bash
@@ -47,6 +68,9 @@ developer's only copy of the pre-migration project.
    npx archik drift
    npx archik smells
    ```
+   If `validate` reports `unrecognized key … removed in archik 0.20`,
+   the migration did not run with the new version — run
+   `npx archik migrate` and check again.
 
 4. **Fix gaps through the normal workflow.** If drift or the archive
    shows structure the model misses (a node, an edge, a `parentId`

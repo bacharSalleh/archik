@@ -65,4 +65,78 @@ describe("migration registry", () => {
     expect(ws.read(".archik/sub/b.archik.yaml")).not.toMatch(/stereotype/);
     expect(m3.applies(ws)).toBe(false);
   });
+
+  describe("#4 retire old artifacts", () => {
+    const decision =
+      "metadata:\n  suggestion:\n    decision:\n      context: c\n      decision: d\n      alternatives: [a]\n      consequences: e\n";
+
+    it("does not apply to a clean project", async () => {
+      await mkdir(path.join(dir, ".archik"), { recursive: true });
+      await writeFile(path.join(dir, ".archik/main.archik.yaml"), "nodes: []\n");
+      expect(byId(4).applies(createWorkspace(dir))).toBe(false);
+    });
+
+    it("moves retired files to .archik/retired keeping their layout", async () => {
+      await mkdir(path.join(dir, ".archik/usecases"), { recursive: true });
+      await mkdir(path.join(dir, ".archik/traces"), { recursive: true });
+      await writeFile(path.join(dir, ".archik/main.archik.yaml"), "nodes: []\n");
+      await writeFile(path.join(dir, ".archik/usecases/order.archik.uc.yaml"), "UC");
+      await writeFile(path.join(dir, ".archik/login.archik.seq.yaml"), "SEQ");
+      await writeFile(path.join(dir, ".archik/actors.archik.actors.yaml"), "A");
+      await writeFile(path.join(dir, ".archik/alphas.archik.alphas.yaml"), "AL");
+      await writeFile(path.join(dir, ".archik/traces/run.archik.trace.json"), "{}");
+      const ws = createWorkspace(dir);
+      expect(byId(4).applies(ws)).toBe(true);
+      const r = byId(4).run(ws);
+      expect(r.changed.sort()).toEqual([
+        ".archik/retired/actors.archik.actors.yaml",
+        ".archik/retired/alphas.archik.alphas.yaml",
+        ".archik/retired/login.archik.seq.yaml",
+        ".archik/retired/traces/run.archik.trace.json",
+        ".archik/retired/usecases/order.archik.uc.yaml",
+      ]);
+      expect(ws.read(".archik/retired/usecases/order.archik.uc.yaml")).toBe("UC");
+      expect(ws.exists(".archik/usecases/order.archik.uc.yaml")).toBe(false);
+      expect(ws.exists(".archik/usecases")).toBe(false); // emptied folder removed
+      expect(ws.exists(".archik/main.archik.yaml")).toBe(true);
+      expect(r.needsJudgment.join(" ")).toMatch(/moved 5 retired file/);
+      expect(byId(4).applies(ws)).toBe(false); // idempotent
+    });
+
+    it("strips retired keys from a pending sidecar and flags a missing decision", async () => {
+      await mkdir(path.join(dir, ".archik"), { recursive: true });
+      await writeFile(path.join(dir, ".archik/main.archik.yaml"), "nodes: []\n");
+      await writeFile(
+        path.join(dir, ".archik/main.archik.suggested.yaml"),
+        "nodes:\n  - id: a\n    stereotype: entity\n",
+      );
+      const ws = createWorkspace(dir);
+      const r = byId(4).run(ws);
+      expect(ws.read(".archik/main.archik.suggested.yaml")).not.toContain("stereotype");
+      expect(r.needsJudgment.join(" ")).toMatch(/no decision record/);
+    });
+
+    it("leaves a sidecar with a decision record alone", async () => {
+      await mkdir(path.join(dir, ".archik"), { recursive: true });
+      await writeFile(path.join(dir, ".archik/main.archik.suggested.yaml"), "nodes: []\n" + decision);
+      expect(byId(4).applies(createWorkspace(dir))).toBe(false);
+    });
+
+    it("flags code, workflows and scripts that use removed features", async () => {
+      await mkdir(path.join(dir, "tests"), { recursive: true });
+      await mkdir(path.join(dir, "node_modules/x"), { recursive: true });
+      await mkdir(path.join(dir, ".github/workflows"), { recursive: true });
+      await writeFile(path.join(dir, "tests/order.test.ts"), 'import { trace } from "archik/trace";\n');
+      await writeFile(path.join(dir, "node_modules/x/i.js"), 'require("archik/trace")\n');
+      await writeFile(path.join(dir, ".github/workflows/ci.yml"), "with:\n  trace-fail-on: partial\n");
+      await writeFile(path.join(dir, "package.json"), '{"scripts":{"cov":"archik trace --fail-on none"}}');
+      const r = byId(4).run(createWorkspace(dir));
+      const notes = r.needsJudgment.join("\n");
+      expect(notes).toContain("tests/order.test.ts");
+      expect(notes).not.toContain("node_modules");
+      expect(notes).toContain(".github/workflows/ci.yml");
+      expect(notes).toMatch(/package\.json scripts/);
+      expect(r.changed).toEqual([]);
+    });
+  });
 });

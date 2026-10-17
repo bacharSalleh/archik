@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -54,6 +55,18 @@ describe("installCommands", () => {
     else process.env["ARCHIK_PKG_ROOT"] = originalPkgRoot;
     await rm(pkgRoot, { recursive: true, force: true });
     await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("deletes retired command files left by older versions", async () => {
+    const target = path.join(projectRoot, ".claude/commands/archik");
+    await mkdir(target, { recursive: true });
+    await writeFile(path.join(target, "usecase.md"), "old");
+    await writeFile(path.join(target, "trace.md"), "old");
+    await writeFile(path.join(target, "my-own.md"), "user file");
+    const result = await installCommands({ scope: "project", force: true });
+    expect(result.ok && result.removed.sort()).toEqual(["trace.md", "usecase.md"]);
+    expect(existsSync(path.join(target, "usecase.md"))).toBe(false);
+    expect(existsSync(path.join(target, "my-own.md"))).toBe(true);
   });
 
   it("copies every command file into project .claude/commands/archik", async () => {

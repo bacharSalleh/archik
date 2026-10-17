@@ -238,12 +238,17 @@ function hintFor(
   return null;
 }
 
+/** Node fields retired in 0.20 — `archik migrate` (migration #3) strips them. */
+const RETIRED_NODE_KEYS: ReadonlySet<string> = new Set(["stereotype", "seqFiles"]);
+
 function toErrors(zerr: ZodError): ValidationError[] {
   return zerr.issues.flatMap((issue) => {
     if (issue.code === "unrecognized_keys") {
       return issue.keys.map((key) => ({
         path: pathOf([...issue.path, key]),
-        message: `unrecognized key`,
+        message: RETIRED_NODE_KEYS.has(key)
+          ? `unrecognized key\n    hint: \`${key}\` was removed in archik 0.20 — run \`npx archik migrate\` to strip it from your model files`
+          : `unrecognized key`,
       }));
     }
     const hint = hintFor(issue.path, issue.message);

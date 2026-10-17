@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { getString, type ParsedOptions } from "../options.ts";
@@ -30,8 +30,11 @@ export type InstallSkillResult =
   | { ok: false; reason: "exists"; target: string }
   | { ok: false; reason: "missing-source"; source: string };
 
+/** Slash commands removed in 0.20 (use cases, actors, alphas, traces). */
+export const RETIRED_COMMANDS = ["usecase.md", "actor.md", "alpha.md", "trace.md"] as const;
+
 export type InstallCommandsResult =
-  | { ok: true; targetDir: string; copied: string[]; scope: SkillScope }
+  | { ok: true; targetDir: string; copied: string[]; removed: string[]; scope: SkillScope }
   | { ok: false; reason: "exists"; existing: string[]; targetDir: string }
   | { ok: false; reason: "missing-source"; source: string };
 
@@ -148,7 +151,20 @@ export async function installCommands(args: {
     );
     copied.push(file);
   }
-  return { ok: true, targetDir, copied, scope: args.scope };
+  // Commands that shipped in older versions and no longer exist. The
+  // `archik/` folder is ours, so stale copies are safe to delete — a
+  // leftover /archik:usecase would teach Claude a removed workflow.
+  const removed: string[] = [];
+  for (const file of RETIRED_COMMANDS) {
+    if (entries.includes(file)) continue;
+    try {
+      await unlink(path.join(targetDir, file));
+      removed.push(file);
+    } catch {
+      // not there — fine
+    }
+  }
+  return { ok: true, targetDir, copied, removed, scope: args.scope };
 }
 
 export type InstallEngineeringLoopResult =

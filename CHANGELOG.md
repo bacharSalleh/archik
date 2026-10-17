@@ -7,7 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+**Upgrading from 0.19 or older:** `npm i -D archik@latest`, then `npx archik migrate` (or `npx archik upgrade --migrate` once you are on this version). An older binary's `upgrade --migrate` only knows the old migrations.
+
 ### Added
+- **`archik migrate`**: run the project migrations with the installed version (archive → migrate → validate → stamp; `--dry-run`, `--json`). `archik upgrade --migrate` now runs it through the freshly installed binary, so migrations always match the new release.
+- **Migration #4** for projects from 0.19 and older: moves use-case, sequence, actor, alpha and trace files to `.archik/retired/`, strips retired fields from pending suggestions, and flags pending suggestions without a decision record, code importing `archik/trace`, workflows using `trace-fail-on`, and package scripts calling removed commands.
+- Validation errors on the retired `stereotype` / `seqFiles` fields now say to run `npx archik migrate`.
+- `archik commands` / `upgrade` delete the retired `/archik:usecase`, `/archik:actor`, `/archik:alpha` and `/archik:trace` command files.
 - **Smells baseline**: `archik smells --update-baseline` saves today's findings to `.archik/smells-baseline.json`. With a baseline, the report marks findings NEW or `(baseline)`, lists what was fixed, and `--fail-on-warn` fails only on new loops, new oversized files and files that grew. `--baseline <file>` picks another file. The GitHub Action comment lists new findings.
 - **One-way vs two-way doors**: `suggest set`, `suggest show`, decision records and the canvas review banner label each change by how hard it is to undo (new data store / queue / external system / gateway / auth / cdn / cloud / LLM, new edge to an external system, new top-level module, removal, boundary move).
 - **Cross-cutting concerns** in decision records (`crossCutting: { security, observability, rollback }`), shown in the record and on the canvas under **Why**.

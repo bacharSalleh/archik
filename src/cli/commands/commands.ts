@@ -29,5 +29,8 @@ export async function commandsCommand(opts: ParsedOptions): Promise<number> {
   for (const file of result.copied) {
     console.log(`  • /archik:${file.replace(/\.md$/, "")}`);
   }
+  for (const file of result.removed) {
+    console.log(`  − removed retired /archik:${file.replace(/\.md$/, "")}`);
+  }
   return 0;
 }
