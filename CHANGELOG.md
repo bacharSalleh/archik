@@ -16,6 +16,23 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
+## [0.20.0] - 2026-10-17
+
+Archik now focuses on code structure: architecture diagrams, nesting and dependency flow.
+
+### Added
+- **`archik smells [dir]`**: structural smells read straight from TS/JS code, no model needed. Reports folder import loops between sibling folders (each edge backed by real `file imports "specifier"` lines, with direct pairs and the cheapest import to cut) and oversized files (`--max-file-lines`, default 500). `--json` and `--fail-on-warn`. Also the MCP tool `archik_smells` and resource `archik://smells`.
+- **`archik affected` dependents**: nodes with an edge into a changed node are listed as the code most likely to break.
+- **Migration #3** (`archik upgrade`): strips the retired `stereotype` and `seqFiles` node fields, keeping formatting.
+
+### Changed
+- **GitHub Action**: the `trace-fail-on` input is replaced by `smells-fail`.
+- **Canvas** fits large diagrams to the view on first load.
+
+### Removed
+- **BREAKING**: use cases, actors, Essence alphas, sequence diagrams, concrete traces and ECB stereotypes — their file types, schemas, validation, the `trace` / `alpha` commands, `render --seq`, `q sequences|traces|usecases|describe-usecase|actors`, the matching MCP tools, the use-case / sequence / trace canvas pages and the `archik/trace` package export.
+- `archik affected --run` / `--runner` and drift's missing-slice-test check.
+
 ## [0.19.5] - 2026-07-28
 
 ### Changed
