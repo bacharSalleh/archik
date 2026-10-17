@@ -31,8 +31,6 @@ import { patternsCommand } from "./patterns.ts";
 import { qCommand } from "./q.ts";
 import { schemaCommand } from "./schema.ts";
 import { smellsCommand } from "./smells.ts";
-import { styleCommand } from "./style.ts";
-import { gapCommand } from "./gap.ts";
 import { suggestCommand } from "./suggest.ts";
 import { validateCommand } from "./validate.ts";
 import { readLearned } from "../../io/evolution-log.ts";
@@ -209,26 +207,6 @@ function buildTools(): ToolDef[] {
       { type: "object", properties: {} },
       () => opts(["stats"]),
     ),
-    {
-      name: "archik_style",
-      description:
-        "The architecture style the model must follow (layered / hexagonal / clean / modular-monolith / feature-slices): its rule, which nodes sit in which layer or module, violations and hints. Pass list=true for every style with the YAML to adopt it. READ THIS before designing a change — a draft that breaks the style is rejected.",
-      inputSchema: {
-        type: "object",
-        properties: { list: { type: "boolean", description: "list all supported styles" } },
-      },
-      run: (args) => capture(() => styleCommand(opts(args["list"] === true ? ["list"] : []))),
-    },
-    {
-      name: "archik_gap",
-      description:
-        "What the code must change to match the model the architect steers: move-code, create-code, style-break, remove-import, add-dependency, finish. Work this list until it is empty; set all=true to also list imports the model never drew (model debt).",
-      inputSchema: {
-        type: "object",
-        properties: { all: { type: "boolean", description: "include undeclared imports" } },
-      },
-      run: (args) => capture(() => gapCommand(opts([], { all: args["all"] === true ? "true" : undefined }))),
-    },
     {
       name: "archik_validate",
       description:
@@ -530,7 +508,7 @@ function buildPrompts(): PromptDef[] {
           `You are proposing an architecture change with archik. Feature: ${args["feature"] ?? "(not specified)"}.`,
           "",
           "Follow this loop strictly:",
-          "1. DISCOVER — ground in what exists. Call archik_style, archik_stats, archik_list_nodes, and archik_describe on the nodes the feature plausibly touches. Never design against an imagined diagram or outside the declared style.",
+          "1. DISCOVER — ground in what exists. Call archik_stats, archik_list_nodes, and archik_describe on the nodes the feature plausibly touches. Never design against an imagined diagram.",
           "2. SCHEMA — call archik_schema before authoring anything.",
           "3. DESIGN — draft the FULL proposed end-state (every node and edge, not a delta). Apply the heuristics: one responsibility per node; async (publishes/subscribes) at context boundaries; externals behind ports; public traffic through a gateway/auth; respect every governance constraint in the document.",
           "4. STAGE — call archik_suggest_set with the draft YAML and a one-line note. If validation rejects it, fix the draft and re-stage; never bypass the contract by editing files directly.",

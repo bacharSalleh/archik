@@ -102,7 +102,6 @@ const NODE_FIELDS = [
   "archikFile",
   "sourcePath",
   "status",
-  "layer",
   "owner",
 ] as const;
 

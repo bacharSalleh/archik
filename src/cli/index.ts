@@ -31,8 +31,6 @@ import { evolutionCommand } from "./commands/evolution.ts";
 import { patternsCommand } from "./commands/patterns.ts";
 import { complexityCommand } from "./commands/complexity.ts";
 import { smellsCommand } from "./commands/smells.ts";
-import { styleCommand } from "./commands/style.ts";
-import { gapCommand } from "./commands/gap.ts";
 import { parseOptions, type ParsedOptions } from "./options.ts";
 import { pkgVersion } from "./paths.ts";
 import { UNOBSERVED, flagNames, recordRun } from "./observe.ts";
@@ -120,12 +118,6 @@ COMMANDS
                     --ignore <file>  custom ignore file (default: .archik/.driftignore)
                     --edges          verify edges against the TS/JS import graph
                                      (shadow + phantom edge detection)
-  gap [path]        What the code must change to match the model (move / create
-                                     code, remove / add imports, style breaks, finish)
-                    --json           structured output    --fail-on-gap  exit 1 if any
-  style [list]      The architecture style the model must follow (layers / modules,
-                                     rule, violations); list = all styles + YAML
-                    --json           structured output
   smells [dir]      Structural smells from code: folder import loops,
                                      oversized files (no model needed)
                     --max-file-lines <n>  line limit (default 500)
@@ -284,10 +276,6 @@ async function dispatch(
       return complexityCommand(opts);
     case "smells":
       return smellsCommand(opts);
-    case "style":
-      return styleCommand(opts);
-    case "gap":
-      return gapCommand(opts);
     case "migrate":
       return migrateCommand(opts);
     case "upgrade":

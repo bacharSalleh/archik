@@ -24,12 +24,8 @@ import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
 import { useUIStore, type SelectionItem } from "./store.ts";
 import { DecisionPanel } from "./DecisionPanel.tsx";
-import { modelChangeLines, type Decision } from "../domain/decision.ts";
-import { classifyChange, isStructuralChange, type DoorClassification } from "../domain/door.ts";
-import { moveNode } from "../domain/move.ts";
-import { DropMenu, type DropMenuOption } from "./DropMenu.tsx";
-import { DecisionDialog } from "./DecisionDialog.tsx";
-import { styleLayers } from "../domain/style.ts";
+import type { Decision } from "../domain/decision.ts";
+import { classifyChange, type DoorClassification } from "../domain/door.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -71,8 +67,6 @@ export type FileFrame = {
   sidecarUrl: string;
   /** POST this URL to accept the suggestion sidecar. */
   acceptUrl: string;
-  /** POST { yaml, note, decision } here to save a structural edit with its record. */
-  decideUrl: string;
   /** Original `archikFile` value used to navigate here, or null at root. */
   archikFile: string | null;
 };
@@ -82,7 +76,6 @@ const ROOT_FRAME: FileFrame = {
   docUrl: ROOT_DOCUMENT_URL,
   sidecarUrl: ROOT_SUGGESTION_URL,
   acceptUrl: ROOT_ACCEPT_URL,
-  decideUrl: "/__archik/decide",
   archikFile: null,
 };
 
@@ -95,7 +88,6 @@ function frameForArchikFile(archikFile: string, label: string): FileFrame {
     docUrl: `/__archik/file?path=${enc}`,
     sidecarUrl: `/__archik/file?path=${encSidecar}`,
     acceptUrl: `/__archik/file-accept?path=${enc}`,
-    decideUrl: `/__archik/decide?path=${enc}`,
     archikFile,
   };
 }
@@ -174,16 +166,6 @@ export function App(): React.ReactElement {
     undefined,
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  // Steering: the drop menu after a drag, the "why" dialog on a
-  // structural save, and a counter that tells the gap panel to recheck.
-  const [dropMenu, setDropMenu] = useState<
-    { x: number; y: number; title: string; options: DropMenuOption[] } | null
-  >(null);
-  const [decisionDialog, setDecisionDialog] = useState<
-    | { changes: string[]; door: DoorClassification; note: string; error?: string | undefined; busy: boolean }
-    | null
-  >(null);
-  const [gapRefresh, setGapRefresh] = useState(0);
   // Latest server-side validation message when a PUT was rejected
   // (e.g. "node X is missing required sourcePath"). Cleared on the
   // next successful save / status change. Shown in Toolbar so the
@@ -524,7 +506,7 @@ export function App(): React.ReactElement {
     setReviewMode((m) => !m);
   }, []);
 
-  const saveDirect = useCallback(async () => {
+  const save = useCallback(async () => {
     let docToSave: Document | null = null;
     setState((current) => {
       if (current.status === "ready") docToSave = current.document;
@@ -541,7 +523,6 @@ export function App(): React.ReactElement {
     try {
       await saveDocumentToUrl(currentFile.docUrl, docToSave);
       setSaveStatus("saved");
-      setGapRefresh((n) => n + 1);
       // Only clear the dirty flag if the in-memory document still matches
       // what we just persisted. The user may have kept editing during the
       // PUT, in which case there are unsaved changes ahead of the file.
@@ -568,71 +549,6 @@ export function App(): React.ReactElement {
       setSaveError(err instanceof Error ? err.message : String(err));
     }
   }, [currentFile.docUrl]);
-
-  /** The document as it is on disk (last load or save). */
-  const onDiskDoc = useCallback((): Document | null => {
-    if (!lastTextRef.current) return null;
-    try {
-      return parseYaml(lastTextRef.current);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // Save: wording edits save directly; a structural change first asks
-  // "why?" and is saved together with its decision record.
-  const save = useCallback(async () => {
-    if (state.status !== "ready") return;
-    const before = onDiskDoc();
-    if (before === null || !isStructuralChange(before, state.document)) {
-      await saveDirect();
-      return;
-    }
-    const change = modelChangeLines(before, state.document);
-    const door = classifyChange(before, state.document);
-    // Title: the door reason reads like a sentence ("moves invoices from
-    // top level to billing"); fall back to the first change line.
-    const first = (door.reasons[0]?.text ?? change.lines[0]?.replace(/^- /, "") ?? "structural change").replace(/`/g, "");
-    setDecisionDialog({
-      changes: change.lines.length > 0 ? change.lines.map((l) => l.replace(/^- /, "")) : [change.summary],
-      door,
-      note: first.charAt(0).toUpperCase() + first.slice(1),
-      busy: false,
-    });
-  }, [state, onDiskDoc, saveDirect]);
-
-  const saveWithDecision = useCallback(
-    async (note: string, decision: Decision) => {
-      if (state.status !== "ready") return;
-      const docToSave = state.document;
-      const text = stringifyYaml(docToSave);
-      setDecisionDialog((d) => (d ? { ...d, busy: true, error: undefined } : d));
-      try {
-        const res = await fetch(currentFile.decideUrl, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ yaml: text, note, decision }),
-        });
-        if (!res.ok) {
-          const msg = await res.text();
-          setDecisionDialog((d) => (d ? { ...d, busy: false, error: msg || `HTTP ${res.status}` } : d));
-          return;
-        }
-        lastTextRef.current = text;
-        setDecisionDialog(null);
-        setIsDirty(false);
-        setSaveStatus("saved");
-        setGapRefresh((n) => n + 1);
-        if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
-        savedIndicatorTimerRef.current = setTimeout(() => setSaveStatus("idle"), SAVED_INDICATOR_MS);
-      } catch (err) {
-        setDecisionDialog((d) =>
-          d ? { ...d, busy: false, error: err instanceof Error ? err.message : String(err) } : d,
-        );
-      }
-    },
-    [state, currentFile.decideUrl],
-  );
 
   // Three navigation actions, distinct semantics:
   //
@@ -827,65 +743,6 @@ export function App(): React.ReactElement {
       if (createdEdgeId) selectEdge(createdEdgeId);
     },
     [selectEdge],
-  );
-
-  // "Move a box": put a node inside another container (or at the top
-  // level). A built node whose code must follow becomes a pending move;
-  // `archik gap` then asks the agent to move the code.
-  const handleMoveNode = useCallback((id: string, parentId: string | undefined) => {
-    setState((current) => {
-      if (current.status !== "ready") return current;
-      const r = moveNode(current.document, id, parentId);
-      if (!r.ok) {
-        setCommandError(r.error);
-        return current;
-      }
-      if (r.doc === current.document) return current;
-      setCommandError(undefined);
-      setIsDirty(true);
-      setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), current.document]);
-      setFuture([]);
-      return { status: "ready", document: r.doc };
-    });
-  }, []);
-
-  const handleDropNode = useCallback(
-    (fromId: string, toId: string | null, x: number, y: number) => {
-      if (state.status !== "ready") return;
-      const nodes = state.document.nodes;
-      const from = nodes.find((n) => n.id === fromId);
-      if (from === undefined) return;
-      if (toId === null) {
-        if (from.parentId === undefined) return;
-        setDropMenu({
-          x,
-          y,
-          title: from.name,
-          options: [{ label: "Move to the top level", onSelect: () => handleMoveNode(fromId, undefined) }],
-        });
-        return;
-      }
-      const to = nodes.find((n) => n.id === toId);
-      if (to === undefined) return;
-      const isContainer =
-        nodes.some((n) => n.parentId === toId) || to.kind === "module" || to.kind === "custom";
-      if (!isContainer) {
-        handleConnectDrag(fromId, toId);
-        return;
-      }
-      setDropMenu({
-        x,
-        y,
-        title: `${from.name} → ${to.name}`,
-        options: [
-          { label: `Connect to ${to.name}`, onSelect: () => handleConnectDrag(fromId, toId) },
-          ...(from.parentId === toId
-            ? []
-            : [{ label: `Move inside ${to.name}`, onSelect: () => handleMoveNode(fromId, toId) }]),
-        ],
-      });
-    },
-    [state, handleConnectDrag, handleMoveNode],
   );
 
   const addNode = useCallback(
@@ -1153,7 +1010,6 @@ export function App(): React.ReactElement {
         onUndo={undo}
         onRedo={redo}
         getSvg={getSvg}
-        gapRefreshKey={gapRefresh}
         hideStructural={hideStructural}
         onToggleHideStructural={() => setHideStructural(!hideStructural)}
         onCollapseAll={() =>
@@ -1179,26 +1035,6 @@ export function App(): React.ReactElement {
             }
           : {})}
       />
-      {dropMenu !== null && (
-        <DropMenu
-          x={dropMenu.x}
-          y={dropMenu.y}
-          title={dropMenu.title}
-          options={dropMenu.options}
-          onClose={() => setDropMenu(null)}
-        />
-      )}
-      {decisionDialog !== null && (
-        <DecisionDialog
-          changes={decisionDialog.changes}
-          door={decisionDialog.door}
-          defaultNote={decisionDialog.note}
-          error={decisionDialog.error}
-          busy={decisionDialog.busy}
-          onSubmit={(note, decision) => void saveWithDecision(note, decision)}
-          onCancel={() => setDecisionDialog(null)}
-        />
-      )}
       {suggestion.status === "pending" && (
         <SuggestionBanner
           added={suggestion.added}
@@ -1347,7 +1183,6 @@ export function App(): React.ReactElement {
                 connectFrom === null ? clearSelection : cancelConnect
               }
               onConnectDrag={handleConnectDrag}
-              {...(reviewing ? {} : { onDropNode: handleDropNode })}
               onOpenSubFile={openSubFile}
               onCrossFileNavigate={navigateToFile}
               viewKey={currentFile.docUrl}
@@ -1406,7 +1241,6 @@ export function App(): React.ReactElement {
                 onStartConnect={startConnect}
                 allNodes={renderDoc.nodes}
                 readOnly={reviewing}
-                layers={renderDoc.style !== undefined ? styleLayers(renderDoc.style) : []}
               />
             ) : null}
           </div>

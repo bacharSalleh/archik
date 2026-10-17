@@ -30,16 +30,10 @@ any file under `.archik/`.
 
 2. **Ground yourself in the current shape** via the query CLI:
    ```
-   npx archik style
    npx archik q stats
    npx archik q list
    npx archik q edges
    ```
-   If no style is declared, one of the best improvements you can
-   offer is to adopt one (`npx archik style list`): pick the style the
-   code is closest to, set it in the draft with layers on the
-   top-level nodes, and let the violations it reports become the
-   refactor plan.
    If `$ARGUMENTS` names a specific area, also:
    ```
    npx archik q describe <id>

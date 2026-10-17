@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyChange, isStructuralChange } from "./door.ts";
+import { classifyChange } from "./door.ts";
 import type { Document } from "./types.ts";
 
 const base: Document = {
@@ -64,40 +64,9 @@ describe("classifyChange", () => {
     expect(classifyChange(base, removed).reasons.map((r) => r.text)).toEqual(["removes `cart`"]);
   });
 
-  it("flags a style change and a layer move as one-way", () => {
-    const styled: Document = { ...base, style: { kind: "layered" } };
-    expect(classifyChange(base, styled).reasons.map((r) => r.text)).toEqual([
-      "changes the architecture style from none to layered",
-    ]);
-    const layered: Document = {
-      ...styled,
-      nodes: base.nodes.map((x) => (x.id === "checkout" ? { ...x, layer: "application" } : x)),
-    };
-    const moved: Document = {
-      ...styled,
-      nodes: base.nodes.map((x) => (x.id === "checkout" ? { ...x, layer: "domain" } : x)),
-    };
-    expect(classifyChange(layered, moved).reasons.map((r) => r.text)).toEqual([
-      "moves `checkout` from layer application to domain",
-    ]);
-  });
-
   it("does not count removing or adding proposed-only work as one-way", () => {
     const planned = withNodes({ id: "db", kind: "database", name: "DB", description: "x", status: "proposed" });
     expect(classifyChange(base, planned).needsCrossCutting).toBe(true); // still a data store decision
     expect(classifyChange(planned, base).reasons).toEqual([]); // dropping a plan is cheap
-  });
-});
-
-describe("isStructuralChange", () => {
-  it("ignores wording edits", () => {
-    const renamed: Document = { ...base, nodes: base.nodes.map((x) => (x.id === "cart" ? { ...x, name: "Basket", description: "y" } : x)) };
-    expect(isStructuralChange(base, renamed)).toBe(false);
-  });
-  it("counts moves, new nodes, new edges and style changes", () => {
-    const moved: Document = { ...base, nodes: base.nodes.map((x) => (x.id === "cart" ? { ...x, parentId: "checkout" } : x)) };
-    expect(isStructuralChange(base, moved)).toBe(true);
-    expect(isStructuralChange(base, { ...base, edges: [{ id: "e", from: "app", to: "stripe", relationship: "uses" }] })).toBe(true);
-    expect(isStructuralChange(base, { ...base, style: { kind: "layered" } })).toBe(true);
   });
 });

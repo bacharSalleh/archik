@@ -78,29 +78,20 @@ export function nextRecordNumber(existing: readonly string[]): number {
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** `name` for complex fields, `parentId: a → b` for simple ones. */
-function fieldChange(f: { field: string; before: unknown; after: unknown }): string {
-  const simple = (v: unknown): boolean => v === undefined || typeof v === "string" || typeof v === "number";
-  if (!simple(f.before) || !simple(f.after)) return f.field;
-  const show = (v: unknown): string => (v === undefined ? "none" : String(v));
-  const text = `${f.field}: ${show(f.before)} → ${show(f.after)}`;
-  return text.length > 120 ? f.field : text;
-}
-
 /** One line per structural change — the record's evidence. */
-export function modelChangeLines(before: Document, after: Document): { summary: string; lines: string[] } {
+function modelChangeLines(before: Document, after: Document): { summary: string; lines: string[] } {
   const d = diffDocuments(before, after);
   const lines = [
     ...d.nodes.added.map((n) => `- added node \`${n.id}\` (${n.kind})`),
     ...d.nodes.removed.map((n) => `- removed node \`${n.id}\` (${n.kind})`),
     ...d.nodes.changed.map(
-      (c) => `- changed node \`${c.node.id}\`: ${c.changes.map(fieldChange).join(", ")}`,
+      (c) => `- changed node \`${c.node.id}\`: ${c.changes.map((f) => f.field).join(", ")}`,
     ),
     ...d.edges.added.map((e) => `- added edge \`${e.from} → ${e.to}\` (${e.relationship})`),
     ...d.edges.removed.map((e) => `- removed edge \`${e.from} → ${e.to}\` (${e.relationship})`),
     ...d.edges.changed.map(
       (c) =>
-        `- changed edge \`${c.edge.from} → ${c.edge.to}\`: ${c.changes.map(fieldChange).join(", ")}`,
+        `- changed edge \`${c.edge.from} → ${c.edge.to}\`: ${c.changes.map((f) => f.field).join(", ")}`,
     ),
   ];
   const parts = [

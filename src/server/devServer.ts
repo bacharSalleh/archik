@@ -17,10 +17,7 @@ import {
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
-  handleDecide,
-  handleGap,
   handleListFiles,
-  safeResolveProjectFile,
   handleNodeKinds,
   handleSidecar,
   handleYaml,
@@ -61,10 +58,6 @@ const FILE_ACCEPT_URL = "/__archik/file-accept";
 /** List every archik file under the project root, with a
  *  has-suggestion flag — drives the file-switcher dropdown. */
 const FILES_URL = "/__archik/files";
-/** Architect saves a structural edit with its decision record. */
-const DECIDE_URL = "/__archik/decide";
-/** What the code must change to match the model. */
-const GAP_URL = "/__archik/gap";
 const NODE_KINDS_URL = "/__archik/node-kinds";
 const SSE_KEEPALIVE_MS = 25_000;
 
@@ -268,23 +261,6 @@ export async function startDevServer(
     if (url === FILE_ACCEPT_URL || url.startsWith(FILE_ACCEPT_URL + "?")) {
       const rel = parsePathParam(url);
       void handleArchikAccept(root, rel, req, res);
-      return;
-    }
-
-    if (url === DECIDE_URL || url.startsWith(DECIDE_URL + "?")) {
-      const rel = parsePathParam(url);
-      const target = rel === "" ? docPath : safeResolveProjectFile(root, rel);
-      if (target === null) {
-        res.statusCode = 400;
-        res.end("Bad path");
-        return;
-      }
-      void handleDecide(root, target, req, res);
-      return;
-    }
-
-    if (url === GAP_URL || url.startsWith(GAP_URL + "?")) {
-      void handleGap(root, docPath, req, res);
       return;
     }
 

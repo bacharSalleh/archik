@@ -67,17 +67,17 @@ export function checkSourcePaths(
       });
       return;
     }
-    // A proposed node's sourcePath is where its code is PLANNED to
-    // live (a new component, or a move the architect asked for on the
-    // canvas) — it may not exist yet; `archik gap` lists it as work.
-    if (!exists(node.sourcePath) && node.status !== "proposed") {
+    if (!exists(node.sourcePath)) {
+      // Even on a proposed node, a path that's been declared still
+      // has to resolve — otherwise typos / refactor-stragglers slip
+      // through silently.
       errors.push({
         path: `nodes.${i}.sourcePath`,
         message:
           `node "${node.id}" sourcePath "${node.sourcePath}" does not exist on disk ` +
-          `(resolved relative to the project root). Either fix the path, or mark ` +
-          `the node \`status: proposed\` if its code is planned to live there ` +
-          `(\`archik gap\` then lists it as work).`,
+          `(resolved relative to the project root). Either fix the path, drop it ` +
+          `(if status is proposed/deprecated, sourcePath is optional), or change ` +
+          `the node's status to proposed.`,
       });
       return;
     }

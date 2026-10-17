@@ -40,10 +40,6 @@ type Props = {
   onSelectNothing?: (() => void) | undefined;
   /** Fired when the user drags from one node and releases over another. */
   onConnectDrag?: (fromId: string, toId: string) => void;
-  /** When set, replaces onConnectDrag: fired on every drag release with
-   *  the node under the pointer (null = empty canvas) and the pointer's
-   *  screen position, so the caller can offer "connect" or "move inside". */
-  onDropNode?: (fromId: string, toId: string | null, clientX: number, clientY: number) => void;
   /** Drill into a node's sub-architecture. The canvas wires this to
    *  the per-node "↓ open" affordance; only nodes with `archikFile`
    *  expose it. */
@@ -100,7 +96,6 @@ export function Canvas({
   onSelectEdge,
   onSelectNothing,
   onConnectDrag,
-  onDropNode,
   onOpenSubFile,
   onCrossFileNavigate,
   viewKey,
@@ -256,7 +251,7 @@ export function Canvas({
     if (e.pointerType === "touch") return;
     // Modifier-held clicks are reserved for multi-select / toggle.
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-    if (!onConnectDrag && !onDropNode) return;
+    if (!onConnectDrag) return;
     const target = e.target instanceof Element ? e.target : null;
     const nodeEl = target?.closest("[data-archik-node-id]");
     if (!nodeEl) return;
@@ -303,9 +298,7 @@ export function Canvas({
         );
         const targetEl = dropEl?.closest("[data-archik-node-id]");
         const toId = targetEl?.getAttribute("data-archik-node-id") ?? null;
-        if (onDropNode) {
-          if (toId !== fromId) onDropNode(fromId, toId, ev.clientX, ev.clientY);
-        } else if (toId && toId !== fromId && onConnectDrag) {
+        if (toId && toId !== fromId && onConnectDrag) {
           onConnectDrag(fromId, toId);
         }
         swallowNextClick.current = true;

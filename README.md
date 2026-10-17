@@ -70,7 +70,6 @@ Day to day:
 | You type | You get |
 | --- | --- |
 | `/archik:suggest <feature>` | A staged diagram change, shown as a green/red diff on the canvas — accept or reject |
-| `/archik:realize` | Make the code match the model the architect changed (works `archik gap` until empty) |
 | `/archik:evolve [area]` | A proposed cleaner refactor, backed by drift and smells |
 
 Already have docker-compose or Mermaid? Bootstrap from it instead of a blank canvas:
@@ -112,18 +111,6 @@ There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk
 | Structure | `.archik/main.archik.yaml` | Services, databases, queues, agents, LLMs, edges |
 | Sub-architecture | `.archik/*.archik.yaml` | A node's internals, linked via `archikFile` |
 | Decisions | `.archik/decisions/NNNN-*.md` | Why each accepted change was made — context, decision, alternatives, consequences |
-
-**Steer by moving boxes.** The architect changes the architecture directly on the canvas — drag a node into another module (or out to the top level), draw or delete an edge, set a layer — and saves it with a short "why" (the decision record). A moved component becomes a *pending move*. `archik gap` (and the **Code gap** panel on the canvas) then lists exactly what the code must change: move or create code, remove or add imports, fix style breaks, finish nodes whose code landed. "Copy task for your agent" hands it to Claude Code as `/archik:realize`; the agent works the list until the code matches the model.
-
-**Architecture style.** The architect picks the structure the code must follow — `layered`, `hexagonal`, `clean`, `modular-monolith` or `feature-slices` — with `style:` in the root file and a `layer:` on top-level nodes. archik enforces it on every change (validate, suggest set, canvas save reject a dependency that breaks it), draws the board in the style's lanes, and tells agents where each node sits and what it may depend on (`archik style`, `archik q describe`).
-
-```yaml
-style:
-  kind: hexagonal        # adapters → ports / core; the core never depends on an adapter
-nodes:
-  - { id: rest-api, kind: module, name: REST API, layer: adapters, ... }
-  - { id: core, kind: module, name: Ordering core, layer: core, ... }
-```
 
 The diagram says *what*; decision records say *why*. Every staged change carries one under `metadata.suggestion.decision` — `suggest set` refuses a draft without it — and accepting the change writes it as a numbered markdown record with the node and edge changes listed as evidence. Records are never edited; a later decision that changes course lists the old numbers in `supersedes`.
 
@@ -225,8 +212,6 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik dev` / `start` / `stop` / `status` | Live canvas lifecycle (foreground / detached) |
 | `archik validate [path]` | Schema + cross-file + constraints (exit 1 on error) |
 | `archik complexity [path]` | Flag over-large files, hub nodes, deep nesting (`--fail-on-warn` to gate) |
-| `archik gap` | What the code must change to match the model — move / create code, imports, style breaks, finish (`--json`, `--all`, `--fail-on-gap`) |
-| `archik style [list]` | The architecture style: rule, layers / modules, where nodes sit, violations; `list` shows every style |
 | `archik smells [dir]` | Folder import loops + oversized source files, from the code (`--max-file-lines`, `--fail-on-warn`, `--update-baseline`) |
 | `archik render --out <svg>` | Headless SVG render (`--focus <id>`, `--hide-structural`) |
 | `archik watch` | Re-render SVG on every change |
@@ -261,7 +246,6 @@ Reach for archik when a project has more than a handful of components, ships wit
 | Drift detection | **Yes** | No | No |
 | Decision records tied to model changes | **Yes** | No | No |
 | Governance constraints | **Yes** | No | No |
-| Enforced architecture style (layered, hexagonal, clean, modular) | **Yes** | No | No |
 | Validator | **Schema + cross-file + constraints** | Syntax only | Syntax only |
 
 ## Contributing

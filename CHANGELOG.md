@@ -16,17 +16,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 -
 
-## [0.22.0] - 2026-10-17
-
-### Added
-- **Steer by moving boxes**: drag a node onto a container on the canvas and choose *Move inside* (or drop it on empty space to move it to the top level). A built node whose code must follow becomes a pending move (`status: proposed`, `sourcePath` in the new parent's folder). Saving a structural change opens a **Why** dialog and saves the model together with its decision record (`POST /__archik/decide`); wording edits save as before.
-- **`archik gap`**: what the code must change to match the model — move code (old path from the last commit), create code, style breaks in imports, imports across a deleted edge, missing structural imports, proposed nodes to finish. Imports the model never drew are counted separately (`--all`). Also the **Code gap** canvas panel with "Copy task for your agent", the `archik_gap` MCP tool, and the new `/archik:realize` slash command.
-- Decision records show before → after values for simple field changes (parentId, sourcePath, layer, status, name).
-- **Architecture style**: declare the structure the code must follow with `style:` in the root model — `layered`, `hexagonal`, `clean`, `modular-monolith` or `feature-slices` — and `layer:` on nodes (children inherit it). Enforced like constraints at validate, suggest set and canvas save, with a fix hint per violation. The canvas lays the board out in the style's lanes, labels each layer, shows the style in the legend and offers a Layer picker in the inspector. New `archik style [list]` command and `archik_style` MCP tool; `q describe` says where a node sits and what it may depend on. Style and layer changes are one-way doors.
-- The loop template, skill and slash commands agree a style with the user on new projects, offer one after `spawn`, and design every change inside it.
+## [0.22.1] - 2026-10-17
 
 ### Changed
-- A `proposed` node may name a `sourcePath` that does not exist yet — its planned location; `archik gap` lists it as work. Built nodes still need real paths.
+- **Reverts 0.22.0.** This release has exactly the 0.21.0 code: the architecture style, steer-by-moving-boxes and `archik gap` features are removed again. If you installed 0.22.0, upgrade to this version; model files that used `style:` or `layer:` must drop those fields.
 
 ## [0.21.0] - 2026-10-17
 

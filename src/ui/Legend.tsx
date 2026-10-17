@@ -1,5 +1,3 @@
-import type { Style } from "../domain/style.ts";
-import { styleInfo, styleLayers } from "../domain/style.ts";
 import { NODE_KINDS } from "../domain/taxonomy.ts";
 import {
   RELATIONSHIPS,
@@ -17,7 +15,7 @@ import {
 } from "../render/arrowhead.ts";
 import { Popover } from "./Popover.tsx";
 
-export function Legend({ style }: { style?: Style | undefined } = {}): React.ReactElement {
+export function Legend(): React.ReactElement {
   return (
     <Popover
       align="end"
@@ -41,8 +39,7 @@ export function Legend({ style }: { style?: Style | undefined } = {}): React.Rea
             padding: 6,
           }}
         >
-          {style !== undefined ? <StyleLegendSection style={style} /> : null}
-          <SectionHeading first={style === undefined}>Node kinds</SectionHeading>
+          <SectionHeading first>Node kinds</SectionHeading>
           {NODE_KINDS.map((kind) => {
             const meta = KIND_META[kind];
             const Icon = meta.icon;
@@ -89,30 +86,6 @@ export function Legend({ style }: { style?: Style | undefined } = {}): React.Rea
         </div>
       )}
     </Popover>
-  );
-}
-
-function StyleLegendSection({ style }: { style: Style }): React.ReactElement {
-  const info = styleInfo(style.kind);
-  const layers = styleLayers(style);
-  return (
-    <>
-      <SectionHeading first>Architecture style</SectionHeading>
-      <div style={{ padding: "5px 6px", fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ color: "var(--archik-fg)", fontWeight: 600 }}>{info.title}</span>
-        <span style={{ color: "var(--archik-fg-dim)" }}>Rule: {info.rule}.</span>
-        {layers.length > 0 ? (
-          <span style={{ color: "var(--archik-fg-dim)" }}>
-            Lanes, left → right: <code style={{ color: "var(--archik-fg)" }}>{layers.join(" → ")}</code>
-          </span>
-        ) : (
-          <span style={{ color: "var(--archik-fg-dim)" }}>
-            Each top-level node is a module.
-            {style.shared ? ` Shared: ${style.shared.join(", ")}.` : ""}
-          </span>
-        )}
-      </div>
-    </>
   );
 }
 

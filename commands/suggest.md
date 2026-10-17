@@ -66,21 +66,11 @@ start Build phase here; that's gated on accept.
 2. **Ground yourself in the current models** using the query CLI
    (do not `cat` the YAML):
    ```
-   npx archik style
    npx archik q stats
    npx archik q list
    ```
    If `$ARGUMENTS` mentions a specific node by name, also run
-   `npx archik q describe <id>` for it (its `style:` line says which
-   layer or module it sits in and what it may depend on).
-
-   If the model declares a style, the draft must follow it: give each
-   new top-level node its `layer` (layered, hexagonal, clean) or put
-   it in the right module (modular monolith, feature slices), and keep
-   every new edge inside the style's rule. `suggest set` rejects a
-   draft that breaks it. If the feature truly needs a forbidden
-   dependency, stop and ask the user — the fix is usually a port /
-   interface, not an exception.
+   `npx archik q describe <id>` for it.
 
 3. **Lock in the schema.** Run this before drafting any YAML —
    the prose in this file describes the workflow, not the field

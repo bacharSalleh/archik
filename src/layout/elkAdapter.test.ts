@@ -91,29 +91,6 @@ describe("elkLayoutEngine", () => {
     expect(out.edges[0]!.sections.length).toBeGreaterThan(0);
   });
 
-  it("places top-level nodes left to right in style layer order", async () => {
-    const mk = (id: string, layer?: string) => ({
-      id,
-      kind: "module" as const,
-      name: id,
-      description: "x",
-      ...(layer !== undefined ? { layer } : {}),
-    });
-    const styled: Document = {
-      version: "1.0",
-      name: "s",
-      style: { kind: "layered" },
-      nodes: [mk("infra", "infrastructure"), mk("web", "presentation"), mk("dom", "domain"), mk("app", "application")],
-      // An upward edge would normally pull infra left of web.
-      edges: [{ id: "e", from: "infra", to: "web", relationship: "uses" }],
-    };
-    const out = await elkLayoutEngine.layout(styled);
-    const x = (id: string) => out.roots.find((n) => n.id === id)!.x;
-    expect(x("web")).toBeLessThan(x("app"));
-    expect(x("app")).toBeLessThan(x("dom"));
-    expect(x("dom")).toBeLessThan(x("infra"));
-  });
-
   it("does not overlap nodes in the orders fixture", async () => {
     const out = await elkLayoutEngine.layout(ordersDocument);
     const flat: PositionedNode[] = [];

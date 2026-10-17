@@ -14,7 +14,6 @@
  *
  * Pure: derived from the before/after documents only.
  */
-import { diffDocuments } from "./diff.ts";
 import type { Document, Node, NodeKind } from "./types.ts";
 
 /** Kinds whose addition means data, an outside system or public traffic. */
@@ -50,15 +49,6 @@ export function classifyChange(before: Document, after: Document): DoorClassific
   const now = new Map(after.nodes.map((n) => [n.id, n]));
   const reasons: DoorReason[] = [];
 
-  if (JSON.stringify(before.style ?? null) !== JSON.stringify(after.style ?? null)) {
-    const from = before.style?.kind ?? "none";
-    const to = after.style?.kind ?? "none";
-    reasons.push({
-      text: from === to ? `changes the ${to} style's layers or shared modules` : `changes the architecture style from ${from} to ${to}`,
-      crossCutting: false,
-    });
-  }
-
   for (const n of after.nodes) {
     if (was.has(n.id)) continue;
     if (RISKY_KINDS.has(n.kind)) {
@@ -86,12 +76,6 @@ export function classifyChange(before: Document, after: Document): DoorClassific
       if (!isPlanned(n)) reasons.push({ text: `removes \`${n.id}\``, crossCutting: false });
       continue;
     }
-    if (next.layer !== n.layer && n.layer !== undefined && !isPlanned(n)) {
-      reasons.push({
-        text: `moves \`${n.id}\` from layer ${n.layer} to ${next.layer ?? "no layer"}`,
-        crossCutting: false,
-      });
-    }
     if (next.parentId !== n.parentId && !isPlanned(n)) {
       const from = n.parentId === undefined ? "top level" : `\`${n.parentId}\``;
       const to = next.parentId === undefined ? "top level" : `\`${next.parentId}\``;
@@ -104,23 +88,4 @@ export function classifyChange(before: Document, after: Document): DoorClassific
     needsCrossCutting: reasons.some((r) => r.crossCutting),
     reasons,
   };
-}
-
-/** Node fields that change the structure, not just its labels. */
-const STRUCTURAL_FIELDS = new Set(["parentId", "layer", "sourcePath", "kind", "status", "archikFile"]);
-
-/**
- * True when a change alters the structure (nodes or edges added or
- * removed, a node moved, re-layered, re-kinded or re-pathed, the style
- * changed) — the kind of change that needs a decision record. Pure
- * wording edits (names, descriptions, notes) do not.
- */
-export function isStructuralChange(before: Document, after: Document): boolean {
-  if (JSON.stringify(before.style ?? null) !== JSON.stringify(after.style ?? null)) return true;
-  const d = diffDocuments(before, after);
-  if (d.nodes.added.length + d.nodes.removed.length + d.edges.added.length + d.edges.removed.length > 0) {
-    return true;
-  }
-  if (d.nodes.changed.some((c) => c.changes.some((f) => STRUCTURAL_FIELDS.has(f.field)))) return true;
-  return d.edges.changed.some((c) => c.changes.some((f) => f.field === "relationship" || f.field === "status"));
 }

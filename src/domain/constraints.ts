@@ -19,7 +19,6 @@
 import type { LoadedDoc } from "../io/discovery.ts";
 import type { Constraint, Edge, Node, NodeSelector } from "./types.ts";
 import type { ValidationError } from "./validate.ts";
-import { checkStyle } from "./style.ts";
 
 function buildAncestry(nodes: Node[]): Map<string, Set<string>> {
   const parentOf = new Map<string, string | undefined>();
@@ -74,9 +73,7 @@ export function checkConstraintsWithDraft(
 }
 
 export function checkConstraints(docs: LoadedDoc[]): ValidationError[] {
-  // The architecture style is a governance rule too — same gate, same
-  // places (validate, suggest set, canvas save).
-  const errors: ValidationError[] = [...checkStyle(docs).errors];
+  const errors: ValidationError[] = [];
   const nodes: Node[] = docs.flatMap((d) => d.doc.nodes);
   const edges: Array<{ edge: Edge; relPath: string }> = docs.flatMap((d) =>
     d.doc.edges.map((edge) => ({ edge, relPath: d.relPath })),

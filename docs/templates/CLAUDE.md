@@ -8,9 +8,7 @@
 
 I move from **brief → structural model → build plan → code**. Each step is a reviewable artifact, gated by a HITL accept before the next one is produced. If implementation invalidates the model, I stop coding and fix the model first.
 
-The **architecture style** (`style:` in the model — layered, hexagonal, clean, modular monolith or feature slices) is the architect's choice of structure; archik enforces it on every change and draws the board in its lanes. The **structural model** (archik diagram — nodes, nesting via `parentId` and sub-files, edges) says *what exists* and *which way dependencies flow*. **Decision records** in `.archik/decisions/` say *why* it is shaped that way — one per accepted change. `archik drift` and `archik smells` check it against the real code. Code is the last artifact, not the first.
-
-**The architect can steer directly.** Moving a box, drawing or deleting an edge, or setting a layer on the canvas saves the change with its decision record — the model is then ahead of the code. `npx archik gap` lists what the code must change; `/archik:realize` closes that list.
+The **structural model** (archik diagram — nodes, nesting via `parentId` and sub-files, edges) says *what exists* and *which way dependencies flow*. **Decision records** in `.archik/decisions/` say *why* it is shaped that way — one per accepted change. `archik drift` and `archik smells` check it against the real code. Code is the last artifact, not the first.
 
 Two gate types:
 
@@ -77,13 +75,11 @@ The recommended opener is **`/archik:bootstrap`** (with or without an inline bri
 
 2. **Read the current state** with `ls -F`, `npx archik q list` (only relevant if archik is already populated), and `npx archik smells` (when code exists).
 
-3. **Agree the architecture style.** Ask which structure the system should follow (`npx archik style list`), recommend one that fits the brief (a small service: layered; rich domain with many integrations: hexagonal or clean; several teams in one deployable: modular monolith; many independent features: feature slices), and put the user's choice in the first sidecar as `style:`.
+3. **Surface genuine ambiguities** — usually 2–4 questions about scope, target users, hard constraints, or non-obvious tradeoffs. Skip questions whose answers are in the brief.
 
-4. **Surface genuine ambiguities** — usually 2–4 questions about scope, target users, hard constraints, or non-obvious tradeoffs. Skip questions whose answers are in the brief.
+4. **Stage the structural model** via `npx archik suggest set` — the **first milestone in detail** (every node and edge it needs, `status: proposed`), and the rest of the system as a few coarse `module` placeholders (one per later area, `status: proposed`, one-line description). Wait for **`/archik:accept`** on the canvas (formal gate).
 
-5. **Stage the structural model** via `npx archik suggest set` — the **first milestone in detail** (every node and edge it needs, `status: proposed`, each top-level node in its style `layer`), and the rest of the system as a few coarse `module` placeholders (one per later area, `status: proposed`, one-line description). Wait for **`/archik:accept`** on the canvas (formal gate).
-
-6. **Detail grows with the work.** Don't model what you can't yet know. Each milestone first details its own area (a sidecar that replaces the placeholder's insides), then flips those nodes from `proposed` to `active` (with `sourcePath`) as code lands. The set of nodes a milestone flips IS the milestone.
+5. **Detail grows with the work.** Don't model what you can't yet know. Each milestone first details its own area (a sidecar that replaces the placeholder's insides), then flips those nodes from `proposed` to `active` (with `sourcePath`) as code lands. The set of nodes a milestone flips IS the milestone.
 
 ## Per-milestone rhythm
 
@@ -91,7 +87,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 
 1. **Structural sidecar** — `/archik:suggest <feature>`. Stages the proposed end-state for this milestone via `npx archik suggest set` under the hood, with its decision record. Note whether `suggest set` called it a one-way or two-way door.
 2. **`/archik:accept` on the structural diagram** — formal canvas gate.
-3. **BUILD plan** — start from `npx archik gap` (the exact code work the model now asks for), then: one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan. For a one-way door with `crossCutting`, the plan also lands what it promised: the security control, the signal you will watch, the rollback path.
+3. **BUILD plan** — one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan. For a one-way door with `crossCutting`, the plan also lands what it promised: the security control, the signal you will watch, the rollback path.
 4. **"approve" on the plan** — plan gate. Don't start editing files until approved. *Two-way door:* steps 1–4 collapse — show the plan together with the sidecar, and `/archik:accept` approves both.
 5. **Execute** — small commits, narrate non-obvious decisions, declare back-edges to DESIGN openly when they happen.
 6. **Verify** — project tests → lint → build → `npx archik drift` → `npx archik smells` → aesthetic eyeball (if UI). No **new** folder loop or oversized file should close the milestone (with a committed baseline, `smells` marks them NEW). For a one-way door, check the `crossCutting` promises exist in the code before the flip to `active`.
@@ -103,7 +99,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 
 1. **Structure → plan → code. In that order.** The accepted diagram defines what to build. Code lands last.
 2. **Gates match reversibility.** One-way doors get two stops: a **canvas gate** (`/archik:accept`) on the model, then an **approval gate** ("approve") on the plan. Two-way doors get one stop: sidecar and plan shown together, one `/archik:accept`. Never skip review of a one-way door to save time.
-3. **Dependencies flow one way.** The declared style's rule is law: `suggest set` rejects a dependency that breaks it, and a change that seems to need one is a question for the architect, not a workaround. Sibling folders must not import each other. `npx archik smells` reports folder loops with the real imports as evidence — fix them, don't invent labels for them.
+3. **Dependencies flow one way.** Sibling folders must not import each other. `npx archik smells` reports folder loops with the real imports as evidence — fix them, don't invent labels for them.
 4. **Stop at every milestone boundary.** Summarize what shipped, run verifications (`archik drift` and `archik smells`), ask for the visual ack before continuing.
 5. **Boring underneath.** No experimental framework features unless explicitly requested. Match the stack the brief specifies.
 6. **No scope creep.** Out-of-scope items go in `FUTURE.md`, not the current milestone.
@@ -114,7 +110,6 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 ## What each phase produces
 
 ### DISCOVER
-- `npx archik style` — the structure the code must follow, and where each node sits.
 - `npx archik q stats` and `npx archik q list` to ground in the current diagram.
 - `npx archik smells` to see folder loops and oversized files in the code.
 - Past decision records in `.archik/decisions/` for the area you will touch — don't undo a choice without knowing why it was made.
@@ -123,7 +118,6 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 - No code, no diagram changes yet.
 
 ### DESIGN
-- Fit the change to the style: each new top-level node gets the `layer` (or module) its job belongs to; dependencies follow the rule (`npx archik q describe <id>` shows what a node may use).
 - One-line intent.
 - 1–3 clarifying questions only when there's genuine ambiguity.
 - A sidecar staged via `npx archik suggest set --note "..."` containing the **full proposed end-state**.
@@ -155,7 +149,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 2. Lint — clean.
 3. Build / typecheck — clean.
 4. `npx archik validate` — schema + cross-file + constraint checks clean.
-5. `npx archik drift` — structural model matches disk; `npx archik gap` — "the code matches the model".
+5. `npx archik drift` — structural model matches disk.
 6. `npx archik smells` — no **new** folder loops or oversized files. On existing code, run `npx archik smells --update-baseline` once and commit `.archik/smells-baseline.json`; `--fail-on-warn` then fails CI only on new findings. Tighten the baseline when findings are fixed.
 7. For one-way doors: the record's `crossCutting` promises (security control, signal, rollback path) exist in the code.
 8. Aesthetic eyeball when there's a UI — share a screenshot, ask before declaring done.

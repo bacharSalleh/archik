@@ -5,7 +5,6 @@
  * shape over the pure functions in src/domain/query.ts.
  */
 import { discoverDocs, type LoadedDoc } from "../../io/discovery.ts";
-import { nodePlacement } from "../../domain/style.ts";
 import {
   deps,
   dependents,
@@ -173,7 +172,6 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
       ok: true,
       file: found.found.relPath,
       node: found.found.node,
-      style: nodePlacement(docs, id),
       outbound: outbound.map((e) => ({ edge: e.edge, file: e.relPath })),
       inbound: inbound.map((e) => ({ edge: e.edge, file: e.relPath })),
     });
@@ -189,10 +187,6 @@ async function qDescribe(opts: ParsedOptions): Promise<number> {
   }
   if (n.stack) console.log(`  ${bold("stack")}: ${n.stack}`);
   if (n.owner) console.log(`  ${bold("owner")}: ${n.owner}`);
-  const placement = nodePlacement(docs, id);
-  if (placement !== null) {
-    console.log(`  ${bold("style")}: ${placement.style} — ${placement.place}; may depend on ${placement.mayDependOn}`);
-  }
   if (n.description) console.log(`  ${bold("description")}: ${n.description}`);
   if (n.sourcePath) console.log(`  ${bold("sourcePath")}: ${n.sourcePath}`);
   if (n.parentId) console.log(`  ${bold("parentId")}: ${n.parentId}`);

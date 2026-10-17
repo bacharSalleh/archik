@@ -2,7 +2,6 @@ import { z } from "zod";
 import { NodeKindSchema } from "./taxonomy.ts";
 import { RelationshipSchema } from "./relationships.ts";
 import { DecisionSchema } from "./decision.ts";
-import { StyleSchema } from "./style.ts";
 
 export const NodeStatusSchema = z.enum(["proposed", "active", "deprecated"]);
 
@@ -94,9 +93,6 @@ export const NodeSchema = z.strictObject({
    *  Validation also exempts proposed/deprecated from the required
    *  sourcePath rule — they're explicitly "code may not exist" states. */
   status: NodeStatusSchema.optional(),
-  /** Layer this node (and its children) belongs to, when the document
-   *  declares a layered / hexagonal / clean `style`. */
-  layer: z.string().min(1).optional(),
   /** Owning team or person (free text — match your CODEOWNERS /
    *  org vocabulary). Surfaced by `q describe` / `q list --owner`
    *  so "who do I talk to about this?" is one query, and usable in
@@ -288,9 +284,6 @@ export const DocumentSchema = z
      *  can't dodge a rule by living in a different file. Usually
      *  authored in the root document only. */
     constraints: z.array(ConstraintSchema).min(1).optional(),
-    /** The architecture style the code must follow (see style.ts).
-     *  Declared once, usually in the root document. */
-    style: StyleSchema.optional(),
     metadata: DocumentMetadataSchema.optional(),
   })
   // Cross-reference invariants. Without these, the structural schema

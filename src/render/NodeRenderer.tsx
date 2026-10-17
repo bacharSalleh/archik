@@ -172,18 +172,6 @@ export function NodeRenderer({
         />
       )}
       <Shape node={node} selected={isSelected} viewMode={viewMode} depth={depth} />
-      {/* Layer label — only where a node sets its layer (children inherit),
-          so each lane is named once, just above its node. */}
-      {node.layer !== undefined && (
-        <text
-          className="archik-layer-label"
-          x={2}
-          y={-6}
-          style={{ pointerEvents: "none" }}
-        >
-          {node.layer.toUpperCase()}
-        </text>
-      )}
 
       {viewMode === "detailed" && (() => {
         // Containers (module / custom with children) used to be skipped
