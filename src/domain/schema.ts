@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { NodeKindSchema } from "./taxonomy.ts";
 import { RelationshipSchema } from "./relationships.ts";
+import { DecisionSchema } from "./decision.ts";
 
 export const NodeStatusSchema = z.enum(["proposed", "active", "deprecated"]);
 
@@ -257,9 +258,12 @@ export const ConstraintSchema = z
  *       note: "add Stripe payment flow"     # optional one-liner
  */
 export const SuggestionMetadataSchema = z.strictObject({
-  from: z.string().min(1),
-  at: z.string().min(1),
+  /** Stamped by `suggest set`; optional in drafts. */
+  from: z.string().min(1).optional(),
+  at: z.string().min(1).optional(),
   note: z.string().optional(),
+  /** Why this change — written to .archik/decisions/ on accept. */
+  decision: DecisionSchema.optional(),
 });
 
 export const DocumentMetadataSchema = z.strictObject({

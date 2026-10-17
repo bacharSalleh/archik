@@ -193,6 +193,16 @@ async function applyCommand(opts: ParsedOptions): Promise<number> {
         from: path.basename(mainPath),
         at: new Date().toISOString(),
         note: `pattern "${id}" blueprint (${newNodes.length} nodes, ${newEdges.length} edges)`,
+        decision: {
+          context: `The team chose to adopt the "${id}" pattern (see \`archik patterns show ${id}\`).`,
+          decision: `Add the pattern's blueprint as ${newNodes.length} proposed nodes and ${newEdges.length} edges: ${newNodes.map((n) => n.id).join(", ")}.`,
+          alternatives: [
+            `Build the "${id}" workflow by hand without the blueprint`,
+            "Do not adopt the pattern",
+          ],
+          consequences:
+            "The nodes start as proposed; rename ids, add sourcePaths and flip them to active as each piece is built. Read the pattern's trade-offs before accepting.",
+        },
       },
     },
   };

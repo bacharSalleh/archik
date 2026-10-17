@@ -26,7 +26,7 @@ the contract with the user.
 
 The skill defines a 5-phase loop: **Discover → Design → Decide → Build
 → Verify**. This command covers Discover (grounding) and Design
-(staging the sidecar with rationale), then hands off to the user's
+(staging the sidecar with its decision record), then hands off to the user's
 review and the explicit Decide gate (`/archik:accept` or
 `/archik:reject`). Don't skip clarification just because a slash
 command was typed — clarification is what makes the draft good. Don't
@@ -113,23 +113,36 @@ start Build phase here; that's gated on accept.
      # full proposed end-state — every node, not just the delta
    edges:
      # full proposed end-state — every edge, not just the delta
+   metadata:
+     suggestion:
+       decision:
+         context: <the problem and the forces — facts, not the solution>
+         decision: <what you chose, 1–2 sentences>
+         alternatives:
+           - <a real option you weighed and did not choose>
+         consequences: <what gets easier AND what gets harder>
+         # supersedes: ["0003"]   # only when this reverses an earlier record
    YAML
    ```
+
+   The decision record is required — `suggest set` refuses a draft
+   without it, and accept writes it to
+   `.archik/decisions/NNNN-<slug>.md`. Before writing it, read the
+   past records for the area (`ls .archik/decisions/`, they are plain
+   markdown). If your change reverses one, list it in `supersedes`.
 
    If the command exits non-zero, re-run with the corrected YAML.
    Never write a draft file under `.archik/` and never edit the
    sidecar directly.
 
-5. **Narrate the design rationale** in 2–4 short bullets before
-   handing off to review. The user needs to see *why* this shape, not
-   just *what* it is. Cover:
-   - Which **bounded context(s)** the change touches and why those
-     boundaries.
-   - The **separation of concerns** — what each new node owns and why
-     it's its own node (not folded into an existing one).
-   - **Async vs sync** choice and the reason (cross-context coupling
-     should default to async).
-   - Any **alternative you rejected** and the trade-off.
+5. **Summarise the decision record** in 2–4 short bullets before
+   handing off to review — the same content the record holds, so the
+   user can judge the *why* next to the diagram (the canvas also shows
+   it under **Why** on the review banner). Make sure it covers:
+   - Which **boundaries** the change touches and why those boundaries.
+   - What each new node owns and why it is its own node.
+   - **Async vs sync** choice and the reason.
+   - The **alternatives** you rejected and what the choice costs.
 
    Keep it tight — bullets, not paragraphs. The diagram does the rest.
 

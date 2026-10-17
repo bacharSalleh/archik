@@ -143,6 +143,7 @@ describe("evolution approve / reject", () => {
     expect(existsSync(sidecar)).toBe(true);
     const text = await readFile(sidecar, "utf-8");
     expect(text).toContain("team-core");
+    expect(text).toContain("decision:"); // accept needs a decision record
     const [p] = await readProposals(root);
     expect(p!.status).toBe("approved");
   });

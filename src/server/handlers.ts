@@ -29,6 +29,12 @@ import {
 } from "../domain/validate.ts";
 import { discoverDocs } from "../io/discovery.ts";
 import { parseYaml, stringifyYaml } from "../io/yaml.ts";
+import {
+  MISSING_DECISION_MESSAGE,
+  sidecarDecision,
+  writeDecisionRecord,
+} from "../io/decisions.ts";
+import type { Document } from "../domain/types.ts";
 import { layout } from "../layout/index.ts";
 import { DiffSvg } from "../render/DiffSvg.tsx";
 
@@ -318,15 +324,31 @@ export async function handleAccept(
   // can't corrupt the source of truth. Then ENOENT-swallow on unlink
   // so a concurrent reject doesn't make us look like we failed.
   let cleaned: string;
+  let sidecarDoc: Document;
+  let afterDoc: Document;
   try {
     const text = await fs.readFile(sidecarPath, "utf-8");
-    const doc = parseYaml(text);
-    cleaned = stringifyYaml(stripSuggestionMarker(doc));
+    sidecarDoc = parseYaml(text);
+    afterDoc = stripSuggestionMarker(sidecarDoc);
+    cleaned = stringifyYaml(afterDoc);
   } catch (err) {
     res.statusCode = 400;
     res.setHeader("content-type", "text/plain; charset=utf-8");
     res.end(err instanceof Error ? err.message : String(err));
     return;
+  }
+  // Every accepted change leaves a "why" behind.
+  if (sidecarDecision(sidecarDoc) === null) {
+    res.statusCode = 400;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(MISSING_DECISION_MESSAGE);
+    return;
+  }
+  let before: Document | null = null;
+  try {
+    before = parseYaml(await fs.readFile(mainPath, "utf-8"));
+  } catch {
+    before = null; // new or broken main file — the record shows everything as added
   }
   try {
     await atomicWrite(mainPath, cleaned);
@@ -335,6 +357,16 @@ export async function handleAccept(
     res.setHeader("content-type", "text/plain; charset=utf-8");
     res.end(
       `Failed to write main file: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return;
+  }
+  try {
+    await writeDecisionRecord({ mainPath, sidecarDoc, before, after: afterDoc });
+  } catch (err) {
+    res.statusCode = 207;
+    res.setHeader("content-type", "text/plain; charset=utf-8");
+    res.end(
+      `Main file accepted, but the decision record could not be written: ${err instanceof Error ? err.message : String(err)}`,
     );
     return;
   }

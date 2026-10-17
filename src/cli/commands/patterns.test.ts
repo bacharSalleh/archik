@@ -90,6 +90,7 @@ describe("patterns CLI", () => {
     const text = await readFile(sidecar, "utf-8");
     expect(text).toContain("evo-event-log");
     expect(text).toContain("api"); // existing nodes preserved
+    expect(text).toContain("decision:"); // accept needs a decision record
   });
 
   it("apply refuses when a sidecar is already pending", async () => {

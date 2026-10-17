@@ -1,8 +1,10 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  handleAccept,
   listArchikFiles,
   safeResolveProjectFile,
 } from "./handlers.ts";
@@ -218,5 +220,66 @@ describe("listArchikFiles", () => {
     );
     const files = await listArchikFiles(root);
     expect(files.map((f) => f.path)).toEqual([".archik/main.archik.yaml"]);
+  });
+});
+
+describe("handleAccept (canvas accept)", () => {
+  let root: string;
+  const main = () => path.join(root, ".archik/main.archik.yaml");
+  const sidecar = () => path.join(root, ".archik/main.archik.suggested.yaml");
+  const req = { method: "POST", headers: { host: "localhost:5173" } } as unknown as IncomingMessage;
+  const fakeRes = () => {
+    const r = { statusCode: 0, body: "", setHeader() {}, end(b?: string) { if (b) r.body = b; } };
+    return r;
+  };
+  const doc = (extra: string) =>
+    [
+      'version: "1.0"',
+      "name: Demo",
+      "nodes:",
+      "  - id: web",
+      "    kind: external",
+      "    name: Web",
+      "    description: x",
+      "edges: []",
+      extra,
+    ].join("\n");
+  const decision = [
+    "metadata:",
+    "  suggestion:",
+    "    note: Add web",
+    "    decision:",
+    "      context: Users need a way in.",
+    "      decision: Add a web front door.",
+    "      alternatives: [CLI only]",
+    "      consequences: One more thing to host.",
+    "",
+  ].join("\n");
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "archik-accept-"));
+    await mkdir(path.join(root, ".archik"));
+    await writeFile(main(), 'version: "1.0"\nname: Demo\nnodes: []\nedges: []\n');
+  });
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("writes the decision record and applies the sidecar", async () => {
+    await writeFile(sidecar(), doc(decision));
+    const res = fakeRes();
+    await handleAccept(main(), sidecar(), req, res as unknown as ServerResponse);
+    expect(res.statusCode).toBe(204);
+    expect(await readdir(path.join(root, ".archik/decisions"))).toEqual(["0001-add-web.md"]);
+    expect(await readFile(main(), "utf-8")).toContain("id: web");
+  });
+
+  it("refuses with 400 when the sidecar has no decision record", async () => {
+    await writeFile(sidecar(), doc(""));
+    const res = fakeRes();
+    await handleAccept(main(), sidecar(), req, res as unknown as ServerResponse);
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatch(/no decision record/i);
+    expect(await readFile(main(), "utf-8")).not.toContain("id: web");
   });
 });

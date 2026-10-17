@@ -3,7 +3,6 @@ import { access, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   archikFileMode,
-  isSuggestion,
   stripSuggestionMarker,
   suggestionPath,
 } from "../../domain/suggestion.ts";
@@ -17,6 +16,11 @@ import {
   validateDocument,
 } from "../../domain/validate.ts";
 import { parseYaml, stringifyYaml } from "../../io/yaml.ts";
+import {
+  MISSING_DECISION_MESSAGE,
+  sidecarDecision,
+  writeDecisionRecord,
+} from "../../io/decisions.ts";
 import type { Document } from "../../domain/types.ts";
 import { getString, type ParsedOptions } from "../options.ts";
 import { projectRoot, resolveDocPath } from "../resolveDocPath.ts";
@@ -131,6 +135,18 @@ async function show(
     console.log(`  authored:  ${suggestionMeta.at}`);
     console.log(`  proposes:  changes to ${suggestionMeta.from}`);
     if (suggestionMeta.note) console.log(`  note:      ${suggestionMeta.note}`);
+    const d = suggestionMeta.decision;
+    if (d) {
+      console.log("");
+      console.log("Decision record:");
+      console.log(`  context:       ${d.context}`);
+      console.log(`  decision:      ${d.decision}`);
+      for (const a of d.alternatives) console.log(`  alternative:   ${a}`);
+      console.log(`  consequences:  ${d.consequences}`);
+      if (d.supersedes) console.log(`  supersedes:    ${d.supersedes.join(", ")}`);
+    } else {
+      console.log("  (no decision record — accept will refuse)");
+    }
   }
   console.log("");
   if (!mainExists) {
@@ -171,13 +187,27 @@ async function accept(mainPath: string, sidecar: string): Promise<number> {
     console.error(err instanceof Error ? err.message : String(err));
     return 1;
   }
+  // Every accepted change leaves a "why" behind.
+  if (sidecarDecision(doc) === null) {
+    console.error(`✗ ${MISSING_DECISION_MESSAGE}`);
+    return 1;
+  }
+  let before: Document | null = null;
+  if (await exists(mainPath)) {
+    try {
+      before = parseYaml(await readFile(mainPath, "utf-8"));
+    } catch {
+      before = null; // a broken main file is replaced; the record shows everything as added
+    }
+  }
   // Strip the suggestion marker — once accepted, this is the new
   // canonical architecture, not a draft.
   const cleaned = stripSuggestionMarker(doc);
   await writeFile(mainPath, stringifyYaml(cleaned), "utf-8");
+  const record = await writeDecisionRecord({ mainPath, sidecarDoc: doc, before, after: cleaned });
   await unlink(sidecar);
-  const wasMarked = isSuggestion(doc);
-  console.log(`✓ Accepted${wasMarked ? "" : " (no suggestion marker found, applied as-is)"} → ${path.basename(mainPath)}`);
+  console.log(`✓ Accepted → ${path.basename(mainPath)}`);
+  console.log(`✓ Decision recorded → ${record}`);
   return 0;
 }
 
@@ -212,9 +242,9 @@ async function exists(p: string): Promise<boolean> {
  *   2. Parse + schema-validate.
  *   3. Resolve cross-file references against the same project root
  *      the dev server / validate command uses.
- *   4. Stamp `metadata.suggestion` with `{from, at, note?}` (overwriting
- *      any pre-existing block — the CLI is authoritative for these
- *      fields).
+ *   4. Require `metadata.suggestion.decision` (the "why" record), then
+ *      stamp `metadata.suggestion` with `{from, at, note?, decision}`
+ *      (the CLI is authoritative for `from` and `at`).
  *   5. Atomically rename into the sidecar path next to the main file.
  *
  * Refuses to write the draft directly over the main file — that's the
@@ -366,6 +396,18 @@ async function set(opts: ParsedOptions): Promise<number> {
   // `note` comes from --note if given, otherwise we keep what the
   // draft already had (Claude may have authored a sensible one),
   // otherwise it's omitted.
+  const decision = doc.metadata?.suggestion?.decision;
+  if (decision === undefined) {
+    return fail(
+      json,
+      "Draft has no decision record. Add it under metadata.suggestion.decision:\n" +
+        "  context: <the problem and forces>\n" +
+        "  decision: <what you chose>\n" +
+        "  alternatives: [<option not chosen>, ...]\n" +
+        "  consequences: <what gets easier / harder>\n" +
+        "It is written to .archik/decisions/ when the suggestion is accepted.",
+    );
+  }
   const noteFlag = getString(opts, "note");
   const existingNote = doc.metadata?.suggestion?.note;
   const note = noteFlag !== undefined ? noteFlag : existingNote;
@@ -379,6 +421,7 @@ async function set(opts: ParsedOptions): Promise<number> {
         from: fromRel,
         at: new Date().toISOString(),
         ...(note !== undefined ? { note } : {}),
+        decision,
       },
     },
   };

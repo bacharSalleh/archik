@@ -312,6 +312,15 @@ async function stageSidecar(
         from: path.basename(mainPath),
         at: new Date().toISOString(),
         note: `evolution proposal ${proposal.id}: ${proposal.summary}`,
+        decision: {
+          context: `The evolution loop saw ${proposal.evidence.events} matching event(s) in ${proposal.evidence.window}${
+            proposal.evidence.samples.length > 0 ? `, e.g. ${proposal.evidence.samples.slice(0, 2).join("; ")}` : ""
+          }.`,
+          decision: `${proposal.summary} (proposal ${proposal.id}, kind ${proposal.kind}).`,
+          alternatives: ["Leave the diagram as it is and reject the proposal"],
+          consequences:
+            "The change came from observed usage, not a design review; check it against the past decision records it may affect.",
+        },
       },
     },
   };

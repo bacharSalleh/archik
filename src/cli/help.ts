@@ -274,16 +274,34 @@ SUBCOMMANDS
 
   set       Validate a draft YAML and stage it as the sidecar.
             <draft> can be a file path or "-" to read stdin.
-            --note '<text>'   set metadata.suggestion.note
+            The draft MUST carry a decision record (see below).
+            --note '<text>'   set metadata.suggestion.note (the record title)
             --main <path>     override main file detection
             --allow-orphan    permit a sidecar for a main file that
                               doesn't exist yet (used to propose a
                               brand-new sub-architecture)
             --json            structured output for agents
 
-  accept    Apply the sidecar over the main file (atomic rename).
+  accept    Apply the sidecar over the main file and write its
+            decision record to .archik/decisions/NNNN-<slug>.md.
+            Refuses a sidecar without a decision record.
 
   reject    Discard the sidecar (delete the .suggested.yaml file).
+
+DECISION RECORD
+  Every change says WHY, in the draft itself:
+
+    metadata:
+      suggestion:
+        decision:
+          context: <the problem and the forces at play>
+          decision: <what you chose>
+          alternatives: [<option not chosen>, ...]   # at least one
+          consequences: <what gets easier / harder>
+          supersedes: ["0003"]                       # optional
+
+  Records are never edited after accept. To change course, stage a
+  new decision that lists the old record numbers in supersedes.
 
 NOTES
   set is the only sanctioned writer of the sidecar. Pipe via

@@ -129,6 +129,13 @@ describe("createMcpHandler", () => {
       "    name: DB",
       "    description: test fixture",
       "edges: []",
+      "metadata:",
+      "  suggestion:",
+      "    decision:",
+      "      context: Data has nowhere to live.",
+      "      decision: Add a database.",
+      "      alternatives: [Keep it in memory]",
+      "      consequences: Data survives restarts.",
       "",
     ].join("\n");
     const res = (await handle({

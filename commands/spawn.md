@@ -155,6 +155,13 @@ archik suggest set` stages it.
       name: <Id> Internals
       nodes: [ ... ]
       edges: [ ... ]
+      metadata:
+        suggestion:
+          decision:
+            context: <why this split is needed>
+            decision: <what you chose>
+            alternatives: [<option not chosen>]
+            consequences: <what gets easier and harder>
       YAML
       # mechanical: puts sub-file on disk so the main draft's
       # archikFile: pointer validates. NOT the user's review gate
@@ -191,8 +198,20 @@ archik suggest set` stages it.
         # full proposed end-state, with archikFile pointers
       edges:
         # ...
+      metadata:
+        suggestion:
+          decision:
+            context: <what the source tree shows and why it is split this way>
+            decision: <what you chose>
+            alternatives: [<option not chosen>]
+            consequences: <what gets easier and harder>
       YAML
       ```
+
+      Every draft needs its decision record — `suggest set` refuses
+      one without it. For a spawn, the context is what the source
+      tree shows; the alternatives are other ways to cut it (one
+      flat file, a different grouping).
 
    c. If `suggest set` reports validation errors, re-run with the
       corrected YAML. Never edit the sidecar by hand.

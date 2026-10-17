@@ -110,6 +110,9 @@ There are no coordinates — layout is computed by [ELK](https://eclipse.dev/elk
 | --- | --- | --- |
 | Structure | `.archik/main.archik.yaml` | Services, databases, queues, agents, LLMs, edges |
 | Sub-architecture | `.archik/*.archik.yaml` | A node's internals, linked via `archikFile` |
+| Decisions | `.archik/decisions/NNNN-*.md` | Why each accepted change was made — context, decision, alternatives, consequences |
+
+The diagram says *what*; decision records say *why*. Every staged change carries one under `metadata.suggestion.decision` — `suggest set` refuses a draft without it — and accepting the change writes it as a numbered markdown record with the node and edge changes listed as evidence. Records are never edited; a later decision that changes course lists the old numbers in `supersedes`.
 
 Full schema: `npx archik schema`.
 
@@ -215,7 +218,7 @@ Every command supports `--help`; agent-facing commands support `--json`.
 | `archik affected` | Changed files → nodes, dependents, model files, unmapped (`--since <ref>`, `--files`) |
 | `archik drift` | sourcePath gaps (`--edges` verifies edges vs the import graph) |
 | `archik otel check --graph <f>` | Verify edges against a production service-dependency graph |
-| `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` |
+| `archik suggest <sub>` | Suggestion sidecar lifecycle: `show` `set` `accept` `reject` — accept writes the decision record to `.archik/decisions/` |
 | `archik evolution <sub>` | Self-evolution loop: `enable` `reflect` `proposals` `approve` `reject` `report` |
 | `archik patterns <sub>` | Pattern library: `list` `show <id>` `apply <id>` |
 | `archik import compose\|mermaid [file]` | Bootstrap from docker-compose or a Mermaid flowchart |
@@ -238,6 +241,7 @@ Reach for archik when a project has more than a handful of components, ships wit
 | AI-editor integration | **Skill + MCP** | None | None |
 | Structural smells from code | **Yes** | No | No |
 | Drift detection | **Yes** | No | No |
+| Decision records tied to model changes | **Yes** | No | No |
 | Governance constraints | **Yes** | No | No |
 | Validator | **Schema + cross-file + constraints** | Syntax only | Syntax only |
 

@@ -9,6 +9,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 
 - **The YAML is the source of truth.** `.archik/main.archik.yaml` (and any `*.archik.yaml` sub-files) describe the system the user is building. The browser canvas is just a stateless projection of that file.
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
+- **Every change says why.** A draft carries a short decision record (context, decision, alternatives, consequences). Accept writes it to `.archik/decisions/NNNN-<slug>.md`. The diagram is the *what*; the records are the *why*. Read past records before you change a structure they explain — they are plain markdown, so reading them directly is fine (the "CLI only" rule is about the YAML model files).
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
 - **One change to ship, not the whole system.** When a user hands you a brief on a fresh project, never say "let me sketch your whole system." Propose the smallest structure that delivers the first piece of value. New code-bearing nodes start `status: proposed` (the code doesn't exist on disk yet) and flip to `status: active` when the code lands in BUILD. The project's commitments live in the YAML, not in the chat log.
 - **Read the learned overlay at session start.** If `.archik/evolution/learned.md` exists, read it (with the Read tool — it is docs, not an archik YAML) before your first archik action and treat every note as binding guidance. Each note is a lesson this project's evolution loop gathered from real usage and a human approved. After a suggestion of yours is rejected, run `npx archik evolution reflect` — repeated rejections become proposals the user can review.
@@ -79,9 +80,9 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
   └─────┬──────┘  exists.
         │
   ┌─────▼──────┐  Frame intent in one line + 1–3 sharp clarifying Qs.
-  │   DESIGN   │  Stage sidecar (`suggest set`) with rationale:
-  │            │  bounded contexts, sync vs async, composition,
-  └─────┬──────┘  alternatives rejected.       ◄── reject + reason ──┐
+  │   DESIGN   │  Stage sidecar (`suggest set`) with its decision
+  │            │  record: context, decision, alternatives,
+  └─────┬──────┘  consequences.                ◄── reject + reason ──┐
         │                                                            │
   ┌─────▼──────┐  Canvas diff: accept | reject (why?) | revise.      │
   │   DECIDE   │ ───────────────────────────────────────────────────►┤
@@ -100,8 +101,8 @@ Every structural change runs the loop. Don't skip phases; don't silently retry o
 
 | Phase    | Driver        | Tool you reach for                                  |
 | -------- | ------------- | --------------------------------------------------- |
-| Discover | Claude        | `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` |
-| Design   | Claude → User | sidecar via `suggest set`                           |
+| Discover | Claude        | `npx archik q ...` + `npx archik affected` + `npx archik smells` + `ls` + past records in `.archik/decisions/` |
+| Design   | Claude → User | sidecar via `suggest set`, with its decision record |
 | Decide   | User          | `/archik:accept` or `/archik:reject` (HITL gate)    |
 | Build    | Claude → User | numbered plan (HITL approval), then small commits   |
 | Verify   | Claude        | `npx archik validate` + tests + `drift` + `smells` + SVG regen |
@@ -172,8 +173,27 @@ edges:
     from: payments-worker
     to: order-events
     relationship: subscribes
+metadata:
+  suggestion:
+    decision:
+      context: Orders-api charges Stripe inline, so a slow Stripe call blocks checkout and a Stripe outage fails orders.
+      decision: Move charging to a payments worker that subscribes to order.placed on the order-events stream.
+      alternatives:
+        - Keep the inline call with a shorter timeout and retries
+        - Call a payments service synchronously over HTTP
+      consequences: Checkout no longer waits on Stripe; payment becomes eventually consistent, so the UI must show a "payment pending" state.
 YAML
 ```
+
+**The decision record is required** — `suggest set` refuses a draft without it, and accept writes it to `.archik/decisions/`. Write it for the reader who arrives in a year:
+
+- **context** — the problem and the forces (load, failure modes, team limits). Facts, not the solution.
+- **decision** — what you chose, in one or two sentences.
+- **alternatives** — real options you weighed and did not choose. At least one. "Do nothing" counts when it was a real option.
+- **consequences** — what gets easier AND what gets harder. A record with only upsides is not finished.
+- **supersedes** (optional) — record numbers this one replaces, e.g. `["0003"]`. Old records are never edited.
+
+For a mechanical change (flip `proposed → active` after code lands), keep it short: context = what landed, decision = mark it active, alternative = keep it proposed until deploy, consequence = drift now checks it.
 
 The CLI parses, schema-validates, checks cross-file references, stamps `metadata.suggestion`, and atomically writes the sidecar. If it exits non-zero, the error includes a hint pointing at the wrong field — fix the heredoc and re-run. **Never edit the sidecar by hand.**
 
@@ -211,6 +231,9 @@ version: "1.0"
 name: Payments internals
 nodes: [ ... ]
 edges: [ ... ]
+metadata:
+  suggestion:
+    decision: { context: ..., decision: ..., alternatives: [...], consequences: ... }
 YAML
 npx archik suggest accept .archik/payments.archik.yaml
 
@@ -225,6 +248,9 @@ nodes:
   ... (every other node)
 edges:
   ... (every edge)
+metadata:
+  suggestion:
+    decision: { context: ..., decision: ..., alternatives: [...], consequences: ... }
 YAML
 ```
 
@@ -450,11 +476,12 @@ npx archik otel check --graph <deps.json> [--json]
 
 npx archik suggest show [--json]
               suggest set <draft|->     # validate + stage a sidecar
-                  --note '<text>'       # set metadata.suggestion.note
+                                        #   (draft needs metadata.suggestion.decision)
+                  --note '<text>'       # set metadata.suggestion.note (record title)
                   --main <path>         # override main file detection
                   --allow-orphan        # permit a sidecar with no main on disk
                   --json                # structured output
-              suggest accept | reject
+              suggest accept | reject   # accept writes .archik/decisions/NNNN-*.md
 
 npx archik dev | start | stop | status  # canvas server lifecycle
 npx archik watch                        # re-render to SVG on save

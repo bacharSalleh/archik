@@ -39,7 +39,19 @@ edges:
     from: api
     to: db
     relationship: writes
+metadata:
+  suggestion:
+    decision:
+      context: Orders are only in memory and are lost on restart.
+      decision: Add a Postgres database that the API writes to.
+      alternatives:
+        - Keep orders in memory
+        - Write orders to JSON files
+      consequences: Orders survive restarts; we now run and back up a database.
 `.trimStart();
+
+/** Same draft without a decision record. */
+const draftNoDecision = draftBody.slice(0, draftBody.indexOf("metadata:"));
 
 const mainBody = `
 version: "1.0"
@@ -141,6 +153,27 @@ describe("suggestCommand set", () => {
     await expect(
       readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
     ).rejects.toThrow();
+  });
+
+  it("refuses a draft without a decision record and writes nothing", async () => {
+    await writeFile(path.join(cwd, "draft.yaml"), draftNoDecision);
+    const code = await suggestCommand({ _: ["set", "draft.yaml"] });
+    expect(code).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/decision record/i);
+    await expect(
+      readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
+    ).rejects.toThrow();
+  });
+
+  it("keeps the decision record in the staged sidecar", async () => {
+    await writeFile(path.join(cwd, "draft.yaml"), draftBody);
+    expect(await suggestCommand({ _: ["set", "draft.yaml"] })).toBe(0);
+    const sidecar = YAML.parse(
+      await readFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), "utf-8"),
+    );
+    expect(sidecar.metadata.suggestion.decision.alternatives).toHaveLength(2);
+    expect(sidecar.metadata.suggestion.at).toBeTruthy();
   });
 
   it("refuses when no draft path is given", async () => {
@@ -343,6 +376,8 @@ describe("suggestCommand show", () => {
     const out = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(out).toMatch(/add db/i);
     expect(out).toMatch(/suggestion/i);
+    expect(out).toContain("Decision record:");
+    expect(out).toContain("Write orders to JSON files");
   });
 
   it("emits structured JSON with ok, pending, suggestion.note when --json is set", async () => {
@@ -433,6 +468,41 @@ describe("suggestCommand accept", () => {
       await readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8"),
     );
     expect(main.metadata?.suggestion).toBeUndefined();
+  });
+
+  it("writes a numbered decision record on accept", async () => {
+    await writeFile(path.join(cwd, "draft.yaml"), draftBody);
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "Add db" });
+    expect(await suggestCommand({ _: ["accept"] })).toBe(0);
+
+    const record = await readFile(
+      path.join(cwd, ".archik/decisions/0001-add-db.md"),
+      "utf-8",
+    );
+    expect(record).toContain("# 0001. Add db");
+    expect(record).toContain("## Context\n\nOrders are only in memory");
+    expect(record).toContain("- Write orders to JSON files");
+    expect(record).toContain("- added node `db` (database)");
+    expect(record).toContain("- added edge `api → db` (writes)");
+
+    // A second accepted change gets the next number.
+    await writeFile(path.join(cwd, "draft.yaml"), draftBody.replace("name: DB", "name: Orders DB"));
+    await suggestCommand({ _: ["set", "draft.yaml"], note: "Rename db" });
+    expect(await suggestCommand({ _: ["accept"] })).toBe(0);
+    const second = await readFile(
+      path.join(cwd, ".archik/decisions/0002-rename-db.md"),
+      "utf-8",
+    );
+    expect(second).toContain("- changed node `db`: name");
+  });
+
+  it("refuses a sidecar without a decision record and leaves main alone", async () => {
+    const before = await readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8");
+    await writeFile(path.join(cwd, ".archik/main.archik.suggested.yaml"), draftNoDecision);
+    expect(await suggestCommand({ _: ["accept"] })).toBe(1);
+    const err = errSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(err).toMatch(/no decision record/i);
+    expect(await readFile(path.join(cwd, ".archik/main.archik.yaml"), "utf-8")).toBe(before);
   });
 
   it("logs a success message after accepting", async () => {

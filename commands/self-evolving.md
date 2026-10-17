@@ -55,7 +55,8 @@ Never `Read`/`Write`/`Edit` files under `.archik/`.
      (stages the blueprint as `status: proposed` nodes), then refine
      ids/names with a follow-up `suggest set`.
    - Tailored: author the full end-state and stage via
-     `npx archik suggest set --note '…' - <<'YAML' … YAML`.
+     `npx archik suggest set --note '…' - <<'YAML' … YAML`, with a
+     decision record under `metadata.suggestion.decision` (required).
 
 6. **Wire the tests.** Name one test per loop step: "corrections are
    recorded", "insights become proposals", "approved change applies".

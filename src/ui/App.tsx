@@ -23,6 +23,8 @@ import type { Document, NodeKind } from "../domain/types.ts";
 import { slugify, uniqueId } from "../domain/idGen.ts";
 import type { Edge } from "../domain/types.ts";
 import { useUIStore, type SelectionItem } from "./store.ts";
+import { DecisionPanel } from "./DecisionPanel.tsx";
+import type { Decision } from "../domain/decision.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
@@ -180,6 +182,7 @@ export function App(): React.ReactElement {
         removed: number;
         changed: number;
         note?: string | undefined;
+        decision?: Decision | undefined;
         // Cache the parsed sidecar so Review can render instantly
         // without re-parsing or hitting the network.
         doc: Document;
@@ -425,6 +428,9 @@ export function App(): React.ReactElement {
           doc: sidecarDoc,
           ...(sidecarDoc.metadata?.suggestion?.note !== undefined
             ? { note: sidecarDoc.metadata.suggestion.note }
+            : {}),
+          ...(sidecarDoc.metadata?.suggestion?.decision !== undefined
+            ? { decision: sidecarDoc.metadata.suggestion.decision }
             : {}),
         });
       } catch (err) {
@@ -1032,6 +1038,7 @@ export function App(): React.ReactElement {
           removed={suggestion.removed}
           changed={suggestion.changed}
           note={suggestion.note}
+          decision={suggestion.decision}
           reviewing={reviewing}
           onReview={toggleReview}
           onAccept={() => void acceptSuggestion()}
@@ -1314,6 +1321,7 @@ function SuggestionBanner({
   removed,
   changed,
   note,
+  decision,
   reviewing,
   onReview,
   onAccept,
@@ -1323,13 +1331,16 @@ function SuggestionBanner({
   removed: number;
   changed: number;
   note?: string | undefined;
+  decision?: Decision | undefined;
   reviewing: boolean;
   onReview: () => void;
   onAccept: () => void;
   onReject: () => void;
 }): React.ReactElement {
   const total = added + removed + changed;
+  const [showWhy, setShowWhy] = useState(false);
   return (
+    <>
     <div
       role="region"
       aria-label="Pending suggestion"
@@ -1382,6 +1393,21 @@ function SuggestionBanner({
         ) : null}
       </span>
       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        {decision ? (
+          <button
+            type="button"
+            onClick={() => setShowWhy((v) => !v)}
+            className="archik-btn"
+            aria-expanded={showWhy}
+            style={{ padding: "5px 12px", fontSize: 12 }}
+          >
+            {showWhy ? "Hide why" : "Why"}
+          </button>
+        ) : (
+          <span style={{ color: "var(--archik-warning)", alignSelf: "center" }}>
+            No decision record — re-stage with one to accept
+          </span>
+        )}
         <button
           type="button"
           onClick={onReview}
@@ -1403,11 +1429,14 @@ function SuggestionBanner({
         <button
           type="button"
           onClick={onAccept}
+          disabled={!decision}
           className="archik-btn"
           title={
-            total === 0
-              ? "Suggestion already matches the current file — Accept just clears the sidecar."
-              : "Apply the suggestion to the main file."
+            !decision
+              ? "Accept needs a decision record (context, decision, alternatives, consequences) in the suggestion."
+              : total === 0
+                ? "Suggestion already matches the current file — Accept just clears the sidecar."
+                : "Apply the suggestion and write its decision record to .archik/decisions/."
           }
           style={{
             padding: "5px 12px",
@@ -1434,5 +1463,7 @@ function SuggestionBanner({
         </button>
       </div>
     </div>
+    {decision && showWhy ? <DecisionPanel decision={decision} /> : null}
+    </>
   );
 }

@@ -8,10 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- **Decision records**: every staged change carries a short decision record (context, decision, alternatives, consequences, optional `supersedes`) under `metadata.suggestion.decision`. Accepting it — from the CLI, the canvas or MCP — writes `.archik/decisions/NNNN-<slug>.md`, with the node and edge changes listed as evidence. Records are never edited. The canvas review banner shows the record under **Why**. `patterns apply` and `evolution approve` generate one from their own data.
 
 ### Changed
--
+- **BREAKING**: `archik suggest set` refuses a draft without a decision record, and accept (CLI and canvas) refuses a sidecar without one. Drafts no longer need `metadata.suggestion.from` / `at` — the CLI stamps them.
+- The engineering loop template, the Claude skill and the slash commands teach the decision record as part of DESIGN, and reading past records as part of DISCOVER.
 
 ### Fixed
 -

@@ -107,6 +107,13 @@ any file under `.archik/`.
      # full proposed end-state — every node, not just the delta
    edges:
      # ...
+   metadata:
+     suggestion:
+       decision:
+         context: <the smell and its evidence, e.g. the folder loop imports>
+         decision: <the refactor you chose>
+         alternatives: [<other fixes you weighed, incl. leaving it>]
+         consequences: <what gets easier and what it costs>
    YAML
    ```
 
