@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyChange } from "./door.ts";
+import { classifyChange, isStructuralChange } from "./door.ts";
 import type { Document } from "./types.ts";
 
 const base: Document = {
@@ -86,5 +86,18 @@ describe("classifyChange", () => {
     const planned = withNodes({ id: "db", kind: "database", name: "DB", description: "x", status: "proposed" });
     expect(classifyChange(base, planned).needsCrossCutting).toBe(true); // still a data store decision
     expect(classifyChange(planned, base).reasons).toEqual([]); // dropping a plan is cheap
+  });
+});
+
+describe("isStructuralChange", () => {
+  it("ignores wording edits", () => {
+    const renamed: Document = { ...base, nodes: base.nodes.map((x) => (x.id === "cart" ? { ...x, name: "Basket", description: "y" } : x)) };
+    expect(isStructuralChange(base, renamed)).toBe(false);
+  });
+  it("counts moves, new nodes, new edges and style changes", () => {
+    const moved: Document = { ...base, nodes: base.nodes.map((x) => (x.id === "cart" ? { ...x, parentId: "checkout" } : x)) };
+    expect(isStructuralChange(base, moved)).toBe(true);
+    expect(isStructuralChange(base, { ...base, edges: [{ id: "e", from: "app", to: "stripe", relationship: "uses" }] })).toBe(true);
+    expect(isStructuralChange(base, { ...base, style: { kind: "layered" } })).toBe(true);
   });
 });

@@ -3,8 +3,10 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Readable } from "node:stream";
 import {
   handleAccept,
+  handleDecide,
   listArchikFiles,
   safeResolveProjectFile,
 } from "./handlers.ts";
@@ -281,5 +283,54 @@ describe("handleAccept (canvas accept)", () => {
     expect(res.statusCode).toBe(400);
     expect(res.body).toMatch(/no decision record/i);
     expect(await readFile(main(), "utf-8")).not.toContain("id: web");
+  });
+});
+
+describe("handleDecide (architect saves with a why)", () => {
+  let root: string;
+  const main = () => path.join(root, ".archik/main.archik.yaml");
+  const post = (body: unknown) =>
+    Object.assign(Readable.from([Buffer.from(JSON.stringify(body))]), {
+      method: "POST",
+      headers: { host: "localhost:5173" },
+    }) as unknown as IncomingMessage;
+  const fakeRes = () => {
+    const r = { statusCode: 0, body: "", setHeader() {}, end(b?: string) { if (b) r.body = b; } };
+    return r;
+  };
+  const yaml = (extraNode: string) =>
+    ['version: "1.0"', "name: Demo", "nodes:", "  - { id: web, kind: frontend, name: Web, description: x }", extraNode, "edges: []", ""].join("\n");
+  const decision = { context: "c", decision: "d", alternatives: ["a"], consequences: "e" };
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "archik-decide-"));
+    await mkdir(path.join(root, ".archik"));
+    await writeFile(main(), yaml(""));
+  });
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("writes the model and its decision record", async () => {
+    const res = fakeRes();
+    await handleDecide(root, main(), post({ yaml: yaml("  - { id: api, kind: frontend, name: API, description: x }"), note: "Add api", decision }), res as unknown as ServerResponse);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).record).toBe(".archik/decisions/0001-add-api.md");
+    expect(await readFile(main(), "utf-8")).toContain("id: api");
+  });
+
+  it("refuses without a decision record", async () => {
+    const res = fakeRes();
+    await handleDecide(root, main(), post({ yaml: yaml("") }), res as unknown as ServerResponse);
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatch(/decision record/);
+  });
+
+  it("asks for cross-cutting notes on a risky one-way door", async () => {
+    const res = fakeRes();
+    await handleDecide(root, main(), post({ yaml: yaml("  - { id: db, kind: database, name: DB, description: x }"), decision }), res as unknown as ServerResponse);
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toContain("adds database `db`");
+    expect(await readFile(main(), "utf-8")).not.toContain("id: db");
   });
 });

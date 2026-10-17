@@ -36,7 +36,9 @@ done at step 1 — the diagram changed; the code probably hasn't.
    ran approved it — go straight to step 4. One-way doors always get
    their own plan approval here.
 
-   Translate the diagram delta into a numbered file-level
+   Start from `npx archik gap --json` — it lists the code work the
+   accepted model now asks for (moves, new code, imports, style
+   breaks). Then translate the diagram delta into a numbered file-level
    plan and present it for approval **before** touching code:
    - Each new code-bearing node (`service`, `function`, `worker`,
      `module`, `page`, `component`, `store`, `hook`, `model`, `dto`,

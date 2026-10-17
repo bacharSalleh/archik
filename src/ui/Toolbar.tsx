@@ -19,6 +19,7 @@ import { AddNodeForm } from "./AddNodeForm.tsx";
 import { ExportMenu } from "./ExportMenu.tsx";
 import { LayoutControls } from "./LayoutControls.tsx";
 import { Legend } from "./Legend.tsx";
+import { GapPanel } from "./GapPanel.tsx";
 import { Logo } from "./Logo.tsx";
 import { Popover } from "./Popover.tsx";
 import { SearchBox } from "./SearchBox.tsx";
@@ -53,6 +54,9 @@ type Props = {
   onRedo?: () => void;
   /** Returns the live canvas <svg> for SVG / PNG export. */
   getSvg?: () => SVGSVGElement | null;
+  /** Bumped after each save so the Code gap panel rechecks. When
+   *  undefined the panel is hidden (embedders without a server). */
+  gapRefreshKey?: number;
   /** Canvas view: hide structural (weak) edges. When the toggle handler
    *  is undefined the button is hidden. */
   hideStructural?: boolean;
@@ -102,6 +106,7 @@ export function Toolbar({
   onUndo,
   onRedo,
   getSvg,
+  gapRefreshKey,
   hideStructural,
   onToggleHideStructural,
   onCollapseAll,
@@ -153,6 +158,7 @@ export function Toolbar({
   );
   const panels = (
     <>
+      {gapRefreshKey !== undefined ? <GapPanel refreshKey={gapRefreshKey} /> : null}
       <Legend style={document.style} />
       <ExportMenu
         document={document}

@@ -519,7 +519,7 @@ describe("suggestCommand accept", () => {
       path.join(cwd, ".archik/decisions/0002-rename-db.md"),
       "utf-8",
     );
-    expect(second).toContain("- changed node `db`: name");
+    expect(second).toContain("- changed node `db`: name: DB → Orders DB");
   });
 
   it("refuses a sidecar without a decision record and leaves main alone", async () => {

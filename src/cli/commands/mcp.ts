@@ -32,6 +32,7 @@ import { qCommand } from "./q.ts";
 import { schemaCommand } from "./schema.ts";
 import { smellsCommand } from "./smells.ts";
 import { styleCommand } from "./style.ts";
+import { gapCommand } from "./gap.ts";
 import { suggestCommand } from "./suggest.ts";
 import { validateCommand } from "./validate.ts";
 import { readLearned } from "../../io/evolution-log.ts";
@@ -217,6 +218,16 @@ function buildTools(): ToolDef[] {
         properties: { list: { type: "boolean", description: "list all supported styles" } },
       },
       run: (args) => capture(() => styleCommand(opts(args["list"] === true ? ["list"] : []))),
+    },
+    {
+      name: "archik_gap",
+      description:
+        "What the code must change to match the model the architect steers: move-code, create-code, style-break, remove-import, add-dependency, finish. Work this list until it is empty; set all=true to also list imports the model never drew (model debt).",
+      inputSchema: {
+        type: "object",
+        properties: { all: { type: "boolean", description: "include undeclared imports" } },
+      },
+      run: (args) => capture(() => gapCommand(opts([], { all: args["all"] === true ? "true" : undefined }))),
     },
     {
       name: "archik_validate",

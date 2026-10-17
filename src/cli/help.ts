@@ -724,6 +724,41 @@ EXAMPLES
   archik affected --files src/api/routes.ts,src/worker/run.ts
 `,
 
+  gap: `archik gap — what the code must change to match the model
+
+USAGE
+  archik gap [path] [--json] [--all] [--fail-on-gap]
+
+FLAGS
+  --json          structured tasks (type + text) for agents
+  --all           also list imports the model never drew (model debt)
+  --fail-on-gap   exit 1 while steering work remains (CI gate)
+
+DESCRIPTION
+  The architect steers the model (move a box, draw or delete an edge,
+  set a layer or style). This lists the work that makes the code catch up:
+
+    MOVE            a node's sourcePath changed; its code is still at the
+                    old path (taken from the last git commit)
+    CREATE          a node's sourcePath does not exist yet
+    STYLE           an import breaks the architecture style
+    REMOVE IMPORT   an edge was deleted since the last commit, but the
+                    code still imports across it
+    ADD DEPENDENCY  a structural edge has no matching import yet
+    FINISH          a proposed node's code now exists — flip it active
+
+  Imports the model never drew are counted separately (\`--all\` lists
+  them) — they are model debt, not work the architect asked for.
+
+  Hand the list to a coding agent with /archik:realize. Done when this
+  prints "the code matches the model".
+
+EXIT CODES
+  0  success (or gap found without --fail-on-gap)
+  1  steering work remains (with --fail-on-gap)
+  2  could not load the model
+`,
+
   style: `archik style — the architecture style the code must follow
 
 USAGE

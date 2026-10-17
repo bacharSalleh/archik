@@ -10,7 +10,10 @@ import {
   handleArchikAccept,
   handleArchikFile,
   handleDiffSvg,
+  handleDecide,
+  handleGap,
   handleListFiles,
+  safeResolveProjectFile,
   handleNodeKinds,
   handleSidecar,
   handleYaml,
@@ -24,6 +27,8 @@ const SIDECAR_URL = `/architecture.archik.suggested.yaml`;
 const FILE_URL = `/__archik/file`;
 const FILE_ACCEPT_URL = `/__archik/file-accept`;
 const FILES_URL = `/__archik/files`;
+const DECIDE_URL = `/__archik/decide`;
+const GAP_URL = `/__archik/gap`;
 const NODE_KINDS_URL = `/__archik/node-kinds`;
 const ACCEPT_URL = "/__archik/accept-suggestion";
 const DIFF_SVG_URL = "/__archik/diff.svg";
@@ -81,6 +86,23 @@ export function archikWatch(): Plugin {
         if (req.method === undefined) return next();
         const rel = parsePathParam(req.url ?? "");
         void handleArchikAccept(root, rel, req, res);
+      });
+
+      server.middlewares.use(DECIDE_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        const rel = parsePathParam(req.url ?? "");
+        const target = rel === "" ? docPath : safeResolveProjectFile(root, rel);
+        if (target === null) {
+          res.statusCode = 400;
+          res.end("Bad path");
+          return;
+        }
+        void handleDecide(root, target, req, res);
+      });
+
+      server.middlewares.use(GAP_URL, (req, res, next) => {
+        if (req.method === undefined) return next();
+        void handleGap(root, docPath, req, res);
       });
 
       server.middlewares.use(FILES_URL, (req, res, next) => {

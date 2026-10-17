@@ -39,6 +39,14 @@ function mockFetchWithSuggestionDisabled(...mainResponses: Response[]) {
         json: async () => ({ files: [] }),
       } as unknown as Response;
     }
+    // The Code gap panel checks on mount and after each save.
+    if (url.includes("/__archik/gap")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, tasks: [], undeclaredImports: 0 }),
+      } as unknown as Response;
+    }
     const next = mainResponses[mainCalls++];
     if (next === undefined) {
       throw new Error(`unexpected fetch to ${url} (no more mocked responses)`);
@@ -111,7 +119,8 @@ describe("App", () => {
       const url = typeof input === "string" ? input : (input as Request).url;
       return (
         !url.includes(SUGGESTION_URL) &&
-        !url.includes("/__archik/files")
+        !url.includes("/__archik/files") &&
+        !url.includes("/__archik/gap")
       );
     });
     expect(mainCalls).toHaveLength(2);

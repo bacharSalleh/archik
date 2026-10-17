@@ -11,6 +11,7 @@ description: Use whenever .archik/main.archik.yaml or architecture.archik.yaml e
 - **The CLI is your only interface to it.** You never read, write, or edit archik files directly. Every read goes through `npx archik q ...`; every write goes through `npx archik suggest set` → user accepts via `/archik:accept`.
 - **Every change says why.** A draft carries a short decision record (context, decision, alternatives, consequences). Accept writes it to `.archik/decisions/NNNN-<slug>.md`. The diagram is the *what*; the records are the *why*. Read past records before you change a structure they explain — they are plain markdown, so reading them directly is fine (the "CLI only" rule is about the YAML model files).
 - **The architect chose a structure — follow it.** If the model declares a `style` (layered, hexagonal, clean, modular-monolith, feature-slices), run `npx archik style` before you design anything. Every new node goes in a layer (or module) that fits its job, and every dependency follows the style's rule — `suggest set` rejects one that breaks it. Put the code where the layer says: an adapter's code lives with the adapters, not inside the core. If the change seems to need a dependency the style forbids, that is a design question for the user — ask, don't work around it.
+- **The architect steers the model; you make the code follow.** The architect may change the architecture directly on the canvas — move a box into another module, draw or delete an edge, set a layer — and save it with a decision record. The model is then ahead of the code. `npx archik gap` lists exactly what the code must change (move / create code, remove or add imports, style breaks, nodes to finish). When the user says the architecture changed, or runs `/archik:realize`, work that list until `gap` says the code matches the model. A `proposed` node's `sourcePath` is where its code is *planned* to live.
 - **Two command surfaces:** the user types `/archik:*` slash commands; you run `npx archik ...` directly. They're not interchangeable — see the tables below.
 - **One change to ship, not the whole system.** When a user hands you a brief on a fresh project, never say "let me sketch your whole system." Propose the smallest structure that delivers the first piece of value. New code-bearing nodes start `status: proposed` (the code doesn't exist on disk yet) and flip to `status: active` when the code lands in BUILD. The project's commitments live in the YAML, not in the chat log.
 - **Read the learned overlay at session start.** If `.archik/evolution/learned.md` exists, read it (with the Read tool — it is docs, not an archik YAML) before your first archik action and treat every note as binding guidance. Each note is a lesson this project's evolution loop gathered from real usage and a human approved. After a suggestion of yours is rejected, run `npx archik evolution reflect` — repeated rejections become proposals the user can review.
@@ -31,6 +32,7 @@ These are the user's entry points. They're triggered by the user typing `/archik
 | `/archik:dev`                     | Open the live canvas                                              |
 | `/archik:accept`                  | Apply the pending sidecar suggestion                              |
 | `/archik:reject`                  | Discard the pending sidecar suggestion                            |
+| `/archik:realize`                 | Make the code match the model the architect changed (works `archik gap`) |
 | `/archik:self-evolving <idea>`    | Design a self-evolving architecture for the user's idea, using the pattern library |
 
 The full protocol for each lives at `commands/<name>.md` in the repo (or `.claude/commands/archik/<name>.md` once installed in a project). Follow it when invoked.
@@ -51,6 +53,7 @@ These are the verbs you reach for during the loop. Default to `npx archik` (no g
 | Validate a file                   | `npx archik validate <path>`                  |
 | Spot over-complex files / hubs    | `npx archik complexity [--fail-on-warn]`      |
 | See the architecture style + where nodes sit | `npx archik style` (`list` for all styles) |
+| What the code must change to match the model | `npx archik gap [--json] [--all]` |
 | Where a node sits / what it may use | `npx archik q describe <id>` (the `style:` line) |
 | Find folder loops / oversized files | `npx archik smells [dir] [--json] [--fail-on-warn]` |
 | Accept today's smells as known debt | `npx archik smells --update-baseline` (commit `.archik/smells-baseline.json`) |
@@ -470,6 +473,8 @@ npx archik complexity [path] [--json]   # advisory report: over-large files, hub
                   [--fail-on-warn]      #   exit 1 if any finding (CI / pre-commit gate)
                   [--max-nodes N] [--max-edges N] [--max-children N]
                   [--max-degree N] [--max-depth N]   # override the strict defaults
+npx archik gap [--json] [--all]         # what the code must change to match the model
+                  [--fail-on-gap]       #   (move/create code, imports, style, finish)
 npx archik style [list] [--json]        # the architecture style: rule, layers / modules,
                                         #   violations; list = every style + its YAML
 npx archik smells [dir] [--json]        # folder loops + oversized files, read from TS/JS code

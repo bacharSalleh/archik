@@ -358,10 +358,10 @@ describe("checkSourcePaths", () => {
     expect(checkSourcePaths(proposedDoc, "normal", exists)).toEqual([]);
   });
 
-  it("still rejects a proposed node whose declared sourcePath doesn't resolve", () => {
-    // Once a path is declared, even a proposed node has to keep it
-    // honest — otherwise typos / refactor stragglers slip through
-    // silently.
+  it("accepts a proposed node whose sourcePath is a planned location", () => {
+    // A proposed node's path is where its code WILL live (a new
+    // component, or a move the architect made on the canvas).
+    // `archik gap` lists it as create / move work instead.
     const stalePathDoc: Document = {
       version: "1.0",
       name: "Demo",
@@ -377,9 +377,11 @@ describe("checkSourcePaths", () => {
       ],
       edges: [],
     };
-    const errors = checkSourcePaths(stalePathDoc, "normal", exists);
+    expect(checkSourcePaths(stalePathDoc, "normal", exists)).toEqual([]);
+    // The same path on a built (active) node is still an error.
+    const active = { ...stalePathDoc, nodes: [{ ...stalePathDoc.nodes[0]!, status: "active" as const }] };
+    const errors = checkSourcePaths(active, "normal", exists);
     expect(errors).toHaveLength(1);
-    expect(errors[0]!.path).toBe("nodes.0.sourcePath");
     expect(errors[0]!.message).toMatch(/does not exist on disk/);
   });
 

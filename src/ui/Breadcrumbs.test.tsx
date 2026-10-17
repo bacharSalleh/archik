@@ -8,6 +8,7 @@ const root: FileFrame = {
   docUrl: "/architecture.archik.yaml",
   sidecarUrl: "/architecture.archik.suggested.yaml",
   acceptUrl: "/__archik/accept-suggestion",
+  decideUrl: "/__archik/decide",
   archikFile: null,
 };
 
@@ -16,6 +17,7 @@ const orders: FileFrame = {
   docUrl: "/__archik/file?path=.archik%2Forders.archik.yaml",
   sidecarUrl: "/__archik/file?path=.archik%2Forders.archik.suggested.yaml",
   acceptUrl: "/__archik/file-accept?path=.archik%2Forders.archik.yaml",
+  decideUrl: "/__archik/decide?path=.archik%2Forders.archik.yaml",
   archikFile: ".archik/orders.archik.yaml",
 };
 

@@ -10,6 +10,8 @@ I move from **brief → structural model → build plan → code**. Each step is
 
 The **architecture style** (`style:` in the model — layered, hexagonal, clean, modular monolith or feature slices) is the architect's choice of structure; archik enforces it on every change and draws the board in its lanes. The **structural model** (archik diagram — nodes, nesting via `parentId` and sub-files, edges) says *what exists* and *which way dependencies flow*. **Decision records** in `.archik/decisions/` say *why* it is shaped that way — one per accepted change. `archik drift` and `archik smells` check it against the real code. Code is the last artifact, not the first.
 
+**The architect can steer directly.** Moving a box, drawing or deleting an edge, or setting a layer on the canvas saves the change with its decision record — the model is then ahead of the code. `npx archik gap` lists what the code must change; `/archik:realize` closes that list.
+
 Two gate types:
 
 - **Canvas gate** — `/archik:accept` on the rendered diff. Used for the structural sidecar.
@@ -89,7 +91,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 
 1. **Structural sidecar** — `/archik:suggest <feature>`. Stages the proposed end-state for this milestone via `npx archik suggest set` under the hood, with its decision record. Note whether `suggest set` called it a one-way or two-way door.
 2. **`/archik:accept` on the structural diagram** — formal canvas gate.
-3. **BUILD plan** — one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan. For a one-way door with `crossCutting`, the plan also lands what it promised: the security control, the signal you will watch, the rollback path.
+3. **BUILD plan** — start from `npx archik gap` (the exact code work the model now asks for), then: one-line goal, deps, files with paths and signatures, non-obvious bits, acceptance gate, out-of-scope items, the `proposed → active` flip this milestone will produce. Each new edge must map to a real call in the plan. For a one-way door with `crossCutting`, the plan also lands what it promised: the security control, the signal you will watch, the rollback path.
 4. **"approve" on the plan** — plan gate. Don't start editing files until approved. *Two-way door:* steps 1–4 collapse — show the plan together with the sidecar, and `/archik:accept` approves both.
 5. **Execute** — small commits, narrate non-obvious decisions, declare back-edges to DESIGN openly when they happen.
 6. **Verify** — project tests → lint → build → `npx archik drift` → `npx archik smells` → aesthetic eyeball (if UI). No **new** folder loop or oversized file should close the milestone (with a committed baseline, `smells` marks them NEW). For a one-way door, check the `crossCutting` promises exist in the code before the flip to `active`.
@@ -153,7 +155,7 @@ Every milestone follows the same shape. Two gate types apply — **canvas gate**
 2. Lint — clean.
 3. Build / typecheck — clean.
 4. `npx archik validate` — schema + cross-file + constraint checks clean.
-5. `npx archik drift` — structural model matches disk.
+5. `npx archik drift` — structural model matches disk; `npx archik gap` — "the code matches the model".
 6. `npx archik smells` — no **new** folder loops or oversized files. On existing code, run `npx archik smells --update-baseline` once and commit `.archik/smells-baseline.json`; `--fail-on-warn` then fails CI only on new findings. Tighten the baseline when findings are fixed.
 7. For one-way doors: the record's `crossCutting` promises (security control, signal, rollback path) exist in the code.
 8. Aesthetic eyeball when there's a UI — share a screenshot, ask before declaring done.
