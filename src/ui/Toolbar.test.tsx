@@ -98,7 +98,7 @@ function stubMatchMedia(narrow: boolean): void {
     writable: true,
     configurable: true,
     value: vi.fn((query: string) => ({
-      matches: narrow && query === "(max-width: 900px)",
+      matches: narrow && query === "(max-width: 1100px)",
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},

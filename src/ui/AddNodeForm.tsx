@@ -50,7 +50,7 @@ export function AddNodeForm({ onAdd }: AddNodeFormProps): React.ReactElement {
         className="archik-btn"
         aria-label="Add node"
         title="Add node"
-        {...(isPhone ? { style: { padding: "5px 8px" } } : {})}
+        style={isPhone ? { padding: "5px 8px" } : { whiteSpace: "nowrap" }}
       >
         {isPhone ? <Plus size={14} strokeWidth={1.8} /> : "+ Node"}
       </button>

@@ -8,10 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
--
+- **Full-bleed canvas with an auto-hide header**: the diagram now fills the whole window — no page padding, panel frame or separate file bar. The header slides in when the pointer reaches the top edge (or focus moves into it, e.g. `/` search) and hides again when you leave; it stays out while a menu is open or there are unsaved changes / errors. A pin button keeps it always visible (remembered per browser). Touch screens and narrow windows keep a normal, always-visible header.
+- The diagram picker (file switcher and breadcrumbs) moved into the header.
 
 ### Changed
--
+- The header moves its secondary buttons into the "More" menu below 1100px wide (was 900px); "+ Node" no longer wraps.
 
 ### Fixed
 -

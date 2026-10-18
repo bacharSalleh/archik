@@ -6,6 +6,8 @@ import {
   Minimize2,
   Minus,
   MoreHorizontal,
+  Pin,
+  PinOff,
   Plus,
   Redo2,
   Rows3,
@@ -65,6 +67,13 @@ type Props = {
   focusDepth?: number;
   onFocusDepthChange?: (depth: number) => void;
   onClearFocus?: () => void;
+  /** Diagram picker (file switcher + breadcrumbs), shown after the
+   *  document name. */
+  navigation?: React.ReactNode;
+  /** Keep the header visible instead of auto-hiding. The toggle is
+   *  hidden when onTogglePin is undefined. */
+  pinned?: boolean;
+  onTogglePin?: () => void;
 };
 
 const SAVE_VARIANT: Record<SaveStatus, string> = {
@@ -109,15 +118,19 @@ export function Toolbar({
   focusDepth,
   onFocusDepthChange,
   onClearFocus,
+  navigation,
+  pinned,
+  onTogglePin,
 }: Props): React.ReactElement {
   const saveLabel = SAVE_LABELS[saveStatus];
   const shortcutHint =
     typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)
       ? "⌘S"
       : "Ctrl+S";
-  // Responsive: below 900px the secondary controls move into a "More"
-  // menu; below 640px the bar keeps only + Node / Save / theme / More.
-  const isTablet = useMediaQuery("(max-width: 900px)");
+  // Responsive: below 1100px the secondary controls move into a "More"
+  // menu (the header also carries the diagram picker); below 640px the
+  // bar keeps only + Node / Save / theme / More.
+  const isTablet = useMediaQuery("(max-width: 1100px)");
   const isPhone = useMediaQuery("(max-width: 640px)");
 
   const searchBox = <SearchBox document={document} />;
@@ -166,6 +179,25 @@ export function Toolbar({
   // in the bar; below 900px they move into the "More" menu, each row
   // getting its text label next to the same control.
   const secondary: Array<{ key: string; label: string; node: React.ReactNode }> = [];
+  if (onTogglePin !== undefined) {
+    secondary.push({
+      key: "pin",
+      label: pinned ? "Auto-hide header" : "Keep header visible",
+      node: (
+        <button
+          type="button"
+          onClick={onTogglePin}
+          title={pinned ? "Auto-hide the header (show it from the top edge)" : "Keep the header visible"}
+          aria-label={pinned ? "Auto-hide header" : "Keep header visible"}
+          aria-pressed={pinned}
+          className="archik-btn"
+          style={{ padding: "5px 8px" }}
+        >
+          {pinned ? <PinOff size={14} strokeWidth={1.8} /> : <Pin size={14} strokeWidth={1.8} />}
+        </button>
+      ),
+    });
+  }
   if (viewMode !== undefined && onViewModeChange !== undefined) {
     secondary.push({
       key: "view-mode",
@@ -400,6 +432,9 @@ export function Toolbar({
       >
         {document.name}
       </span>
+      {navigation !== undefined ? (
+        <div className="flex shrink-0 items-center gap-2">{navigation}</div>
+      ) : null}
       {connectingFromName !== undefined && (
         <span className="archik-pill archik-pill--info">
           Connecting from <strong>{connectingFromName}</strong>

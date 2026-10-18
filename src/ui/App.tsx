@@ -29,6 +29,7 @@ import { classifyChange, type DoorClassification } from "../domain/door.ts";
 import { NodeInspector } from "./NodeInspector.tsx";
 import { EdgeInspector } from "./EdgeInspector.tsx";
 import { Toolbar } from "./Toolbar.tsx";
+import { AutoHideHeader, loadHeaderPinned, saveHeaderPinned } from "./AutoHideHeader.tsx";
 import { Breadcrumbs } from "./Breadcrumbs.tsx";
 import { FileSwitcher, type FileEntry } from "./FileSwitcher.tsx";
 import {
@@ -166,6 +167,13 @@ export function App(): React.ReactElement {
     undefined,
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [headerPinned, setHeaderPinned] = useState<boolean>(() => loadHeaderPinned());
+  const toggleHeaderPinned = (): void => {
+    setHeaderPinned((p) => {
+      saveHeaderPinned(!p);
+      return !p;
+    });
+  };
   // Latest server-side validation message when a PUT was rejected
   // (e.g. "node X is missing required sourcePath"). Cleared on the
   // next successful save / status change. Shown in Toolbar so the
@@ -993,8 +1001,32 @@ export function App(): React.ReactElement {
         color: "var(--archik-fg)",
       }}
     >
+      <AutoHideHeader
+        pinned={headerPinned}
+        forceVisible={isDirty || commandError !== undefined || saveStatus === "error" || connectFrom !== null}
+      >
       <Toolbar
         document={doc}
+        pinned={headerPinned}
+        onTogglePin={toggleHeaderPinned}
+        {...(availableFiles.length > 1 || fileStack.length > 1
+          ? {
+              navigation: (
+                <>
+                  <FileSwitcher
+                    files={availableFiles}
+                    currentPath={currentFilePath}
+                    onSwitchFile={switchToFile}
+                  />
+                  <Breadcrumbs
+                    stack={fileStack}
+                    onGoToFrame={goToFrame}
+                    suggestionsByPath={suggestionsByPath}
+                  />
+                </>
+              ),
+            }
+          : {})}
         commandError={commandError}
         saveStatus={saveStatus}
         {...(saveError !== null ? { saveError } : {})}
@@ -1035,6 +1067,7 @@ export function App(): React.ReactElement {
             }
           : {})}
       />
+      </AutoHideHeader>
       {suggestion.status === "pending" && (
         <SuggestionBanner
           added={suggestion.added}
@@ -1132,7 +1165,7 @@ export function App(): React.ReactElement {
         </div>
       )}
       <main
-        className="archik-main flex min-h-0 flex-1 p-4"
+        className="archik-main flex min-h-0 flex-1"
         style={{ gap: 0 }}
       >
         <div
@@ -1147,29 +1180,6 @@ export function App(): React.ReactElement {
               width: "100%",
             }}
           >
-            {(availableFiles.length > 1 || fileStack.length > 1) && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  background: "var(--archik-surface)",
-                  borderBottom: "1px solid var(--archik-border)",
-                }}
-              >
-                <FileSwitcher
-                  files={availableFiles}
-                  currentPath={currentFilePath}
-                  onSwitchFile={switchToFile}
-                />
-                <Breadcrumbs
-                  stack={fileStack}
-                  onGoToFrame={goToFrame}
-                  suggestionsByPath={suggestionsByPath}
-                />
-              </div>
-            )}
             <Canvas
               document={docForLayout}
               className="flex-1 archik-grid"
